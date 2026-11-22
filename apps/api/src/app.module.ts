@@ -1,10 +1,25 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller.js';
-import { AppService } from './app.service.js';
+import { ConfigModule } from './config/config.module.js';
+import { DatabaseModule } from './infrastructure/database/database.module.js';
+import { RedisModule } from './infrastructure/redis/redis.module.js';
+import { AuthModule } from './modules/auth/auth.module.js';
+import { GameModule } from './modules/game/game.module.js';
+import { HealthModule } from './modules/health/health.module.js';
+import { MatchesModule } from './modules/matches/matches.module.js';
+import { RealtimeModule } from './modules/realtime/realtime.module.js';
 
 @Module({
-  imports: [],
-  controllers: [AppController],
-  providers: [AppService],
+  imports: [
+    // Infraestructura (globales)
+    ConfigModule,
+    DatabaseModule,
+    RedisModule,
+    RealtimeModule,
+    // Funcionalidades
+    AuthModule,
+    HealthModule,
+    MatchesModule,
+    GameModule,
+  ],
 })
 export class AppModule {}

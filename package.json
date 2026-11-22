@@ -6,7 +6,14 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "check-types": "turbo run check-types"
+    "check-types": "turbo run check-types",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "docker:clean": "docker compose down -v",
+    "test": "turbo run test",
+    "test:e2e": "turbo run test:e2e",
+    "docker:up:all": "docker compose --profile prod up -d --build"
   },
   "devDependencies": {
     "prettier": "3.9.6",

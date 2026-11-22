@@ -1,0 +1,142 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+  API_IMAGE: ghcr.io/${{ github.repository_owner }}/manhunt-api
+
+jobs:
+  # ------------------------------------------------------------------
+  # Lint, tipos, tests unitarios y build (API + paquetes de los que depende)
+  # ------------------------------------------------------------------
+  quality:
+    name: Lint · Tipos · Tests · Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run lint check-types test build --filter=@manhunt/api...
+
+  # ------------------------------------------------------------------
+  # Tests e2e contra Postgres y Redis reales
+  # ------------------------------------------------------------------
+  e2e:
+    name: Tests e2e
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: manhunt
+          POSTGRES_PASSWORD: manhunt_secret
+          POSTGRES_DB: manhunt_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U manhunt -d manhunt_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:8-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://manhunt:manhunt_secret@localhost:5432/manhunt_test
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      JWT_SECRET: ci_only_secret_at_least_16_chars
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run test:e2e --filter=@manhunt/api
+
+  # ------------------------------------------------------------------
+  # Imagen Docker: se construye siempre; se publica en GHCR solo en main
+  # ------------------------------------------------------------------
+  docker:
+    name: Imagen Docker
+    runs-on: ubuntu-latest
+    needs: [quality, e2e]
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tag: ${{ steps.vars.outputs.sha_tag }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: vars
+        run: echo "sha_tag=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ${{ env.API_IMAGE }}
+          tags: |
+            type=raw,value=${{ steps.vars.outputs.sha_tag }}
+            type=raw,value=latest,enable={{is_default_branch}}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ------------------------------------------------------------------
+  # Despliegue (opcional): se activa definiendo la variable DEPLOY_HOST.
+  # El servidor necesita Docker, este repo (o su docker-compose.yml) en
+  # DEPLOY_PATH y un .env con los secretos de producción.
+  # ------------------------------------------------------------------
+  deploy:
+    name: Desplegar
+    runs-on: ubuntu-latest
+    needs: docker
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_HOST != ''
+    environment: production
+    steps:
+      - name: Configurar SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ vars.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+      - name: Actualizar contenedores
+        env:
+          TARGET: ${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}
+          IMAGE: ${{ env.API_IMAGE }}:${{ needs.docker.outputs.tag }}
+        run: |
+          ssh "$TARGET" "cd '${{ vars.DEPLOY_PATH }}' \
+            && export API_IMAGE='$IMAGE' \
+            && docker compose --profile prod pull api \
+            && docker compose --profile prod up -d --no-build \
+            && docker image prune -f"

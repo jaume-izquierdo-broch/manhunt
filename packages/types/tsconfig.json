@@ -1,0 +1,11 @@
+{
+  "extends": "@manhunt/config-ts/base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "lib": ["es2022"],
+    "types": [],
+    "sourceMap": true
+  },
+  "include": ["src"]
+}
