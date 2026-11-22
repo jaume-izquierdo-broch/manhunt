@@ -35,6 +35,11 @@ pnpm dev                                 # API en http://localhost:3000 (aplica 
 | `pnpm --filter @manhunt/api db:generate` | Genera una migración tras cambiar `apps/api/src/database/schema.ts` |
 | `pnpm docker:up:all` | Construye la imagen de la API y levanta todo en Docker |
 
+### Probar a mano
+
+- **HTTP**: abre [apps/api/requests.http](apps/api/requests.http) con la extensión *REST Client* de VS Code y lanza las peticiones en orden (se pasan el token, el id y el código solas).
+- **Partida en tiempo real**: con la API arrancada, `pnpm --filter @manhunt/api simulate` juega una partida completa por WebSocket (dos jugadores, ping, captura fallida, captura buena) y la narra por consola. Si la API no está en el 3000: `API_URL=http://localhost:3100 pnpm --filter @manhunt/api simulate`.
+
 ## Reglas (versión simple)
 
 1. **Sala (`WAITING`)**: el anfitrión crea la partida (zona circular, tiempos) y comparte el código de 6 caracteres. Él entra como cazador, el resto como escapadores; el anfitrión puede cambiar equipos o expulsar. Hace falta al menos un cazador y un escapador.

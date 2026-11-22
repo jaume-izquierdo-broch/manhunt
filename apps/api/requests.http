@@ -1,0 +1,180 @@
+### =====================================================================
+### Pruebas manuales de la API (extensión "REST Client" de VS Code)
+###
+### 1. Arranca la API:  pnpm docker:up  y luego  pnpm dev
+### 2. Pulsa "Send Request" encima de cada petición, EN ORDEN.
+###    Las peticiones con "@name" guardan su respuesta y las siguientes
+###    reutilizan el token / id / código automáticamente.
+###
+### Si cambias el puerto (PORT en apps/api/.env), cámbialo aquí también.
+### =====================================================================
+
+@baseUrl = http://localhost:3000
+@password = contraseña-segura
+
+
+### ---------------------------------------------------------------------
+### 0. Salud
+### ---------------------------------------------------------------------
+
+GET {{baseUrl}}/health
+
+
+### ---------------------------------------------------------------------
+### 1. Usuarios (la primera vez: register; las siguientes: 409 y usa login)
+### ---------------------------------------------------------------------
+
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{ "username": "cazador_demo", "password": "{{password}}" }
+
+###
+
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{ "username": "escapador_demo", "password": "{{password}}" }
+
+###
+
+# @name hunter
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "cazador_demo", "password": "{{password}}" }
+
+###
+
+# @name runner
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "escapador_demo", "password": "{{password}}" }
+
+###
+
+@hunterToken = {{hunter.response.body.accessToken}}
+@runnerToken = {{runner.response.body.accessToken}}
+@runnerId = {{runner.response.body.user.id}}
+
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{hunterToken}}
+
+
+### ---------------------------------------------------------------------
+### 2. Sala
+### ---------------------------------------------------------------------
+
+# ¿Tengo ya una partida abierta? (si sí, ciérrala con la petición "Cerrar sala"
+# o espera a que termine: solo se puede estar en una a la vez)
+GET {{baseUrl}}/matches/current
+Authorization: Bearer {{hunterToken}}
+
+###
+
+# @name createMatch
+POST {{baseUrl}}/matches
+Authorization: Bearer {{hunterToken}}
+Content-Type: application/json
+
+{
+  "playArea": { "lat": 41.387, "lng": 2.17, "radiusMeters": 400 },
+  "hidingSeconds": 10,
+  "durationSeconds": 120,
+  "pingIntervalSeconds": 15
+}
+
+###
+
+@matchId = {{createMatch.response.body.id}}
+@joinCode = {{createMatch.response.body.joinCode}}
+
+POST {{baseUrl}}/matches/join
+Authorization: Bearer {{runnerToken}}
+Content-Type: application/json
+
+{ "joinCode": "{{joinCode}}" }
+
+###
+
+GET {{baseUrl}}/matches/{{matchId}}
+Authorization: Bearer {{runnerToken}}
+
+###
+
+# Cambiar de equipo (solo el anfitrión). Pon "HUNTER" o "RUNNER".
+PATCH {{baseUrl}}/matches/{{matchId}}/players/{{runnerId}}
+Authorization: Bearer {{hunterToken}}
+Content-Type: application/json
+
+{ "team": "RUNNER" }
+
+###
+
+# Empezar: WAITING -> HIDING (y a los 10 s, ACTIVE)
+POST {{baseUrl}}/matches/{{matchId}}/start
+Authorization: Bearer {{hunterToken}}
+
+###
+
+# Mira cómo cambia status / hidingEndsAt / endsAt
+GET {{baseUrl}}/matches/{{matchId}}
+Authorization: Bearer {{hunterToken}}
+
+###
+
+# Cerrar sala (solo funciona ANTES de empezar)
+DELETE {{baseUrl}}/matches/{{matchId}}
+Authorization: Bearer {{hunterToken}}
+
+
+### ---------------------------------------------------------------------
+### 3. Errores esperados (para ver cómo responde)
+### ---------------------------------------------------------------------
+
+# 401 UNAUTHORIZED: sin token
+GET {{baseUrl}}/matches/current
+
+###
+
+# 400 VALIDATION_ERROR: con "details" por campo
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{ "username": "a", "password": "1" }
+
+###
+
+# 401 INVALID_CREDENTIALS
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "cazador_demo", "password": "incorrecta" }
+
+###
+
+# 404 MATCH_NOT_FOUND
+POST {{baseUrl}}/matches/join
+Authorization: Bearer {{runnerToken}}
+Content-Type: application/json
+
+{ "joinCode": "ZZZZZZ" }
+
+###
+
+# 403 NOT_HOST: el escapador intenta empezar
+POST {{baseUrl}}/matches/{{matchId}}/start
+Authorization: Bearer {{runnerToken}}
+
+###
+
+# 400: id que no es UUID
+GET {{baseUrl}}/matches/no-es-un-uuid
+Authorization: Bearer {{hunterToken}}
+
+
+### ---------------------------------------------------------------------
+### La parte en tiempo real (posiciones, pings, capturas) va por WebSocket
+### y no se puede probar desde aquí:  pnpm --filter @manhunt/api simulate
+### ---------------------------------------------------------------------

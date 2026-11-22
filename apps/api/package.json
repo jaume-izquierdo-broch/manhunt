@@ -23,7 +23,8 @@
     "check-types": "tsc -p tsconfig.json --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "simulate": "node scripts/simulate-match.ts"
   },
   "dependencies": {
     "@manhunt/types": "workspace:*",

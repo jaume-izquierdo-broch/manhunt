@@ -1,0 +1,9 @@
+{
+  "recommendations": [
+    "humao.rest-client",
+    "esbenp.prettier-vscode",
+    "oxc.oxc-vscode",
+    "vitest.explorer",
+    "expo.vscode-expo-tools"
+  ]
+}
