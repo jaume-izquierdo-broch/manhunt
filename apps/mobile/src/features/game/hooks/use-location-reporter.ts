@@ -8,8 +8,8 @@ import {
 const CHECK_EVERY_MS = 1_000;
 
 /**
- * Envía la posición al servidor según `shouldReport`: al moverse (con un mínimo
- * entre envíos) y, aunque estés quieto, cada pocos segundos (heartbeat).
+ * Sends the position to the server following `shouldReport`: when moving (with
+ * a minimum gap between reports) and, even when still, every few seconds.
  */
 export function useLocationReporter({
   enabled,
@@ -22,13 +22,13 @@ export function useLocationReporter({
 }) {
   const lastReported = useRef<ReportedPosition | null>(null);
 
-  // Lee siempre la posición y el `report` más recientes sin reiniciar el intervalo.
+  // Always reads the latest position and `report` without restarting the interval.
   const tick = useEffectEvent(() => {
     const now = Date.now();
     if (!position || !shouldReport(now, position, lastReported.current)) return;
     lastReported.current = { lat: position.lat, lng: position.lng, at: now };
     report(position).catch(() => {
-      // Si falla, se reintenta en el siguiente tick.
+      // On failure, retry on the next tick.
       lastReported.current = null;
     });
   });

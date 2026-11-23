@@ -8,14 +8,22 @@ import { CurrentMatchCard } from '../components/current-match-card';
 import { goToMatch } from '../match-navigation';
 import { useCurrentMatch } from '../matches.queries';
 
+const HOW_TO_PLAY = [
+  '🏃 Runners get a few minutes to hide inside the play area.',
+  '📡 Every so often, the hunters get a “ping” with the runners’ positions.',
+  '🫳 To catch a runner, a hunter must be within a few meters and tap “Catch”.',
+  '🏁 Hunters win if they catch everyone; otherwise the runners win.',
+];
+
 export function HomeScreen() {
   const { user } = useCurrentUser();
   const { signOut } = useSession();
   const router = useRouter();
   const c = useThemeColors();
   const current = useCurrentMatch();
+  const openMatch = current.data;
 
-  // Al volver a esta pantalla (p. ej. desde una partida), se refresca.
+  // Refresh whenever the screen gains focus (e.g. coming back from a match).
   const { refetch } = current;
   useFocusEffect(
     useCallback(() => {
@@ -29,7 +37,7 @@ export function HomeScreen() {
         options={{
           headerRight: () => (
             <Button
-              title="Salir"
+              title="Log out"
               variant="ghost"
               compact
               onPress={() => void signOut()}
@@ -47,26 +55,26 @@ export function HomeScreen() {
           />
         }
       >
-        <AppText variant="title">Hola, {user.username}</AppText>
+        <AppText variant="title">Hi, {user.username}</AppText>
 
         {current.isError ? (
           <Banner tone="danger" message={errorMessage(current.error)} />
         ) : null}
 
-        {current.data ? (
+        {openMatch ? (
           <CurrentMatchCard
-            match={current.data}
-            onOpen={() => goToMatch(router, current.data!.id)}
+            match={openMatch}
+            onOpen={() => goToMatch(router, openMatch.id)}
           />
         ) : (
           <Card>
-            <AppText variant="subtitle">¿Jugamos?</AppText>
+            <AppText variant="subtitle">Ready to play?</AppText>
             <Button
-              title="Crear partida"
+              title="Create match"
               onPress={() => router.push('/create')}
             />
             <Button
-              title="Unirse con código"
+              title="Join with a code"
               variant="secondary"
               onPress={() => router.push('/join')}
             />
@@ -74,23 +82,12 @@ export function HomeScreen() {
         )}
 
         <Card>
-          <AppText variant="label">Cómo se juega</AppText>
-          <AppText variant="caption">
-            🏃 Los escapadores tienen unos minutos para esconderse dentro de la
-            zona.
-          </AppText>
-          <AppText variant="caption">
-            📡 Cada cierto tiempo, los cazadores reciben un “ping” con su
-            posición.
-          </AppText>
-          <AppText variant="caption">
-            🫳 Para capturar, el cazador tiene que estar a pocos metros y pulsar
-            “Capturar”.
-          </AppText>
-          <AppText variant="caption">
-            🏁 Ganan los cazadores si atrapan a todos; si no, ganan los
-            escapadores.
-          </AppText>
+          <AppText variant="label">How to play</AppText>
+          {HOW_TO_PLAY.map((rule) => (
+            <AppText key={rule} variant="caption">
+              {rule}
+            </AppText>
+          ))}
         </Card>
       </ScrollView>
     </>

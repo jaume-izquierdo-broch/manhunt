@@ -1,9 +1,9 @@
-// Genera todos los iconos de la app a partir del logo vectorial.
+// Generates every app icon from the vector logo.
 //
 //   pnpm --filter @manhunt/mobile icons
 //
-// El logo es un pin de ubicación (escapador, verde) dentro de una mira (cazador, rojo).
-// Para cambiar colores o formas, edita las constantes y vuelve a ejecutar el script.
+// The logo is a location pin (the runner, green) inside a crosshair (the hunter, red).
+// To change colors or shapes, edit the constants below and run the script again.
 import { Resvg } from '@resvg/resvg-js';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -16,7 +16,7 @@ const COLORS = {
   runner: '#30A46C',
   backgroundTop: '#1C2030',
   backgroundBottom: '#0B0D12',
-  /** Color de fondo del splash y del icono adaptativo (el más oscuro). */
+  /** Background of the splash screen and the adaptive icon (the darkest). */
   solid: '#0F1117',
 };
 
@@ -34,7 +34,7 @@ function mark({ scale = 1, hunter = COLORS.hunter, runner = COLORS.runner }) {
     ${tick(512, 792, 512, 932)}
     ${tick(92, 512, 232, 512)}
     ${tick(792, 512, 932, 512)}
-    <!-- Pin con agujero real (evenodd): se ve el fondo a través. -->
+    <!-- The pin has a real hole (evenodd): the background shows through it. -->
     <path fill="${runner}" fill-rule="evenodd"
       d="M512 712 C 448 628 384 570 384 474 A 128 128 0 1 1 640 474 C 640 570 576 628 512 712 Z
          M562 472 A 50 50 0 1 0 462 472 A 50 50 0 1 0 562 472 Z"/>
@@ -53,34 +53,52 @@ const background = `
 const svg = (body) =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">${body}</svg>`;
 
-/** Variantes del logo -> archivo PNG y tamaño. */
+/** Logo variants -> PNG file and size. */
 const outputs = [
-  // Icono principal (iOS lo recorta solo con esquinas redondeadas).
-  { file: 'images/icon.png', size: 1024, svg: svg(background + mark({ scale: 0.86 })) },
-  // Android adaptativo: el sistema recorta la capa delantera; la marca va en la zona segura (66 %).
-  { file: 'images/android-icon-foreground.png', size: 1024, svg: svg(mark({ scale: 0.6 })) },
-  { file: 'images/android-icon-background.png', size: 1024, svg: svg(background) },
-  // Android 13+ "iconos temáticos": una sola tinta que el sistema colorea.
+  // Main icon (iOS rounds the corners itself).
+  {
+    file: 'images/icon.png',
+    size: 1024,
+    svg: svg(background + mark({ scale: 0.86 })),
+  },
+  // Android adaptive icon: the system crops the foreground layer, so the mark stays in the 66% safe zone.
+  {
+    file: 'images/android-icon-foreground.png',
+    size: 1024,
+    svg: svg(mark({ scale: 0.6 })),
+  },
+  {
+    file: 'images/android-icon-background.png',
+    size: 1024,
+    svg: svg(background),
+  },
+  // Android 13+ themed icons: a single ink color that the system tints.
   {
     file: 'images/android-icon-monochrome.png',
     size: 432,
     svg: svg(mark({ scale: 0.6, hunter: '#FFFFFF', runner: '#FFFFFF' })),
   },
-  // Splash: la marca sola sobre el color de fondo (lo pinta Expo).
+  // Splash: the mark alone; Expo paints the background color.
   { file: 'images/splash-icon.png', size: 512, svg: svg(mark({ scale: 1 })) },
-  // Logo dentro de la app (pantallas de login/registro).
+  // In-app logo (login and sign-up screens).
   { file: 'images/logo.png', size: 512, svg: svg(mark({ scale: 1 })) },
-  { file: 'images/favicon.png', size: 48, svg: svg(background + mark({ scale: 0.86 })) },
+  {
+    file: 'images/favicon.png',
+    size: 48,
+    svg: svg(background + mark({ scale: 0.86 })),
+  },
 ];
 
 for (const { file, size, svg: source } of outputs) {
-  const png = new Resvg(source, { fitTo: { mode: 'width', value: size } }).render().asPng();
+  const png = new Resvg(source, { fitTo: { mode: 'width', value: size } })
+    .render()
+    .asPng();
   const path = join(ROOT, file);
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, png);
   console.log(`✔ ${file} (${size}px)`);
 }
 
-// Fuente vectorial, por si se necesita en otro sitio (web, redes, tienda...).
+// Vector source, for anywhere else it's needed (web, social media, store listing...).
 writeFileSync(join(ROOT, 'logo.svg'), svg(background + mark({ scale: 0.86 })));
 console.log('✔ logo.svg');

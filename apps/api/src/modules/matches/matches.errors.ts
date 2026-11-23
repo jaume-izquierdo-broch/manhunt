@@ -6,35 +6,35 @@ export const MatchErrors = {
   notFound: () =>
     new AppError(
       ErrorCode.MATCH_NOT_FOUND,
-      'La partida no existe',
+      'Match not found',
       HttpStatus.NOT_FOUND,
     ),
 
   joinCodeNotFound: () =>
     new AppError(
       ErrorCode.MATCH_NOT_FOUND,
-      'No hay ninguna partida con ese código',
+      'No match has that code',
       HttpStatus.NOT_FOUND,
     ),
 
   notInMatch: () =>
     new AppError(
       ErrorCode.NOT_IN_MATCH,
-      'No participas en esta partida',
+      'You are not in this match',
       HttpStatus.FORBIDDEN,
     ),
 
   playerNotFound: () =>
     new AppError(
       ErrorCode.NOT_IN_MATCH,
-      'Ese jugador no está en la partida',
+      'That player is not in the match',
       HttpStatus.NOT_FOUND,
     ),
 
   notHost: () =>
     new AppError(
       ErrorCode.NOT_HOST,
-      'Solo el anfitrión puede hacer esto',
+      'Only the host can do this',
       HttpStatus.FORBIDDEN,
     ),
 
@@ -44,7 +44,7 @@ export const MatchErrors = {
   alreadyInMatch: (matchId: string) =>
     new AppError(
       ErrorCode.ALREADY_IN_MATCH,
-      'Ya estás en otra partida',
+      'You are already in another match',
       HttpStatus.CONFLICT,
       { matchId },
     ),
@@ -52,28 +52,28 @@ export const MatchErrors = {
   full: () =>
     new AppError(
       ErrorCode.MATCH_FULL,
-      'La partida está llena',
+      'The match is full',
       HttpStatus.CONFLICT,
     ),
 
   teamsUnbalanced: () =>
     new AppError(
       ErrorCode.TEAMS_UNBALANCED,
-      'Hace falta al menos un cazador y un escapador',
+      'You need at least one hunter and one runner',
       HttpStatus.CONFLICT,
     ),
 
   hostCannotLeave: () =>
     new AppError(
       ErrorCode.HOST_CANNOT_LEAVE,
-      'El anfitrión no puede salir: cierra la partida',
+      'The host cannot leave: close the lobby instead',
       HttpStatus.CONFLICT,
     ),
 
   cannotKickHost: () =>
     new AppError(
       ErrorCode.HOST_CANNOT_LEAVE,
-      'No puedes expulsarte a ti mismo',
+      'The host cannot kick themselves',
       HttpStatus.CONFLICT,
     ),
 };

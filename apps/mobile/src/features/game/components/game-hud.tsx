@@ -7,39 +7,39 @@ import { aliveRunners, playersOfTeam } from '../state/game-state';
 export interface GameHudProps {
   match: MatchDto;
   myTeam: Team;
-  /** Ahora según el reloj del servidor. */
+  /** "Now" by the server's clock. */
   now: number;
 }
 
-/** Cabecera de la partida: fase, cuenta atrás, próximo ping y escapadores libres. */
+/** Match header: phase, countdown, next ping and how many runners are free. */
 export function GameHud({ match, myTeam, now }: GameHudProps) {
   const hiding = match.status === MatchStatus.HIDING;
   const remaining = msUntil(hiding ? match.hidingEndsAt : match.endsAt, now);
   const pingAt = nextPingTime(match, now);
-  const toPing = pingAt === null ? null : Math.max(0, pingAt - now);
+  const untilPing = pingAt === null ? null : Math.max(0, pingAt - now);
   const runnersTotal = playersOfTeam(match, Team.RUNNER).length;
 
   return (
     <Card style={styles.card}>
       <View style={styles.top}>
         <Badge
-          label={myTeam === Team.HUNTER ? 'Cazador' : 'Escapador'}
+          label={myTeam === Team.HUNTER ? 'Hunter' : 'Runner'}
           tone={myTeam === Team.HUNTER ? 'hunter' : 'runner'}
         />
         <AppText variant="caption" tone="muted">
-          {hiding ? 'La caza empieza en' : 'Tiempo restante'}
+          {hiding ? 'The hunt starts in' : 'Time left'}
         </AppText>
       </View>
-      <AppText variant="title" accessibilityLabel="Cuenta atrás">
+      <AppText variant="title" accessibilityLabel="Countdown">
         {remaining === null ? '--:--' : formatCountdown(remaining)}
       </AppText>
       <View style={styles.stats}>
         <AppText variant="caption" tone="muted">
-          Escapadores libres: {aliveRunners(match).length}/{runnersTotal}
+          {`Free runners: ${aliveRunners(match).length}/${runnersTotal}`}
         </AppText>
-        {toPing !== null ? (
+        {untilPing !== null ? (
           <AppText variant="caption" tone="muted">
-            Próximo ping: {formatCountdown(toPing)}
+            {`Next ping: ${formatCountdown(untilPing)}`}
           </AppText>
         ) : null}
       </View>

@@ -12,7 +12,7 @@ import {
 } from './lobby-rules.js';
 
 describe('generateJoinCode', () => {
-  it('genera códigos con la longitud y el alfabeto correctos', () => {
+  it('generates codes with the right length and alphabet', () => {
     for (let i = 0; i < 200; i++) {
       const code = generateJoinCode();
       expect(code).toHaveLength(JOIN_CODE_LENGTH);
@@ -22,7 +22,7 @@ describe('generateJoinCode', () => {
 });
 
 describe('hasBalancedTeams', () => {
-  it('requiere al menos un cazador y un escapador', () => {
+  it('requires at least one hunter and one runner', () => {
     expect(hasBalancedTeams([{ team: Team.HUNTER }])).toBe(false);
     expect(
       hasBalancedTeams([{ team: Team.RUNNER }, { team: Team.RUNNER }]),
@@ -36,17 +36,17 @@ describe('hasBalancedTeams', () => {
 describe('assertHostInLobby', () => {
   const match = { hostId: 'host', status: 'WAITING' } as MatchRow;
 
-  it('deja pasar al anfitrión en la sala', () => {
+  it('lets the host through while in the lobby', () => {
     expect(() => assertHostInLobby(match, 'host')).not.toThrow();
   });
 
-  it('rechaza a quien no es anfitrión', () => {
-    expect(() => assertHostInLobby(match, 'otro')).toThrow(
+  it('rejects anyone who is not the host', () => {
+    expect(() => assertHostInLobby(match, 'someone-else')).toThrow(
       expect.objectContaining({ code: ErrorCode.NOT_HOST }),
     );
   });
 
-  it('rechaza si la partida ya empezó', () => {
+  it('rejects once the match has started', () => {
     expect(() =>
       assertHostInLobby({ ...match, status: 'ACTIVE' }, 'host'),
     ).toThrow(

@@ -9,27 +9,24 @@ export function goToMatch(router: Router, matchId: string) {
 }
 
 /**
- * Error al crear/unirse. Si es porque ya estás en otra partida, ofrece ir a ella.
- * Devuelve el mensaje para mostrarlo en línea si no se ha gestionado con un diálogo.
+ * Handles an error from creating or joining a match. If the user is already in
+ * another match, offers to go there and returns null; otherwise returns the
+ * message to show inline.
  */
 export function handleMatchEntryError(
   router: Router,
   error: unknown,
 ): string | null {
   const openMatchId = error instanceof ApiError ? error.openMatchId : null;
-  if (openMatchId) {
-    Alert.alert(
-      'Ya estás en una partida',
-      'Solo puedes estar en una partida a la vez.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Ir a mi partida',
-          onPress: () => goToMatch(router, openMatchId),
-        },
-      ],
-    );
-    return null;
-  }
-  return errorMessage(error);
+  if (!openMatchId) return errorMessage(error);
+
+  Alert.alert(
+    "You're already in a match",
+    'You can only be in one match at a time.',
+    [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Go to my match', onPress: () => goToMatch(router, openMatchId) },
+    ],
+  );
+  return null;
 }

@@ -8,12 +8,15 @@ import { View } from 'react-native';
 import { useForm } from '@/lib/use-form';
 import { AppText, Banner, Button, Checkbox, spacing, TextField } from '@/ui';
 
+export const TERMS_LABEL =
+  'I have read and accept the privacy policy and the terms of use';
+
 export interface RegisterFormProps {
-  /** Recibe lo que espera la API (sin la confirmación de contraseña). */
+  /** Receives the API body (without the password confirmation). */
   onSubmit: (values: RegisterInput) => Promise<void>;
 }
 
-/** Registro: usuario, email, contraseña (dos veces) y aceptación de la privacidad. */
+/** Sign-up: username, email, password twice, and privacy policy acceptance. */
 export function RegisterForm({ onSubmit }: RegisterFormProps) {
   const router = useRouter();
   const form = useForm({
@@ -26,7 +29,7 @@ export function RegisterForm({ onSubmit }: RegisterFormProps) {
       acceptTerms: false,
     },
     onSubmit: ({ confirmPassword: _confirm, ...input }) => onSubmit(input),
-    // Usuario o email repetidos se muestran en su campo, no como error general.
+    // A taken username or email is shown under its own field.
     fieldErrorsFromServer: (error) =>
       error.code === ErrorCode.USERNAME_TAKEN
         ? { username: error.message }
@@ -38,11 +41,11 @@ export function RegisterForm({ onSubmit }: RegisterFormProps) {
   return (
     <View style={{ gap: spacing.lg }}>
       <TextField
-        label="Usuario"
+        label="Username"
         value={form.values.username}
         onChangeText={form.setField('username')}
         error={form.errors.username}
-        placeholder="Así te verán en las partidas"
+        placeholder="What other players will see"
         autoCapitalize="none"
         autoCorrect={false}
         autoComplete="username-new"
@@ -60,18 +63,18 @@ export function RegisterForm({ onSubmit }: RegisterFormProps) {
         keyboardType="email-address"
       />
       <TextField
-        label="Contraseña"
+        label="Password"
         value={form.values.password}
         onChangeText={form.setField('password')}
         error={form.errors.password}
-        placeholder="Mínimo 8 caracteres"
+        placeholder="At least 8 characters"
         secureTextEntry
         autoCapitalize="none"
         autoComplete="new-password"
         textContentType="newPassword"
       />
       <TextField
-        label="Repite la contraseña"
+        label="Confirm password"
         value={form.values.confirmPassword}
         onChangeText={form.setField('confirmPassword')}
         error={form.errors.confirmPassword}
@@ -83,7 +86,7 @@ export function RegisterForm({ onSubmit }: RegisterFormProps) {
 
       <View style={{ gap: spacing.sm }}>
         <Checkbox
-          label="He leído y acepto la política de privacidad y las condiciones de uso"
+          label={TERMS_LABEL}
           checked={form.values.acceptTerms}
           onChange={form.setField('acceptTerms')}
           error={form.errors.acceptTerms}
@@ -94,7 +97,7 @@ export function RegisterForm({ onSubmit }: RegisterFormProps) {
           accessibilityRole="link"
           onPress={() => router.push('/privacy')}
         >
-          Leer la política de privacidad y las condiciones
+          Read the privacy policy and terms of use
         </AppText>
       </View>
 
@@ -102,7 +105,7 @@ export function RegisterForm({ onSubmit }: RegisterFormProps) {
         <Banner tone="danger" message={form.formError} />
       ) : null}
       <Button
-        title="Crear cuenta"
+        title="Create account"
         onPress={form.submit}
         loading={form.submitting}
       />

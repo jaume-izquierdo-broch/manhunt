@@ -5,13 +5,12 @@ import {
   waitFor,
 } from '@testing-library/react-native';
 import { ApiError } from '@/lib/http/api-error';
-import { RegisterForm } from './register-form';
+import { RegisterForm, TERMS_LABEL } from './register-form';
 
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 
-const TERMS =
-  'He leído y acepto la política de privacidad y las condiciones de uso';
+const PASSWORD = 'correct-horse-battery';
 
 async function fill(values: {
   username?: string;
@@ -20,10 +19,10 @@ async function fill(values: {
   confirm?: string;
 }) {
   const fields: [string, string | undefined][] = [
-    ['Usuario', values.username],
+    ['Username', values.username],
     ['Email', values.email],
-    ['Contraseña', values.password],
-    ['Repite la contraseña', values.confirm],
+    ['Password', values.password],
+    ['Confirm password', values.confirm],
   ];
   for (const [label, value] of fields) {
     if (value !== undefined) {
@@ -32,87 +31,82 @@ async function fill(values: {
   }
 }
 
+const termsCheckbox = () => screen.getByRole('checkbox', { name: TERMS_LABEL });
 const submit = () =>
-  fireEvent.press(screen.getByRole('button', { name: 'Crear cuenta' }));
+  fireEvent.press(screen.getByRole('button', { name: 'Create account' }));
 
 describe('RegisterForm', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('valida todos los campos con el esquema compartido', async () => {
+  it('validates every field with the shared schema', async () => {
     const onSubmit = jest.fn();
     await render(<RegisterForm onSubmit={onSubmit} />);
 
     await fill({
       username: 'a',
-      email: 'no-es-email',
+      email: 'not-an-email',
       password: '123',
       confirm: '456',
     });
     await submit();
 
-    expect(screen.getByText('Mínimo 3 caracteres')).toBeOnTheScreen();
-    expect(screen.getByText('Email no válido')).toBeOnTheScreen();
-    expect(screen.getByText('Las contraseñas no coinciden')).toBeOnTheScreen();
+    expect(screen.getByText('At least 3 characters')).toBeOnTheScreen();
+    expect(screen.getByText('Invalid email')).toBeOnTheScreen();
+    expect(screen.getByText('Passwords do not match')).toBeOnTheScreen();
     expect(
-      screen.getByText(
-        'Debes aceptar la política de privacidad y las condiciones',
-      ),
+      screen.getByText('You must accept the privacy policy and terms of use'),
     ).toBeOnTheScreen();
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it('envía lo que espera la API, sin la confirmación de contraseña', async () => {
+  it('submits the API body, without the password confirmation', async () => {
     const onSubmit = jest.fn().mockResolvedValue(undefined);
     await render(<RegisterForm onSubmit={onSubmit} />);
 
     await fill({
       username: 'ana',
       email: ' Ana@Mail.com ',
-      password: 'contraseña-segura',
-      confirm: 'contraseña-segura',
+      password: PASSWORD,
+      confirm: PASSWORD,
     });
-    const checkbox = screen.getByRole('checkbox', { name: TERMS });
-    await fireEvent.press(checkbox);
-    expect(checkbox).toBeChecked();
+    await fireEvent.press(termsCheckbox());
+    expect(termsCheckbox()).toBeChecked();
     await submit();
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith({
         username: 'ana',
         email: 'ana@mail.com',
-        password: 'contraseña-segura',
+        password: PASSWORD,
         acceptTerms: true,
       }),
     );
   });
 
-  it('un email ya registrado se muestra en su campo', async () => {
+  it('shows a taken email under the email field', async () => {
+    const message = 'An account with that email already exists';
     const onSubmit = jest
       .fn()
-      .mockRejectedValue(
-        new ApiError('EMAIL_TAKEN', 'Ya existe una cuenta con ese email', 409),
-      );
+      .mockRejectedValue(new ApiError('EMAIL_TAKEN', message, 409));
     await render(<RegisterForm onSubmit={onSubmit} />);
 
     await fill({
       username: 'ana',
       email: 'ana@mail.com',
-      password: 'contraseña-segura',
-      confirm: 'contraseña-segura',
+      password: PASSWORD,
+      confirm: PASSWORD,
     });
-    await fireEvent.press(screen.getByRole('checkbox', { name: TERMS }));
+    await fireEvent.press(termsCheckbox());
     await submit();
 
-    expect(
-      await screen.findByText('Ya existe una cuenta con ese email'),
-    ).toBeOnTheScreen();
+    expect(await screen.findByText(message)).toBeOnTheScreen();
   });
 
-  it('enlaza a la política de privacidad', async () => {
+  it('links to the privacy policy', async () => {
     await render(<RegisterForm onSubmit={jest.fn()} />);
     await fireEvent.press(
       screen.getByRole('link', {
-        name: 'Leer la política de privacidad y las condiciones',
+        name: 'Read the privacy policy and terms of use',
       }),
     );
     expect(mockPush).toHaveBeenCalledWith('/privacy');

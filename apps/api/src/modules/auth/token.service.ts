@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { AuthUser, JwtPayload } from './auth.types.js';
 
-/** Firma y verifica JWT. Lo usan el guard HTTP y el middleware del WebSocket. */
+/** Signs and verifies JWTs, for both the HTTP guard and the WebSocket handshake. */
 @Injectable()
 export class TokenService {
   constructor(private readonly jwt: JwtService) {}
@@ -12,7 +12,7 @@ export class TokenService {
     return this.jwt.signAsync(payload);
   }
 
-  /** `null` si el token es inválido o ha caducado. */
+  /** Returns `null` when the token is invalid or expired. */
   async verify(token: string): Promise<AuthUser | null> {
     try {
       const payload = await this.jwt.verifyAsync<JwtPayload>(token);

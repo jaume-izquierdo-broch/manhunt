@@ -2,7 +2,7 @@ import type { AuthResponse } from '@manhunt/types';
 
 export const SESSION_KEY = 'manhunt.session';
 
-/** Lee la sesión guardada; si está corrupta o es de otra versión, la ignora. */
+/** Parses the stored session, ignoring it if it's corrupt or from an older version. */
 export function parseStoredSession(raw: string | null): AuthResponse | null {
   if (!raw) return null;
   try {

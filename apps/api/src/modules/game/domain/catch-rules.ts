@@ -2,9 +2,9 @@ import type { PositionDto } from '@manhunt/types';
 import { distanceMeters } from './geo.js';
 
 export interface CatchRules {
-  /** Distancia máxima entre cazador y escapador. */
+  /** Maximum hunter-runner distance. */
   radiusMeters: number;
-  /** Antigüedad máxima de una posición para fiarse de ella. */
+  /** Positions older than this are not trusted. */
   maxPositionAgeMs: number;
 }
 
@@ -14,8 +14,8 @@ export type CatchCheck =
   | { ok: false; reason: 'TOO_FAR'; distanceMeters: number };
 
 /**
- * ¿Vale la captura? Ambos necesitan una posición reciente y estar dentro del radio.
- * (El GPS de un móvil falla 5-20 m: el radio por defecto es generoso.)
+ * Does the catch count? Both players need a recent position and must be within
+ * the radius. Phone GPS is off by 5-20 m, so the default radius is generous.
  */
 export function checkCatch(
   hunter: PositionDto | null,

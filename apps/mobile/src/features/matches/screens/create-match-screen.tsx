@@ -11,25 +11,26 @@ import {
   DEFAULT_MATCH_SETTINGS,
   DURATION_OPTIONS,
   HIDING_OPTIONS,
+  type MatchSettings,
   PING_OPTIONS,
   RADIUS_OPTIONS,
 } from '../match-options';
 import { useCreateMatch } from '../matches.queries';
 
-type Center =
+type AreaCenter =
   | { status: 'locating' }
   | { status: 'ready'; position: DevicePosition }
   | { status: 'error'; message: string };
 
-/** Crear partida: la zona se centra en tu ubicación actual. */
+/** Create a match. The play area is centered on the user's current location. */
 export function CreateMatchScreen() {
   const router = useRouter();
   const create = useCreateMatch();
   const [settings, setSettings] = useState(DEFAULT_MATCH_SETTINGS);
-  const [center, setCenter] = useState<Center>({ status: 'locating' });
+  const [center, setCenter] = useState<AreaCenter>({ status: 'locating' });
   const [error, setError] = useState<string | null>(null);
 
-  // Al entrar se pide la ubicación una vez; "Reintentar" vuelve a pedirla.
+  // Locate once on mount; "Try again" bumps `attempt` to locate again.
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let cancelled = false;
@@ -46,14 +47,14 @@ export function CreateMatchScreen() {
     };
   }, [attempt]);
 
-  const locate = () => {
+  const retryLocation = () => {
     setCenter({ status: 'locating' });
     setAttempt((n) => n + 1);
   };
 
-  const set =
-    <K extends keyof typeof settings>(key: K) =>
-    (value: (typeof settings)[K]) =>
+  const setSetting =
+    <K extends keyof MatchSettings>(key: K) =>
+    (value: MatchSettings[K]) =>
       setSettings((s) => ({ ...s, [key]: value }));
 
   const submit = async () => {
@@ -81,7 +82,7 @@ export function CreateMatchScreen() {
       scroll
       footer={
         <Button
-          title="Crear sala"
+          title="Create lobby"
           onPress={submit}
           loading={create.isPending}
           disabled={center.status !== 'ready'}
@@ -89,15 +90,15 @@ export function CreateMatchScreen() {
       }
     >
       <Card>
-        <AppText variant="label">Centro de la zona</AppText>
+        <AppText variant="label">Center of the play area</AppText>
         {center.status === 'locating' ? (
-          <AppText tone="muted">Buscando tu ubicación…</AppText>
+          <AppText tone="muted">Finding your location…</AppText>
         ) : null}
         {center.status === 'ready' ? (
           <AppText tone="muted">
-            Tu ubicación actual
+            Your current location
             {center.position.accuracy !== null
-              ? ` (precisión ±${formatDistance(center.position.accuracy)})`
+              ? ` (±${formatDistance(center.position.accuracy)})`
               : ''}
           </AppText>
         ) : null}
@@ -105,38 +106,38 @@ export function CreateMatchScreen() {
           <>
             <Banner tone="danger" message={center.message} />
             <Button
-              title="Reintentar"
+              title="Try again"
               variant="secondary"
               compact
-              onPress={locate}
+              onPress={retryLocation}
             />
           </>
         ) : null}
       </Card>
 
       <OptionPicker
-        label="Radio de la zona"
+        label="Play area radius"
         options={RADIUS_OPTIONS}
         value={settings.radiusMeters}
-        onChange={set('radiusMeters')}
+        onChange={setSetting('radiusMeters')}
       />
       <OptionPicker
-        label="Tiempo para esconderse"
+        label="Time to hide"
         options={HIDING_OPTIONS}
         value={settings.hidingSeconds}
-        onChange={set('hidingSeconds')}
+        onChange={setSetting('hidingSeconds')}
       />
       <OptionPicker
-        label="Duración de la caza"
+        label="Hunt duration"
         options={DURATION_OPTIONS}
         value={settings.durationSeconds}
-        onChange={set('durationSeconds')}
+        onChange={setSetting('durationSeconds')}
       />
       <OptionPicker
-        label="Ping a los cazadores cada"
+        label="Ping the hunters every"
         options={PING_OPTIONS}
         value={settings.pingIntervalSeconds}
-        onChange={set('pingIntervalSeconds')}
+        onChange={setSetting('pingIntervalSeconds')}
       />
 
       {error ? <Banner tone="danger" message={error} /> : null}

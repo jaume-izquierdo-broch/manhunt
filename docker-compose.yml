@@ -1,10 +1,10 @@
 name: manhunt
 
-# Desarrollo:   pnpm docker:up          -> Postgres + Redis (la API corre en local con `pnpm dev`)
-# Todo en Docker: pnpm docker:up:all    -> además construye y arranca la API (perfil "prod")
+# Development:      pnpm docker:up       -> Postgres + Redis (run the API locally with `pnpm dev`)
+# Everything in Docker: pnpm docker:up:all -> also builds and starts the API ("prod" profile)
 #
-# Las variables se leen de ./.env (copia .env.example). Los valores por defecto
-# son SOLO para desarrollo: en un servidor real define todas en el .env.
+# Variables come from ./.env (copy .env.example). The defaults are for
+# development ONLY: on a real server, define all of them in .env.
 
 services:
   postgres:
@@ -17,7 +17,7 @@ services:
       POSTGRES_DB: ${DB_NAME:-manhunt_db}
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      # DB_PORT: cámbialo si ya tienes otro Postgres en el 5432 (p. ej. dentro de WSL).
+      # Change DB_PORT if another Postgres already uses 5432 (e.g. inside WSL).
       - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -33,7 +33,7 @@ services:
     image: redis:8-alpine
     container_name: manhunt_redis
     restart: unless-stopped
-    # noeviction: BullMQ necesita que Redis no borre claves por falta de memoria.
+    # noeviction: BullMQ needs Redis to never drop keys under memory pressure.
     command: >
       redis-server
       --appendonly yes

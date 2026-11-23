@@ -3,8 +3,8 @@ import { type Ack, ErrorCode } from '@manhunt/types';
 import { AppError } from '../errors/app-error.js';
 
 /**
- * Ejecuta un handler de WebSocket y convierte el resultado en el ack que espera la app:
- * `{ ok: true, data }` o `{ ok: false, error: { code, message } }`.
+ * Runs a WebSocket handler and wraps its outcome in the acknowledgement clients
+ * expect: `{ ok: true, data }` or `{ ok: false, error: { code, message } }`.
  */
 export async function withAck<T>(
   logger: Logger,
@@ -19,7 +19,10 @@ export async function withAck<T>(
     logger.error(error);
     return {
       ok: false,
-      error: { code: ErrorCode.INTERNAL_ERROR, message: 'Error interno' },
+      error: {
+        code: ErrorCode.INTERNAL_ERROR,
+        message: 'Internal server error',
+      },
     };
   }
 }

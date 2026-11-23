@@ -1,4 +1,4 @@
-// Sistema de UI: las pantallas importan de aquí (`@/ui`) y no definen estilos base propios.
+// The design system. Screens import from `@/ui` instead of defining their own base styles.
 export {
   AppText,
   type AppTextProps,

@@ -5,7 +5,7 @@ import { useThemeColors } from './use-theme';
 
 export type BannerTone = 'info' | 'warning' | 'danger' | 'success';
 
-/** Mensaje destacado (errores, avisos de la partida). */
+/** A highlighted message: errors, match notices... */
 export function Banner({
   message,
   tone = 'info',

@@ -3,7 +3,7 @@ import { useTestApp } from './support/test-app.js';
 describe('health', () => {
   const t = useTestApp();
 
-  it('GET /health comprueba Postgres y Redis', async () => {
+  it('GET /health checks Postgres and Redis', async () => {
     const res = await t.anonymous().get('/health').expect(200);
     expect(res.body).toEqual({
       status: 'ok',
@@ -11,7 +11,7 @@ describe('health', () => {
     });
   });
 
-  it('GET /health/live responde siempre', async () => {
+  it('GET /health/live always answers', async () => {
     await t.anonymous().get('/health/live').expect(200, { status: 'ok' });
   });
 });

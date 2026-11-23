@@ -9,7 +9,7 @@ import { type UserRow, users } from '../../infrastructure/database/schema.js';
 
 export interface NewUser {
   username: string;
-  /** Ya normalizado en minúsculas. */
+  /** Already lowercased. */
   email: string;
   passwordHash: string;
   termsVersion: string;
@@ -18,7 +18,7 @@ export interface NewUser {
 export type CreateUserResult =
   { ok: true; user: UserRow } | { ok: false; conflict: 'username' | 'email' };
 
-/** Acceso a la tabla `users`. Ningún otro sitio consulta esta tabla directamente. */
+/** All access to the `users` table goes through here. */
 @Injectable()
 export class UsersRepository {
   constructor(@InjectDb() private readonly db: Database) {}
@@ -28,8 +28,8 @@ export class UsersRepository {
   }
 
   /**
-   * Busca por nombre de usuario o por email (sin distinguir mayúsculas).
-   * Los nombres de usuario no pueden contener "@", así que no hay ambigüedad.
+   * Case-insensitive lookup by username or email. Usernames can't contain "@",
+   * so the presence of one tells which column to search.
    */
   findByIdentifier(identifier: string): Promise<UserRow | undefined> {
     const value = identifier.trim().toLowerCase();
@@ -39,7 +39,7 @@ export class UsersRepository {
     });
   }
 
-  /** Crea el usuario; si el nombre o el email ya existen, dice cuál. */
+  /** Creates the user, or reports which unique field (username or email) is taken. */
   async create(input: NewUser): Promise<CreateUserResult> {
     try {
       const [user] = await this.db

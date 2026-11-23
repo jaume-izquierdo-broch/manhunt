@@ -9,56 +9,52 @@ import { LoginForm } from './login-form';
 
 async function fill(identifier: string, password: string) {
   await fireEvent.changeText(
-    screen.getByLabelText('Usuario o email'),
+    screen.getByLabelText('Username or email'),
     identifier,
   );
-  await fireEvent.changeText(screen.getByLabelText('Contraseña'), password);
+  await fireEvent.changeText(screen.getByLabelText('Password'), password);
 }
 
+const submit = () =>
+  fireEvent.press(screen.getByRole('button', { name: 'Log in' }));
+
 describe('LoginForm', () => {
-  it('pide usuario/email y contraseña', async () => {
+  it('requires a username/email and a password', async () => {
     const onSubmit = jest.fn();
     await render(<LoginForm onSubmit={onSubmit} />);
 
-    await fireEvent.press(screen.getByRole('button', { name: 'Entrar' }));
+    await submit();
 
-    expect(screen.getByText('Escribe tu usuario o email')).toBeOnTheScreen();
-    expect(screen.getByText('Escribe tu contraseña')).toBeOnTheScreen();
+    expect(screen.getByText('Enter your username or email')).toBeOnTheScreen();
+    expect(screen.getByText('Enter your password')).toBeOnTheScreen();
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it('acepta un email como identificador (normalizado con trim)', async () => {
+  it('accepts an email as the identifier, trimmed', async () => {
     const onSubmit = jest.fn().mockResolvedValue(undefined);
     await render(<LoginForm onSubmit={onSubmit} />);
 
-    await fill('  ana@mail.com ', 'contraseña-segura');
-    await fireEvent.press(screen.getByRole('button', { name: 'Entrar' }));
+    await fill('  ana@mail.com ', 'correct-horse-battery');
+    await submit();
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith({
         identifier: 'ana@mail.com',
-        password: 'contraseña-segura',
+        password: 'correct-horse-battery',
       }),
     );
   });
 
-  it('muestra el mensaje del servidor si falla', async () => {
+  it('shows the server message when login fails', async () => {
+    const message = 'Incorrect username/email or password';
     const onSubmit = jest
       .fn()
-      .mockRejectedValue(
-        new ApiError(
-          'INVALID_CREDENTIALS',
-          'Usuario/email o contraseña incorrectos',
-          401,
-        ),
-      );
+      .mockRejectedValue(new ApiError('INVALID_CREDENTIALS', message, 401));
     await render(<LoginForm onSubmit={onSubmit} />);
 
-    await fill('ana', 'incorrecta');
-    await fireEvent.press(screen.getByRole('button', { name: 'Entrar' }));
+    await fill('ana', 'wrong-password');
+    await submit();
 
-    expect(
-      await screen.findByText('Usuario/email o contraseña incorrectos'),
-    ).toBeOnTheScreen();
+    expect(await screen.findByText(message)).toBeOnTheScreen();
   });
 });

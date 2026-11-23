@@ -1,12 +1,13 @@
 import { z } from 'zod';
-import type { ErrorCode, PlayerStatus, Team } from './enums.js';
+import type { PlayerStatus, Team } from './enums.js';
+import type { ErrorCode } from './errors.js';
 import { latSchema, lngSchema, type MatchDto } from './match.js';
 
-/** Espacio de nombres de Socket.IO para la partida en tiempo real. */
+/** Socket.IO namespace for live matches. */
 export const GAME_NAMESPACE = '/game';
 
 // ---------------------------------------------------------------------------
-// Payloads cliente -> servidor (validados con zod en el servidor)
+// Client -> server payloads (validated by the server with these schemas)
 // ---------------------------------------------------------------------------
 
 export const matchSubscribeSchema = z.object({
@@ -17,7 +18,7 @@ export type MatchSubscribePayload = z.infer<typeof matchSubscribeSchema>;
 export const locationUpdateSchema = z.object({
   lat: latSchema,
   lng: lngSchema,
-  /** Precisión en metros que reporta el GPS del móvil. */
+  /** GPS accuracy in meters, as reported by the device. */
   accuracy: z.number().min(0).max(10_000).optional(),
 });
 export type LocationUpdatePayload = z.infer<typeof locationUpdateSchema>;
@@ -28,7 +29,7 @@ export const catchAttemptSchema = z.object({
 export type CatchAttemptPayload = z.infer<typeof catchAttemptSchema>;
 
 // ---------------------------------------------------------------------------
-// Payloads servidor -> cliente
+// Server -> client payloads
 // ---------------------------------------------------------------------------
 
 export interface PositionDto {
@@ -36,11 +37,11 @@ export interface PositionDto {
   lat: number;
   lng: number;
   accuracy: number | null;
-  /** ISO: cuándo se recibió la posición. */
+  /** When the server received the position. */
   at: string;
 }
 
-/** Solo lo reciben los cazadores en cada ping. */
+/** Sent to hunters on every ping: where the free runners are. */
 export interface PingRevealPayload {
   matchId: string;
   at: string;
@@ -48,7 +49,7 @@ export interface PingRevealPayload {
   nextPingAt: string | null;
 }
 
-/** Lo reciben los escapadores: "os acaban de localizar". */
+/** Sent to runners on every ping: "the hunters just saw you". */
 export interface PingNoticePayload {
   matchId: string;
   at: string;
@@ -73,15 +74,19 @@ export interface MatchClosedPayload {
   matchId: string;
 }
 
-/** Respuesta a `match:subscribe`: todo lo necesario para pintar la pantalla (también al reconectar). */
+/**
+ * Reply to `match:subscribe`: everything a client needs to render the match.
+ * Clients subscribe again after every reconnection to resynchronize.
+ */
 export interface MatchSnapshot {
   match: MatchDto;
   me: { userId: string; team: Team; status: PlayerStatus };
-  /** Posiciones en directo de tu propio equipo. */
+  /** Latest known positions of your own team. */
   teammates: PositionDto[];
-  /** Último ping recibido (solo cazadores). */
+  /** Latest ping (hunters only). */
   lastPing: PingRevealPayload | null;
   nextPingAt: string | null;
+  /** Lets clients correct for a phone clock that is off. */
   serverTime: string;
 }
 
@@ -92,7 +97,7 @@ export interface CatchResult {
 }
 
 // ---------------------------------------------------------------------------
-// Ack (respuesta a un emit con callback)
+// Acknowledgements: every client event is answered with one of these
 // ---------------------------------------------------------------------------
 
 export interface WsError {
@@ -103,7 +108,7 @@ export interface WsError {
 export type Ack<T> = { ok: true; data: T } | { ok: false; error: WsError };
 
 // ---------------------------------------------------------------------------
-// Mapas de eventos tipados para Socket.IO (servidor y socket.io-client)
+// Typed event maps, shared by the server and socket.io-client
 // ---------------------------------------------------------------------------
 
 export interface ClientToServerEvents {
@@ -122,11 +127,11 @@ export interface ClientToServerEvents {
 }
 
 export interface ServerToClientEvents {
-  /** Cualquier cambio de la partida (sala, equipos, fase, capturas). Payload completo. */
+  /** Any change to the match (players, teams, phase, catches). Full payload. */
   'match:updated': (match: MatchDto) => void;
-  /** El anfitrión cerró la sala o te expulsaron. */
+  /** The host closed the lobby, or you were kicked. */
   'match:closed': (payload: MatchClosedPayload) => void;
-  /** Posición en directo de un compañero de equipo. */
+  /** Live position of a teammate. */
   'player:position': (payload: PositionDto) => void;
   'ping:reveal': (payload: PingRevealPayload) => void;
   'ping:notice': (payload: PingNoticePayload) => void;

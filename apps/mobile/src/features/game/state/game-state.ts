@@ -1,5 +1,5 @@
-// Estado de la partida en el cliente. Reducer PURO: cada evento del socket es
-// una acción, así toda la lógica de "qué cambia cuando pasa X" se testea sin red.
+// Client-side match state. A PURE reducer: every socket event is an action, so
+// all the "what changes when X happens" logic is testable without a network.
 import {
   type MatchDto,
   type MatchFinishedPayload,
@@ -19,20 +19,20 @@ export type ConnectionStatus = 'connecting' | 'connected' | 'reconnecting';
 
 export interface GameState {
   connection: ConnectionStatus;
-  /** Último error de conexión/suscripción (para mostrarlo). */
+  /** Latest connection or subscription error, to display. */
   error: string | null;
   match: MatchDto | null;
   me: MatchSnapshot['me'] | null;
-  /** Última posición de cada compañero, por userId. */
+  /** Latest position of each teammate, by userId. */
   teammates: Record<string, PositionDto>;
-  /** Último ping (solo cazadores). */
+  /** Latest ping (hunters only). */
   lastPing: PingRevealPayload | null;
-  /** Último "te han localizado" (solo escapadores). */
+  /** When the hunters last saw you (runners only). */
   lastNoticeAt: string | null;
   lastCatch: PlayerCaughtPayload | null;
-  /** La sala se cerró o te expulsaron. */
+  /** The lobby was closed, or you were kicked. */
   closed: boolean;
-  /** Reloj del servidor - reloj local (ms). */
+  /** Server clock minus local clock (ms). */
   clockOffsetMs: number;
 }
 
@@ -147,11 +147,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   }
 }
 
-/** Aplica una versión nueva de la partida y recalcula mi equipo/estado a partir de ella. */
+/** Applies a new version of the match and recomputes my team and status from it. */
 function withMatch(state: GameState, match: MatchDto): GameState {
   if (!state.me) return { ...state, match };
   const mine = match.players.find((p) => p.userId === state.me?.userId);
-  if (!mine) return { ...state, match, closed: true }; // ya no estoy en la partida
+  if (!mine) return { ...state, match, closed: true }; // I'm no longer in the match
   const teamChanged = mine.team !== state.me.team;
   return {
     ...state,
@@ -162,7 +162,7 @@ function withMatch(state: GameState, match: MatchDto): GameState {
 }
 
 // ---------------------------------------------------------------------------
-// Selectores
+// Selectors
 // ---------------------------------------------------------------------------
 
 export const isLive = (status: MatchStatus | undefined) =>
@@ -179,7 +179,7 @@ export function aliveRunners(match: MatchDto): PlayerDto[] {
 }
 
 export function playerName(match: MatchDto | null, userId: string): string {
-  return match?.players.find((p) => p.userId === userId)?.username ?? 'Alguien';
+  return match?.players.find((p) => p.userId === userId)?.username ?? 'Someone';
 }
 
 export function hasBalancedTeams(match: MatchDto): boolean {

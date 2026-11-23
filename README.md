@@ -1,115 +1,122 @@
 # Manhunt
 
-Juego móvil de pilla-pilla con GPS: **cazadores** contra **escapadores** dentro de una zona.
+A real-world GPS game of tag: **hunters** against **runners** inside a play area.
 
 ```
 manhunt/
 ├── apps/
-│   ├── mobile/         # React Native con Expo (TypeScript)
-│   └── api/            # NestJS: REST + WebSocket (Socket.IO)
+│   ├── mobile/         # React Native app with Expo (TypeScript)
+│   └── api/            # NestJS API: REST + WebSocket (Socket.IO)
 ├── packages/
-│   ├── types/          # Contratos compartidos: DTOs, esquemas zod, eventos WebSocket
-│   ├── config-eslint/  # Reglas de linter unificadas
-│   └── config-ts/      # tsconfig base para todo el repo
+│   ├── types/          # Shared contracts: DTOs, zod schemas, WebSocket events
+│   └── config-ts/      # Base tsconfig
 ├── .github/workflows/  # CI/CD
-├── docker-compose.yml  # Postgres + Redis (+ API con el perfil "prod")
-└── turbo.json          # Pipeline de tareas y caché
+├── docker-compose.yml  # Postgres + Redis (+ the API with the "prod" profile)
+└── turbo.json          # Task pipeline and caching
 ```
 
-## Arrancar en local
+## Running locally
 
-Necesitas Node 24, pnpm 11 y Docker.
+You need Node 24, pnpm 11 and Docker.
 
 ```bash
 pnpm install
-cp apps/api/.env.example apps/api/.env      # primera vez
+cp apps/api/.env.example apps/api/.env      # first time only
 pnpm docker:up                              # Postgres + Redis
-pnpm --filter @manhunt/api dev              # API en http://localhost:3000 (aplica migraciones al arrancar)
-pnpm --filter @manhunt/mobile start         # App: escanea el QR con Expo Go (misma Wi-Fi)
+pnpm dev                                    # API on :3000 + Expo + shared types in watch mode
 ```
 
-La app móvil encuentra la API sola (usa la IP de tu ordenador). Detalles en [apps/mobile/README.md](apps/mobile/README.md).
+`pnpm dev` runs everything at once. To run the pieces separately:
 
-> **¿Puerto ocupado?** Si ya tienes otro Postgres o servicio en el 5432/6379/3000 (por ejemplo, dentro de WSL), crea un `.env` en la raíz con `DB_PORT=5433` (o `REDIS_PORT`), pon ese puerto en `DATABASE_URL` de `apps/api/.env` y, para la API, cambia `PORT` y `EXPO_PUBLIC_API_PORT`.
+```bash
+pnpm --filter @manhunt/api dev              # API (applies migrations on startup)
+pnpm --filter @manhunt/mobile start         # App: scan the QR code with Expo Go (same Wi-Fi)
+pnpm --filter @manhunt/mobile android       # App on a running Android emulator
+```
 
-| Comando | Qué hace |
+The mobile app finds the API on its own (it uses your computer's IP). Details in [apps/mobile/README.md](apps/mobile/README.md).
+
+> **Port already taken?** If another Postgres or service already uses 5432/6379/3000 (for example inside WSL), create a root `.env` with `DB_PORT=5433` (or `REDIS_PORT`), use that port in `DATABASE_URL` in `apps/api/.env` and, for the API, change `PORT` and `EXPO_PUBLIC_API_PORT`.
+
+| Command | What it does |
 |---|---|
-| `pnpm test` | Tests unitarios (API y app móvil) |
-| `pnpm test:e2e` | Tests e2e (partida completa) contra Postgres y Redis reales |
-| `pnpm lint` / `pnpm check-types` | Lint y tipos |
-| `pnpm --filter @manhunt/api db:generate` | Genera una migración tras cambiar `apps/api/src/infrastructure/database/schema.ts` |
-| `pnpm docker:up:all` | Construye la imagen de la API y levanta todo en Docker |
+| `pnpm test` | Unit tests (API and mobile app) |
+| `pnpm test:e2e` | e2e tests (full matches) against real Postgres and Redis |
+| `pnpm lint` / `pnpm check-types` | Lint and type checking |
+| `pnpm --filter @manhunt/api db:generate` | Creates a migration after editing `apps/api/src/infrastructure/database/schema.ts` |
+| `pnpm docker:up:all` | Builds the API image and runs everything in Docker |
 
-### Probar a mano
+### Trying it by hand
 
-- **HTTP**: abre [apps/api/requests.http](apps/api/requests.http) con la extensión *REST Client* de VS Code y lanza las peticiones en orden (se pasan el token, el id y el código solas).
-- **Partida en tiempo real**: con la API arrancada, `pnpm --filter @manhunt/api simulate` juega una partida completa por WebSocket (dos jugadores, ping, captura fallida, captura buena) y la narra por consola. Si la API no está en el 3000: `API_URL=http://localhost:3100 pnpm --filter @manhunt/api simulate`.
+- **HTTP**: open [apps/api/requests.http](apps/api/requests.http) with the VS Code *REST Client* extension and send the requests in order (the token, id and join code are passed along automatically).
+- **A live match**: with the API running, `pnpm --filter @manhunt/api simulate` plays a full match over WebSocket (two players, a ping, a failed catch and a successful one) and narrates it in the console. If the API isn't on port 3000: `API_URL=http://localhost:3100 pnpm --filter @manhunt/api simulate`.
 
-## Reglas (versión simple)
+## Rules
 
-1. **Sala (`WAITING`)**: el anfitrión crea la partida (zona circular, tiempos) y comparte el código de 6 caracteres. Él entra como cazador, el resto como escapadores; el anfitrión puede cambiar equipos o expulsar. Hace falta al menos un cazador y un escapador.
-2. **Escondite (`HIDING`)**: `hidingSeconds` de ventaja para los escapadores.
-3. **Caza (`ACTIVE`)**: dura `durationSeconds`.
-   - Cada equipo ve a sus compañeros en directo.
-   - Cada `pingIntervalSeconds` los cazadores reciben la posición de los escapadores vivos (`ping:reveal`) y los escapadores reciben un aviso (`ping:notice`).
-   - **Captura**: un cazador emite `catch:attempt`; vale si ambos tienen posición de hace menos de 30 s y están a menos de 25 m (configurable con `CATCH_RADIUS_METERS` y `POSITION_MAX_AGE_SECONDS`). El capturado pasa a espectador.
-4. **Fin (`FINISHED`)**: ganan los cazadores si capturan a todos; ganan los escapadores si se acaba el tiempo.
+1. **Lobby (`WAITING`)**: the host creates the match (a circular play area and timings) and shares the 6-character code. The host joins as a hunter, everyone else as a runner; the host can switch teams or kick players. A match needs at least one hunter and one runner.
+2. **Hiding (`HIDING`)**: runners get a `hidingSeconds` head start.
+3. **Hunt (`ACTIVE`)**: lasts `durationSeconds`.
+   - Each team sees its own members live.
+   - Every `pingIntervalSeconds`, hunters receive the free runners' positions (`ping:reveal`) and runners are told they were seen (`ping:notice`).
+   - **Catching**: a hunter sends `catch:attempt`. It counts if both players have a position younger than 30 s and are less than 25 m apart (configurable with `CATCH_RADIUS_METERS` and `POSITION_MAX_AGE_SECONDS`). Caught runners become spectators.
+4. **End (`FINISHED`)**: hunters win if they catch everyone; runners win if time runs out.
 
-Un usuario solo puede estar en una partida no terminada a la vez.
+A user can only be in one unfinished match at a time.
 
-## API REST
+## REST API
 
-Todas las rutas requieren `Authorization: Bearer <token>`, salvo las marcadas 🌐. Los errores devuelven `{ statusCode, code, message, details? }`; `code` está en `ErrorCode` de `@manhunt/types`.
+Every route requires `Authorization: Bearer <token>`, except those marked 🌐. Errors return `{ statusCode, code, message, details? }`, where `code` is one of `ErrorCode` in `@manhunt/types`.
 
-| Método | Ruta | Descripción |
+| Method | Route | Description |
 |---|---|---|
-| 🌐 POST | `/auth/register` | `{ username, email, password, acceptTerms: true }` → `{ accessToken, user }`. Guarda qué versión de la política se aceptó |
-| 🌐 POST | `/auth/login` | `{ identifier, password }` (usuario **o** email) → `{ accessToken, user }` |
-| GET | `/auth/me` | Usuario actual |
-| POST | `/matches` | Crea partida: `{ playArea: { lat, lng, radiusMeters }, hidingSeconds?, durationSeconds?, pingIntervalSeconds? }` |
-| POST | `/matches/join` | `{ joinCode }` → entra en la sala |
-| GET | `/matches/current` | `{ match }` con tu partida no terminada, o `null` |
-| GET | `/matches/:id` | Detalle (solo participantes) |
-| POST | `/matches/:id/leave` | Salir de la sala (no anfitrión, solo en `WAITING`) |
-| DELETE | `/matches/:id` | Cerrar la sala (anfitrión, solo en `WAITING`) |
-| PATCH | `/matches/:id/players/:userId` | `{ team }` cambiar equipo (anfitrión, `WAITING`) |
-| DELETE | `/matches/:id/players/:userId` | Expulsar (anfitrión, `WAITING`) |
-| POST | `/matches/:id/start` | Empezar: `WAITING → HIDING` |
+| 🌐 POST | `/auth/register` | `{ username, email, password, acceptTerms: true }` → `{ accessToken, user }`. Records which policy version was accepted |
+| 🌐 POST | `/auth/login` | `{ identifier, password }` (username **or** email) → `{ accessToken, user }` |
+| GET | `/auth/me` | The current user |
+| POST | `/matches` | Creates a match: `{ playArea: { lat, lng, radiusMeters }, hidingSeconds?, durationSeconds?, pingIntervalSeconds? }` |
+| POST | `/matches/join` | `{ joinCode }` → joins the lobby |
+| GET | `/matches/current` | `{ match }` with your unfinished match, or `null` |
+| GET | `/matches/:id` | Match details (participants only) |
+| POST | `/matches/:id/leave` | Leave the lobby (not the host, `WAITING` only) |
+| DELETE | `/matches/:id` | Close the lobby (host, `WAITING` only) |
+| PATCH | `/matches/:id/players/:userId` | `{ team }`: switch a player's team (host, `WAITING`) |
+| DELETE | `/matches/:id/players/:userId` | Kick a player (host, `WAITING`) |
+| POST | `/matches/:id/start` | Start: `WAITING → HIDING` |
 | 🌐 GET | `/health` · `/health/live` | Readiness (Postgres + Redis) · liveness |
 
 ## WebSocket (Socket.IO, namespace `/game`)
 
-Conexión: `io(URL + '/game', { auth: { token } })`. Tras conectar (y tras cada reconexión) emite `match:subscribe`. Todo emit del cliente responde con un ack `{ ok: true, data } | { ok: false, error: { code, message } }`. Los tipos están en `ClientToServerEvents` y `ServerToClientEvents`.
+Connect with `io(URL + '/game', { auth: { token } })`. After connecting, and after every reconnection, emit `match:subscribe`. Every client event is answered with an ack: `{ ok: true, data } | { ok: false, error: { code, message } }`. The types are `ClientToServerEvents` and `ServerToClientEvents`.
 
-**Cliente → servidor**
+**Client → server**
 
-| Evento | Payload | Ack `data` |
+| Event | Payload | Ack `data` |
 |---|---|---|
-| `match:subscribe` | `{ matchId }` | `MatchSnapshot`: partida, tu equipo y estado, compañeros, último ping, próximo ping |
-| `location:update` | `{ lat, lng, accuracy? }` (cada 5-10 s) | `{ at }` |
+| `match:subscribe` | `{ matchId }` | `MatchSnapshot`: the match, your team and status, teammates, latest ping, next ping |
+| `location:update` | `{ lat, lng, accuracy? }` (every 3-10 s) | `{ at }` |
 | `catch:attempt` | `{ runnerId }` | `{ runnerId, distanceMeters, runnersRemaining }` |
 
-**Servidor → cliente**
+**Server → client**
 
-| Evento | A quién | Cuándo |
+| Event | To | When |
 |---|---|---|
-| `match:updated` | sala | Cualquier cambio (jugadores, equipos, fase, capturas). Payload: `MatchDto` completo |
-| `match:closed` | sala / expulsado | El anfitrión cerró la sala o te expulsó |
-| `player:position` | tu equipo | Un compañero envió su posición |
-| `ping:reveal` | cazadores | Posiciones de los escapadores vivos + `nextPingAt` |
-| `ping:notice` | escapadores | "Os acaban de localizar" + `nextPingAt` |
-| `player:caught` | sala | Captura (`runnerId`, `hunterId`, `runnersRemaining`) |
-| `match:finished` | sala | `winnerTeam` |
+| `match:updated` | the lobby | Any change (players, teams, phase, catches). Payload: the full `MatchDto` |
+| `match:closed` | the lobby / kicked player | The host closed the lobby or kicked you |
+| `player:position` | your team | A teammate reported their position |
+| `ping:reveal` | hunters | The free runners' positions + `nextPingAt` |
+| `ping:notice` | runners | "The hunters just saw you" + `nextPingAt` |
+| `player:caught` | the lobby | A catch (`runnerId`, `hunterId`, `runnersRemaining`) |
+| `match:finished` | the lobby | `winnerTeam` |
 
-Las fechas viajan siempre como ISO absolutas (`hidingEndsAt`, `endsAt`, `nextPingAt`): la app calcula las cuentas atrás.
+Times always travel as absolute ISO dates (`hidingEndsAt`, `endsAt`, `nextPingAt`); clients compute their own countdowns.
 
-## Arquitectura de la API
+## API architecture
 
-Estructura de carpetas, responsabilidades de cada archivo y flujo de una partida: [apps/api/README.md](apps/api/README.md).
+Folder structure, what each file is responsible for, and the life of a match: [apps/api/README.md](apps/api/README.md).
 
 ## CI/CD (`.github/workflows/ci.yml`)
 
-1. **quality**: lint, tipos, tests unitarios y build.
-2. **e2e**: partida completa contra servicios Postgres y Redis.
-3. **docker**: construye la imagen; en `main` la publica en `ghcr.io/<owner>/manhunt-api` (`latest` y `sha-xxxxxxx`).
-4. **deploy** (opcional): se activa definiendo en GitHub las variables `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PATH` y el secreto `DEPLOY_SSH_KEY`. Entra por SSH al servidor y hace `docker compose pull && up -d`. El servidor necesita `docker-compose.yml` y un `.env` (ver `.env.example`).
+1. **quality**: lint, types, unit tests and build for the API.
+2. **mobile**: lint, types and tests for the app.
+3. **e2e**: full matches against Postgres and Redis services.
+4. **docker**: builds the image; on `main` it's pushed to `ghcr.io/<owner>/manhunt-api` (`latest` and `sha-xxxxxxx`).
+5. **deploy** (optional): enabled by defining the GitHub variables `DEPLOY_HOST`, `DEPLOY_USER` and `DEPLOY_PATH` and the secret `DEPLOY_SSH_KEY`. It SSHes into the server and runs `docker compose pull && up -d`. The server needs `docker-compose.yml` and a `.env` (see `.env.example`).

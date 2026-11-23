@@ -1,4 +1,4 @@
-/** Milisegundos que faltan hasta `iso` (nunca negativo), o null si no hay fecha. */
+/** Milliseconds left until `iso` (never negative), or null without a date. */
 export function msUntil(
   iso: string | null | undefined,
   nowMs: number,
@@ -7,7 +7,7 @@ export function msUntil(
   return Math.max(0, Date.parse(iso) - nowMs);
 }
 
-/** 75_000 -> "01:15", 3_725_000 -> "1:02:05". Redondea hacia arriba (no enseña 00:00 antes de tiempo). */
+/** 75_000 -> "01:15", 3_725_000 -> "1:02:05". Rounds up, so it never shows 00:00 too early. */
 export function formatCountdown(ms: number): string {
   const total = Math.ceil(ms / 1000);
   const h = Math.floor(total / 3600);
@@ -25,8 +25,8 @@ export interface PingSchedule {
 }
 
 /**
- * Próximo ping (ms epoch) o null. Mismo cálculo que el servidor:
- * ping n = fin del escondite + n × intervalo, siempre antes del final.
+ * The next ping (epoch ms), or null. Same schedule as the server:
+ * ping n = end of hiding + n × interval, as long as it's before the end.
  */
 export function nextPingTime(
   match: PingSchedule,
@@ -42,8 +42,8 @@ export function nextPingTime(
 }
 
 /**
- * Diferencia entre el reloj del servidor y el del móvil. Los relojes de los
- * móviles se desvían; las cuentas atrás usan `Date.now() + offset`.
+ * Server clock minus phone clock. Phone clocks drift, so countdowns use
+ * `Date.now() + offset`.
  */
 export function clockOffsetMs(
   serverTimeIso: string,

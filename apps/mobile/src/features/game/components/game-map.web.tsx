@@ -2,7 +2,7 @@ import { StyleSheet, View } from 'react-native';
 import { AppText, Card, spacing, useThemeColors } from '@/ui';
 import type { GameMapProps } from './game-map.types';
 
-/** react-native-maps no funciona en web: lista de posiciones para poder probar en el navegador. */
+/** react-native-maps doesn't support the web: list positions instead, for browser testing. */
 export function GameMap({ area, markers }: GameMapProps) {
   const c = useThemeColors();
   return (
@@ -14,15 +14,13 @@ export function GameMap({ area, markers }: GameMapProps) {
       ]}
     >
       <Card>
-        <AppText variant="label">Mapa no disponible en web</AppText>
+        <AppText variant="label">Map not available on the web</AppText>
         <AppText variant="caption" tone="muted">
-          Zona: {area.lat.toFixed(5)}, {area.lng.toFixed(5)} · radio{' '}
-          {area.radiusMeters} m
+          {`Play area: ${area.lat.toFixed(5)}, ${area.lng.toFixed(5)} · radius ${area.radiusMeters} m`}
         </AppText>
         {markers.map((m) => (
           <AppText key={`${m.kind}-${m.id}`} variant="caption">
-            {m.kind === 'ping' ? '📡' : '👤'} {m.title}: {m.lat.toFixed(5)},{' '}
-            {m.lng.toFixed(5)}
+            {`${m.kind === 'ping' ? '📡' : '👤'} ${m.title}: ${m.lat.toFixed(5)}, ${m.lng.toFixed(5)}`}
           </AppText>
         ))}
       </Card>

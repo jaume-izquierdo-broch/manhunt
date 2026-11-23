@@ -8,20 +8,20 @@ import { useSession } from '../session-provider';
 
 export type AuthMode = 'login' | 'register';
 
-const copy = {
+const COPY = {
   login: {
-    subtitle: 'Inicia sesión para jugar',
-    switchText: '¿No tienes cuenta? Regístrate',
+    subtitle: 'Log in to play',
+    switchText: "Don't have an account? Sign up",
     switchHref: '/register',
   },
   register: {
-    subtitle: 'Crea tu cuenta',
-    switchText: '¿Ya tienes cuenta? Inicia sesión',
+    subtitle: 'Create your account',
+    switchText: 'Already have an account? Log in',
     switchHref: '/login',
   },
 } as const;
 
-/** Login y registro comparten la cabecera con el logo; cada uno tiene su formulario. */
+/** Login and sign-up share the header with the logo; each has its own form. */
 export function AuthScreen({ mode }: { mode: AuthMode }) {
   const { signIn } = useSession();
 
@@ -31,14 +31,13 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
         <Image
           source={require('@/assets/images/logo.png')}
           style={styles.logo}
-          accessibilityIgnoresInvertColors
           accessible={false}
         />
         <AppText variant="title" center>
           Manhunt
         </AppText>
         <AppText tone="muted" center>
-          {copy[mode].subtitle}
+          {COPY[mode].subtitle}
         </AppText>
       </View>
 
@@ -52,9 +51,9 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
         />
       )}
 
-      <Link href={copy[mode].switchHref} replace style={styles.link}>
+      <Link href={COPY[mode].switchHref} replace style={styles.link}>
         <AppText variant="label" tone="primary">
-          {copy[mode].switchText}
+          {COPY[mode].switchText}
         </AppText>
       </Link>
     </Screen>

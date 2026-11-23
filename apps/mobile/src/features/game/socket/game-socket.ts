@@ -19,7 +19,7 @@ type AckData<E extends ClientEvent> =
 
 const ACK_TIMEOUT_MS = 8_000;
 
-/** Error de una acción por WebSocket (ack `{ ok: false }` o sin respuesta). */
+/** A failed WebSocket action (an `{ ok: false }` ack, or no reply at all). */
 export class GameActionError extends Error {
   constructor(
     readonly code: string,
@@ -30,7 +30,7 @@ export class GameActionError extends Error {
   }
 }
 
-/** Socket del namespace `/game`, sin conectar. Reconecta solo si se cae. */
+/** A socket for the `/game` namespace, not yet connected. It reconnects by itself. */
 export function createGameSocket(token: string): GameSocket {
   return io(`${getApiBaseUrl()}${GAME_NAMESPACE}`, {
     auth: { token },
@@ -42,7 +42,7 @@ export function createGameSocket(token: string): GameSocket {
   });
 }
 
-/** Emite un evento y espera su ack: devuelve `data` o lanza GameActionError. */
+/** Emits an event and awaits its ack: returns `data` or throws GameActionError. */
 export async function emitWithAck<E extends ClientEvent>(
   socket: GameSocket,
   event: E,
@@ -50,7 +50,7 @@ export async function emitWithAck<E extends ClientEvent>(
 ): Promise<AckData<E>> {
   let ack: Ack<AckData<E>>;
   try {
-    // Los tipos genéricos de socket.io no cubren bien emitWithAck con eventos variables.
+    // socket.io's generics don't cover emitWithAck with a variable event name.
     ack = await (socket.timeout(ACK_TIMEOUT_MS) as any).emitWithAck(
       event,
       payload,
@@ -58,13 +58,13 @@ export async function emitWithAck<E extends ClientEvent>(
   } catch {
     throw new GameActionError(
       'TIMEOUT',
-      'El servidor no responde. Inténtalo de nuevo.',
+      'The server is not responding. Try again.',
     );
   }
   if (!ack.ok) throw new GameActionError(ack.error.code, ack.error.message);
   return ack.data;
 }
 
-/** El handshake falló por token inválido (la sesión ha caducado). */
+/** The handshake was rejected because the token is invalid (expired session). */
 export const isUnauthorizedConnectError = (error: Error) =>
   error.message === ErrorCode.UNAUTHORIZED;

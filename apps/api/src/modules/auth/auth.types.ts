@@ -1,10 +1,10 @@
-/** Usuario autenticado, disponible en HTTP (`@CurrentUser()`) y en el socket (`socket.data`). */
+/** The authenticated user: `@CurrentUser()` over HTTP, `socket.data` over WebSocket. */
 export interface AuthUser {
   userId: string;
   username: string;
 }
 
-/** Contenido del JWT. */
+/** JWT claims. */
 export interface JwtPayload {
   sub: string;
   username: string;

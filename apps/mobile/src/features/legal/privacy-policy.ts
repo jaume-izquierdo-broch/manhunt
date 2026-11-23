@@ -1,15 +1,15 @@
-// Texto de la política de privacidad y condiciones de uso que se muestra en la app.
+// The privacy policy and terms of use shown in the app.
 //
-// ⚠️ BORRADOR: describe fielmente qué datos trata la app hoy, pero antes de publicarla
-// complétalo (responsable y contacto) y que lo revise alguien con conocimientos legales.
-// Si cambias el contenido de forma relevante, sube TERMS_VERSION en @manhunt/types:
-// la API guarda qué versión aceptó cada usuario.
+// ⚠️ DRAFT: it accurately describes the data the app processes today, but
+// before publishing, fill in LEGAL_CONTACT and have it reviewed by someone with
+// legal expertise. If you change it materially, bump TERMS_VERSION in
+// @manhunt/types: the API records which version each user accepted.
 import { TERMS_VERSION } from '@manhunt/types';
 
-/** Completa estos datos antes de publicar. */
+/** Fill these in before publishing. */
 export const LEGAL_CONTACT = {
-  owner: '[Nombre del responsable]',
-  email: '[email de contacto]',
+  owner: '[Data controller name]',
+  email: '[contact email]',
 };
 
 export interface PolicySection {
@@ -21,52 +21,52 @@ export const POLICY_VERSION = TERMS_VERSION;
 
 export const PRIVACY_POLICY: PolicySection[] = [
   {
-    title: 'Quién es el responsable',
+    title: 'Who is responsible',
     paragraphs: [
-      `El responsable de tus datos es ${LEGAL_CONTACT.owner}. Puedes escribir a ${LEGAL_CONTACT.email} para cualquier consulta sobre privacidad.`,
+      `Your data is controlled by ${LEGAL_CONTACT.owner}. For any privacy question, write to ${LEGAL_CONTACT.email}.`,
     ],
   },
   {
-    title: 'Qué datos tratamos',
+    title: 'What data we process',
     paragraphs: [
-      'Cuenta: nombre de usuario, email y contraseña (guardada cifrada con un hash; nadie puede leerla).',
-      'Partidas: en qué partidas participas, tu equipo y el resultado (si te capturaron y quién).',
-      'Ubicación: solo mientras una partida está en juego y la app está abierta. Se usa para mostrarte en el mapa, compartirla con tu equipo, enviar los "pings" a los cazadores y validar las capturas.',
+      'Account: username, email and password (stored as a one-way hash; nobody can read it).',
+      'Matches: which matches you play, your team and the outcome (whether you were caught, and by whom).',
+      'Location: only while a match is being played and the app is open. It is used to show you on the map, share it with your team, send "pings" to the hunters and validate catches.',
     ],
   },
   {
-    title: 'Para qué y con qué base',
+    title: 'Why, and on what basis',
     paragraphs: [
-      'Usamos estos datos únicamente para que puedas jugar: identificarte, montar las partidas y aplicar sus reglas. La base es tu consentimiento, que das al crear la cuenta, y la prestación del propio servicio.',
-      'No vendemos tus datos ni los usamos para publicidad.',
+      'We use this data only so you can play: to identify you, run matches and apply their rules. The legal bases are your consent, given when you create the account, and providing the service itself.',
+      'We do not sell your data or use it for advertising.',
     ],
   },
   {
-    title: 'Quién ve tu ubicación',
+    title: 'Who sees your location',
     paragraphs: [
-      'Durante la partida: tus compañeros de equipo la ven en directo. Si eres escapador, los cazadores la reciben solo en cada ping, según las reglas de la partida.',
-      'Nadie fuera de la partida tiene acceso a ella.',
+      'During a match, your teammates see it live. If you are a runner, the hunters only receive it on each ping, according to the match rules.',
+      'Nobody outside the match can access it.',
     ],
   },
   {
-    title: 'Cuánto tiempo la guardamos',
+    title: 'How long we keep it',
     paragraphs: [
-      'La ubicación es temporal: se borra al terminar la partida y, como máximo, a las 12 horas. No guardamos un historial de tus movimientos.',
-      'Los datos de la cuenta y el historial de partidas se conservan mientras tengas la cuenta.',
+      'Location is temporary: it is deleted when the match ends, and after 12 hours at most. We keep no history of your movements.',
+      'Account data and match history are kept for as long as you have an account.',
     ],
   },
   {
-    title: 'Tus derechos',
+    title: 'Your rights',
     paragraphs: [
-      `Puedes pedir acceder a tus datos, corregirlos, borrarlos o limitar su uso escribiendo a ${LEGAL_CONTACT.email}. También puedes reclamar ante la autoridad de protección de datos de tu país (en España, la AEPD).`,
+      `You can ask to access, correct, delete or restrict the use of your data by writing to ${LEGAL_CONTACT.email}. You can also complain to your country's data protection authority (in Spain, the AEPD).`,
     ],
   },
   {
-    title: 'Condiciones de uso',
+    title: 'Terms of use',
     paragraphs: [
-      'Manhunt es un juego en el mundo real: juega en lugares seguros y públicos, respeta las normas de tráfico y la propiedad privada, y no pongas en riesgo a nadie. Tú eres responsable de tu seguridad mientras juegas.',
-      'Para usar la app debes tener al menos 14 años o el consentimiento de tus padres o tutores.',
-      'Podemos suspender cuentas que hagan trampas o molesten a otros jugadores.',
+      'Manhunt is played in the real world: play in safe public places, follow traffic rules, respect private property and never put anyone at risk. You are responsible for your own safety while playing.',
+      'You must be at least 14 years old, or have your parents’ or guardians’ consent, to use the app.',
+      'We may suspend accounts that cheat or harass other players.',
     ],
   },
 ];

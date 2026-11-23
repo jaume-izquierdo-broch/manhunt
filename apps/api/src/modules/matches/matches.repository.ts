@@ -21,7 +21,7 @@ import {
   users,
 } from '../../infrastructure/database/schema.js';
 
-/** Jugador con su nombre de usuario (para construir el DTO). */
+/** A player row plus the username, as needed by the DTO. */
 export type PlayerView = Pick<
   MatchPlayerRow,
   'userId' | 'team' | 'status' | 'caughtBy' | 'caughtAt'
@@ -37,17 +37,17 @@ const byPlayer = (matchId: string, userId: string) =>
   and(eq(matchPlayers.matchId, matchId), eq(matchPlayers.userId, userId));
 
 /**
- * Todo el SQL de partidas y jugadores. Los servicios no usan Drizzle directamente.
+ * All SQL for matches and players; services never use Drizzle directly.
  *
- * Los cambios de estado son UPDATE condicionales (`WHERE status = ...`) que
- * devuelven `null` si no se aplicaron: así dos peticiones o temporizadores
- * simultáneos nunca dejan la partida en un estado incoherente.
+ * Status changes are conditional UPDATEs (`WHERE status = ...`) that return
+ * `null` / `false` when nothing changed. That way two concurrent requests or
+ * timers can never leave a match in an inconsistent state.
  */
 @Injectable()
 export class MatchesRepository {
   constructor(@InjectDb() private readonly db: Database) {}
 
-  // --- Partidas: lectura ---------------------------------------------------
+  // --- Matches: reads ------------------------------------------------------
 
   findById(matchId: string): Promise<MatchRow | undefined> {
     return this.db.query.matches.findFirst({ where: eq(matches.id, matchId) });
@@ -59,7 +59,7 @@ export class MatchesRepository {
     });
   }
 
-  /** Partida no terminada (WAITING/HIDING/ACTIVE) en la que está el usuario. */
+  /** The unfinished match (WAITING/HIDING/ACTIVE) the user belongs to. */
   async findOpenForUser(userId: string): Promise<MatchRow | undefined> {
     const [row] = await this.db
       .select({ match: matches })
@@ -75,18 +75,18 @@ export class MatchesRepository {
     return row?.match;
   }
 
-  /** Partidas en juego (HIDING/ACTIVE): para re-programar temporizadores al arrancar. */
+  /** Matches being played (HIDING/ACTIVE), to reschedule their timers on startup. */
   findLive(): Promise<MatchRow[]> {
     return this.db.query.matches.findMany({
       where: inArray(matches.status, [...LIVE_MATCH_STATUSES]),
     });
   }
 
-  // --- Partidas: escritura -------------------------------------------------
+  // --- Matches: writes -----------------------------------------------------
 
   /**
-   * Crea la partida y mete al anfitrión como cazador, en una transacción.
-   * Devuelve `null` si el código de unión ya existía (el llamador reintenta).
+   * Creates the match and adds the host as a hunter, in one transaction.
+   * Returns `null` if the join code is already taken (the caller retries).
    */
   async createWithHost(
     values: Omit<NewMatchRow, 'hostId'>,
@@ -113,7 +113,7 @@ export class MatchesRepository {
     await this.db.delete(matches).where(eq(matches.id, matchId));
   }
 
-  /** WAITING -> HIDING con las horas calculadas. */
+  /** WAITING -> HIDING, storing the computed timeline. */
   async markStarted(
     matchId: string,
     timeline: MatchTimeline,
@@ -128,7 +128,7 @@ export class MatchesRepository {
     return row ?? null;
   }
 
-  /** HIDING -> ACTIVE, solo si ya pasó `hidingEndsAt`. */
+  /** HIDING -> ACTIVE, only once `hidingEndsAt` has passed. */
   async markActive(matchId: string, now: Date): Promise<MatchRow | null> {
     const [row] = await this.db
       .update(matches)
@@ -144,7 +144,7 @@ export class MatchesRepository {
     return row ?? null;
   }
 
-  /** HIDING/ACTIVE -> FINISHED con el equipo ganador. */
+  /** HIDING/ACTIVE -> FINISHED, with the winning team. */
   async markFinished(
     matchId: string,
     winnerTeam: Team,
@@ -163,7 +163,7 @@ export class MatchesRepository {
     return row ?? null;
   }
 
-  // --- Jugadores -----------------------------------------------------------
+  // --- Players -------------------------------------------------------------
 
   async getPlayer(
     matchId: string,
@@ -180,7 +180,7 @@ export class MatchesRepository {
     });
   }
 
-  /** Jugadores con nombre, en orden de llegada. */
+  /** Players with their usernames, in joining order. */
   listPlayerViews(matchId: string): Promise<PlayerView[]> {
     return this.db
       .select({
@@ -230,7 +230,7 @@ export class MatchesRepository {
     await this.db.delete(matchPlayers).where(byPlayer(matchId, userId));
   }
 
-  /** Devuelve `false` si el jugador no está en la partida. */
+  /** Returns `false` if the player is not in the match. */
   async setPlayerTeam(
     matchId: string,
     userId: string,
@@ -244,7 +244,7 @@ export class MatchesRepository {
     return updated.length > 0;
   }
 
-  /** ALIVE -> CAUGHT. Devuelve `false` si ya estaba capturado (captura simultánea). */
+  /** ALIVE -> CAUGHT. Returns `false` if already caught (e.g. two hunters at once). */
   async markCaught(
     matchId: string,
     runnerId: string,

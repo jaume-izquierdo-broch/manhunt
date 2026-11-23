@@ -1,14 +1,14 @@
 import { DUMMY_HASH, hashPassword, verifyPassword } from './password.js';
 
-describe('password', () => {
-  it('verifica la contraseña correcta y rechaza la incorrecta', async () => {
-    const hash = await hashPassword('super-secreta');
+describe('password hashing', () => {
+  it('accepts the right password and rejects a wrong one', async () => {
+    const hash = await hashPassword('super-secret');
     expect(hash.startsWith('scrypt$')).toBe(true);
-    await expect(verifyPassword('super-secreta', hash)).resolves.toBe(true);
-    await expect(verifyPassword('otra', hash)).resolves.toBe(false);
+    await expect(verifyPassword('super-secret', hash)).resolves.toBe(true);
+    await expect(verifyPassword('another-one', hash)).resolves.toBe(false);
   });
 
-  it('usa una sal distinta cada vez', async () => {
+  it('uses a different salt every time', async () => {
     const [a, b] = await Promise.all([
       hashPassword('x'.repeat(8)),
       hashPassword('x'.repeat(8)),
@@ -16,11 +16,11 @@ describe('password', () => {
     expect(a).not.toBe(b);
   });
 
-  it('nunca da por buena una contraseña contra el hash de relleno', async () => {
-    await expect(verifyPassword('loquesea', DUMMY_HASH)).resolves.toBe(false);
+  it('never matches the dummy hash', async () => {
+    await expect(verifyPassword('anything', DUMMY_HASH)).resolves.toBe(false);
   });
 
-  it('rechaza hashes con formato desconocido', async () => {
+  it('rejects hashes in an unknown format', async () => {
     await expect(verifyPassword('x', 'bcrypt$abc')).resolves.toBe(false);
   });
 });

@@ -1,7 +1,7 @@
 import type { CreateMatchInput, MatchDto, Team } from '@manhunt/types';
 import { api } from '@/lib/http/api-client';
 
-/** Endpoints REST de partidas (ver README principal). */
+/** Match REST endpoints (see the main README). */
 export const matchesApi = {
   current: () => api.get<{ match: MatchDto | null }>('/matches/current'),
   get: (id: string) => api.get<MatchDto>(`/matches/${id}`),

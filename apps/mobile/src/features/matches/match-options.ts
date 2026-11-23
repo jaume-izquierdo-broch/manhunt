@@ -1,7 +1,7 @@
 import { MATCH_LIMITS } from '@manhunt/types';
 import type { Option } from '@/ui';
 
-// Opciones del formulario "Crear partida". Todas dentro de los límites del servidor.
+// Choices offered by the "Create match" form. All within the server's limits.
 
 const minutes = (m: number) => m * 60;
 
@@ -9,7 +9,7 @@ export const RADIUS_OPTIONS: readonly Option<number>[] = [
   { value: 200, label: '200 m' },
   { value: 400, label: '400 m' },
   { value: 800, label: '800 m' },
-  { value: 1500, label: '1,5 km' },
+  { value: 1500, label: '1.5 km' },
 ];
 
 export const HIDING_OPTIONS: readonly Option<number>[] = [

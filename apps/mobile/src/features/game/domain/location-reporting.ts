@@ -1,12 +1,12 @@
 import { distanceMeters, type LatLng } from './geo';
 
 export interface ReportPolicy {
-  /** Nunca más de un envío cada X ms (ahorra batería y datos). */
+  /** Never report more often than this (saves battery and data). */
   minIntervalMs: number;
-  /** Aunque no te muevas, se reenvía cada X ms: el servidor solo acepta
-   *  capturas con posiciones de menos de 30 s. */
+  /** Report at least this often, even when standing still: the server only
+   *  accepts catches based on positions younger than 30 s. */
   heartbeatMs: number;
-  /** Movimiento mínimo para enviar antes del heartbeat. */
+  /** Minimum movement that triggers a report before the heartbeat. */
   minMoveMeters: number;
 }
 
@@ -20,7 +20,7 @@ export interface ReportedPosition extends LatLng {
   at: number;
 }
 
-/** ¿Toca enviar la posición actual al servidor? */
+/** Should the current position be sent to the server now? */
 export function shouldReport(
   nowMs: number,
   current: LatLng,

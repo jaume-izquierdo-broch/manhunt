@@ -19,17 +19,21 @@ import {
   spacing,
   typography,
 } from '@/ui';
-import { PlayerRow } from '../components/player-row';
+import { TeamSection } from '../components/team-section';
 import { useGameSession, useLoadedMatch } from '../session/game-session';
 import { hasBalancedTeams, playersOfTeam } from '../state/game-state';
 
-/** Sala de espera: código para invitar, equipos y controles del anfitrión. */
+const otherTeam = (team: Team) =>
+  team === Team.HUNTER ? Team.RUNNER : Team.HUNTER;
+
+/** The lobby: a code to invite players, the teams and the host's controls. */
 export function LobbyView() {
   const { userId, applyMatch, locationPermission, requestLocationPermission } =
     useGameSession();
   const match = useLoadedMatch();
   const router = useRouter();
   const isHost = match.hostId === userId;
+  const balanced = hasBalancedTeams(match);
 
   const setTeam = useSetTeam(match.id);
   const kick = useKickPlayer(match.id);
@@ -37,22 +41,26 @@ export function LobbyView() {
   const leave = useLeaveMatch(match.id);
   const close = useCloseMatch(match.id);
 
-  /** Ejecuta una acción del anfitrión y aplica la partida devuelta. */
-  const run = async (failTitle: string, action: () => Promise<MatchDto>) => {
+  /** Runs a host action and applies the match it returns. */
+  const runHostAction = async (
+    failureTitle: string,
+    action: () => Promise<MatchDto>,
+  ) => {
     try {
       applyMatch(await action());
     } catch (error) {
-      Alert.alert(failTitle, errorMessage(error));
+      Alert.alert(failureTitle, errorMessage(error));
     }
   };
 
-  const exit = (
+  /** Asks for confirmation, runs the action and goes back home. */
+  const confirmAndExit = (
     title: string,
     message: string,
     action: () => Promise<unknown>,
   ) =>
     Alert.alert(title, message, [
-      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Cancel', style: 'cancel' },
       {
         text: title,
         style: 'destructive',
@@ -61,160 +69,96 @@ export function LobbyView() {
             await action();
             router.replace('/');
           } catch (error) {
-            Alert.alert('No se ha podido completar', errorMessage(error));
+            Alert.alert('Something went wrong', errorMessage(error));
           }
         },
       },
     ]);
 
-  const share = () =>
+  const shareCode = () =>
     Share.share({
-      message: `¡Únete a mi partida de Manhunt! Código: ${match.joinCode}`,
+      message: `Join my Manhunt match! Code: ${match.joinCode}`,
     });
 
-  const balanced = hasBalancedTeams(match);
-
-  const teamSection = (team: Team) => {
-    const players = playersOfTeam(match, team);
-    const other = team === Team.HUNTER ? Team.RUNNER : Team.HUNTER;
-    return (
-      <Card>
-        <AppText
-          variant="label"
-          tone={team === Team.HUNTER ? 'hunter' : 'runner'}
-        >
-          {team === Team.HUNTER ? 'Cazadores' : 'Escapadores'} ({players.length}
-          )
+  const hostFooter = (
+    <>
+      {!balanced ? (
+        <AppText variant="caption" tone="muted" center>
+          You need at least one hunter and one runner
         </AppText>
-        {players.length === 0 ? (
-          <AppText variant="caption" tone="muted">
-            Nadie todavía
-          </AppText>
-        ) : null}
-        {players.map((player) => (
-          <PlayerRow
-            key={player.userId}
-            player={player}
-            isMe={player.userId === userId}
-            isHost={player.userId === match.hostId}
-            actions={
-              isHost ? (
-                <>
-                  <Button
-                    title={team === Team.HUNTER ? '→ Escapador' : '→ Cazador'}
-                    variant="secondary"
-                    compact
-                    onPress={() =>
-                      run('No se pudo cambiar el equipo', () =>
-                        setTeam.mutateAsync({
-                          userId: player.userId,
-                          team: other,
-                        }),
-                      )
-                    }
-                  />
-                  {player.userId !== userId ? (
-                    <Button
-                      title="Expulsar"
-                      variant="ghost"
-                      compact
-                      onPress={() =>
-                        run('No se pudo expulsar', () =>
-                          kick.mutateAsync(player.userId),
-                        )
-                      }
-                    />
-                  ) : null}
-                </>
-              ) : undefined
-            }
-          />
-        ))}
-      </Card>
-    );
-  };
+      ) : null}
+      <Button
+        title="Start match"
+        disabled={!balanced}
+        loading={start.isPending}
+        onPress={() =>
+          runHostAction('Could not start the match', () => start.mutateAsync())
+        }
+      />
+      <Button
+        title="Close lobby"
+        variant="ghost"
+        onPress={() =>
+          confirmAndExit('Close lobby', 'Every player will be removed.', () =>
+            close.mutateAsync(),
+          )
+        }
+      />
+    </>
+  );
+
+  const guestFooter = (
+    <>
+      <AppText variant="caption" tone="muted" center>
+        Waiting for the host to start the match…
+      </AppText>
+      <Button
+        title="Leave lobby"
+        variant="secondary"
+        onPress={() =>
+          confirmAndExit('Leave', 'Are you sure you want to leave?', () =>
+            leave.mutateAsync(),
+          )
+        }
+      />
+    </>
+  );
 
   return (
-    <Screen
-      scroll
-      footer={
-        isHost ? (
-          <>
-            {!balanced ? (
-              <AppText variant="caption" tone="muted" center>
-                Hace falta al menos un cazador y un escapador
-              </AppText>
-            ) : null}
-            <Button
-              title="Empezar partida"
-              disabled={!balanced}
-              loading={start.isPending}
-              onPress={() =>
-                run('No se pudo empezar', () => start.mutateAsync())
-              }
-            />
-            <Button
-              title="Cerrar sala"
-              variant="ghost"
-              onPress={() =>
-                exit('Cerrar sala', 'Se expulsará a todos los jugadores.', () =>
-                  close.mutateAsync(),
-                )
-              }
-            />
-          </>
-        ) : (
-          <>
-            <AppText variant="caption" tone="muted" center>
-              Esperando a que el anfitrión empiece la partida…
-            </AppText>
-            <Button
-              title="Salir de la sala"
-              variant="secondary"
-              onPress={() =>
-                exit('Salir', '¿Seguro que quieres salir?', () =>
-                  leave.mutateAsync(),
-                )
-              }
-            />
-          </>
-        )
-      }
-    >
+    <Screen scroll footer={isHost ? hostFooter : guestFooter}>
       <Card style={styles.codeCard}>
         <AppText variant="caption" tone="muted">
-          Código de la sala
+          Lobby code
         </AppText>
         <AppText
           style={typography.mono}
-          accessibilityLabel={`Código ${match.joinCode}`}
+          accessibilityLabel={`Code ${match.joinCode}`}
           selectable
         >
           {match.joinCode}
         </AppText>
         <Button
-          title="Compartir código"
+          title="Share code"
           variant="secondary"
           compact
-          onPress={share}
+          onPress={shareCode}
         />
       </Card>
 
       <Card>
-        <AppText variant="label">Reglas de esta partida</AppText>
+        <AppText variant="label">Match rules</AppText>
         <View style={styles.rules}>
           <AppText variant="caption">
-            Zona: radio de {formatDistance(match.playArea.radiusMeters)}
+            {`Play area: ${formatDistance(match.playArea.radiusMeters)} radius`}
           </AppText>
           <AppText variant="caption">
-            Escondite: {formatDuration(match.hidingSeconds)}
+            {`Hiding time: ${formatDuration(match.hidingSeconds)}`}
           </AppText>
           <AppText variant="caption">
-            Duración: {formatDuration(match.durationSeconds)}
+            {`Duration: ${formatDuration(match.durationSeconds)}`}
           </AppText>
           <AppText variant="caption">
-            Ping a los cazadores: cada{' '}
-            {formatDuration(match.pingIntervalSeconds)}
+            {`Hunters get a ping every ${formatDuration(match.pingIntervalSeconds)}`}
           </AppText>
         </View>
       </Card>
@@ -223,10 +167,10 @@ export function LobbyView() {
         <View style={styles.permission}>
           <Banner
             tone="warning"
-            message="Necesitarás la ubicación activada para jugar. Concédela ahora para no perder tiempo al empezar."
+            message="You'll need location access to play. Grant it now so you don't lose time when the match starts."
           />
           <Button
-            title="Permitir ubicación"
+            title="Allow location"
             variant="secondary"
             compact
             onPress={requestLocationPermission}
@@ -234,8 +178,34 @@ export function LobbyView() {
         </View>
       ) : null}
 
-      {teamSection(Team.HUNTER)}
-      {teamSection(Team.RUNNER)}
+      {[Team.HUNTER, Team.RUNNER].map((team) => (
+        <TeamSection
+          key={team}
+          team={team}
+          players={playersOfTeam(match, team)}
+          userId={userId}
+          hostId={match.hostId}
+          onSwitchTeam={
+            isHost
+              ? (player) =>
+                  runHostAction('Could not change the team', () =>
+                    setTeam.mutateAsync({
+                      userId: player.userId,
+                      team: otherTeam(player.team),
+                    }),
+                  )
+              : undefined
+          }
+          onKick={
+            isHost
+              ? (player) =>
+                  runHostAction('Could not kick the player', () =>
+                    kick.mutateAsync(player.userId),
+                  )
+              : undefined
+          }
+        />
+      ))}
     </Screen>
   );
 }

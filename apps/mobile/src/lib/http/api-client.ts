@@ -5,14 +5,14 @@ type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
 interface RequestOptions {
   body?: unknown;
-  /** false para rutas públicas (login/registro): no se envía token ni se dispara el cierre de sesión. */
+  /** `false` for public routes (login, sign-up): no token is sent and a 401 doesn't sign the user out. */
   auth?: boolean;
   timeoutMs?: number;
 }
 
 interface AuthHooks {
   getToken: () => string | null;
-  /** Se llama si una petición autenticada devuelve 401 (token caducado o revocado). */
+  /** Called when an authenticated request gets a 401 (expired or revoked token). */
   onUnauthorized: () => void;
 }
 
@@ -21,12 +21,12 @@ const DEFAULT_TIMEOUT_MS = 15_000;
 let authHooks: AuthHooks = { getToken: () => null, onUnauthorized: () => {} };
 let baseUrl = API_URL;
 
-/** La sesión registra aquí cómo obtener el token y qué hacer ante un 401. */
+/** The session provider registers how to get the token and what to do on a 401. */
 export function configureApiAuth(hooks: AuthHooks): void {
   authHooks = hooks;
 }
 
-/** Solo para tests. */
+/** Tests only. */
 export function setApiBaseUrl(url: string): void {
   baseUrl = url;
 }
@@ -36,8 +36,8 @@ export function getApiBaseUrl(): string {
 }
 
 /**
- * Petición JSON a la API. Devuelve el cuerpo tipado o lanza `ApiError`
- * (nunca un error de red "crudo"), así las pantallas solo manejan un tipo de error.
+ * A JSON request to the API. Returns the typed body or throws an `ApiError`
+ * (never a raw network error), so screens only ever handle one error type.
  */
 async function request<T>(
   method: Method,

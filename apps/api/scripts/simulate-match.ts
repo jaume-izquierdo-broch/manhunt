@@ -1,12 +1,13 @@
-// Simula una partida completa contra una API en marcha y va narrando lo que pasa.
+// Plays a full match against a running API and narrates what happens.
 //
 //   pnpm --filter @manhunt/api simulate
 //   API_URL=http://localhost:3100 pnpm --filter @manhunt/api simulate
 //
-// Crea dos usuarios nuevos (cazador y escapador), monta la sala, empieza,
-// mueve al escapador, espera un ping, intenta capturar de lejos (falla),
-// se acerca y captura. Dura ~30 s.
+// Registers a hunter and a runner, sets up the lobby, starts the match, moves
+// the runner, waits for a ping, tries a catch from too far away (fails), moves
+// closer and catches. Takes about 20 seconds.
 import type {
+  Ack,
   ClientToServerEvents,
   MatchDto,
   ServerToClientEvents,
@@ -14,30 +15,36 @@ import type {
 import { io, type Socket } from 'socket.io-client';
 
 type GameSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
+type Actor = 'hunter' | 'runner' | 'api';
 
 const API_URL = process.env.API_URL ?? 'http://localhost:3000';
-const PLAZA = { lat: 41.387, lng: 2.17 };
-const metersNorth = (m: number) => ({
-  lat: PLAZA.lat + m / 111_000,
-  lng: PLAZA.lng,
+const ORIGIN = { lat: 41.387, lng: 2.17 };
+const metersNorth = (meters: number) => ({
+  lat: ORIGIN.lat + meters / 111_000,
+  lng: ORIGIN.lng,
 });
 
-// --- Salida bonita ------------------------------------------------------------
+// --- Console output -----------------------------------------------------------
 
-const t0 = Date.now();
-const colors = {
+const startedAt = Date.now();
+const COLORS: Record<Actor | 'step', string> = {
   hunter: '\x1b[31m',
   runner: '\x1b[32m',
   api: '\x1b[36m',
   step: '\x1b[1;33m',
 };
-function log(who: keyof typeof colors, msg: string, data?: unknown) {
-  const time = ((Date.now() - t0) / 1000).toFixed(1).padStart(5);
+const RESET = '\x1b[0m';
+
+function log(actor: Actor, message: string, data?: unknown) {
+  const elapsed = ((Date.now() - startedAt) / 1000).toFixed(1).padStart(5);
   const extra = data === undefined ? '' : ` ${JSON.stringify(data)}`;
-  console.log(`${time}s ${colors[who]}${who.padEnd(6)}\x1b[0m ${msg}${extra}`);
+  console.log(
+    `${elapsed}s ${COLORS[actor]}${actor.padEnd(6)}${RESET} ${message}${extra}`,
+  );
 }
-const step = (msg: string) => console.log(`\n${colors.step}▶ ${msg}\x1b[0m`);
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+const step = (message: string) =>
+  console.log(`\n${COLORS.step}▶ ${message}${RESET}`);
 
 // --- HTTP ---------------------------------------------------------------------
 
@@ -56,14 +63,15 @@ async function http<T>(
     body: body && JSON.stringify(body),
   });
   const json = res.status === 204 ? undefined : await res.json();
-  if (!res.ok)
+  if (!res.ok) {
     throw new Error(
       `${method} ${path} -> ${res.status} ${JSON.stringify(json)}`,
     );
+  }
   return json as T;
 }
 
-async function newUser(prefix: string) {
+async function registerUser(prefix: string) {
   const username = `${prefix}_${Math.random().toString(36).slice(2, 8)}`;
   const res = await http<{ accessToken: string; user: { id: string } }>(
     'POST',
@@ -71,21 +79,18 @@ async function newUser(prefix: string) {
     undefined,
     {
       username,
-      email: `${username}@simulacion.manhunt`,
-      password: 'contraseña-segura',
+      email: `${username}@simulation.manhunt`,
+      password: 'correct-horse-battery',
       acceptTerms: true,
     },
   );
-  log('api', `registrado ${username}`);
-  return { token: res.accessToken, id: res.user.id, username };
+  log('api', `registered ${username}`);
+  return { token: res.accessToken, id: res.user.id };
 }
 
 // --- WebSocket ----------------------------------------------------------------
 
-async function connect(
-  who: 'hunter' | 'runner',
-  token: string,
-): Promise<GameSocket> {
+async function connect(actor: Actor, token: string): Promise<GameSocket> {
   const socket: GameSocket = io(`${API_URL}/game`, {
     auth: { token },
     transports: ['websocket'],
@@ -94,126 +99,138 @@ async function connect(
     socket.once('connect', resolve);
     socket.once('connect_error', reject);
   });
-  log(who, 'conectado al WebSocket');
+  log(actor, 'connected to the WebSocket');
 
   socket.on('match:updated', (m) =>
-    log(who, `match:updated → ${m.status}`, playersSummary(m)),
+    log(actor, `match:updated → ${m.status}`, summarizePlayers(m)),
   );
   socket.on('player:position', (p) =>
-    log(who, 'player:position (compañero)', { lat: p.lat, lng: p.lng }),
+    log(actor, 'player:position (teammate)', { lat: p.lat, lng: p.lng }),
   );
   socket.on('ping:reveal', (p) =>
     log(
-      who,
+      actor,
       '📡 ping:reveal',
       p.runners.map((r) => ({ lat: r.lat, lng: r.lng })),
     ),
   );
   socket.on('ping:notice', () =>
-    log(who, '📡 ping:notice: ¡te han localizado!'),
+    log(actor, '📡 ping:notice: the hunters saw you!'),
   );
   socket.on('player:caught', (p) =>
-    log(who, '🫳 player:caught', { quedan: p.runnersRemaining }),
+    log(actor, '🫳 player:caught', { runnersLeft: p.runnersRemaining }),
   );
   socket.on('match:finished', (p) =>
-    log(who, `🏁 match:finished → ganan ${p.winnerTeam}`),
+    log(actor, `🏁 match:finished → ${p.winnerTeam} team wins`),
   );
   return socket;
 }
 
-const playersSummary = (m: MatchDto) =>
+const summarizePlayers = (m: MatchDto) =>
   m.players.map((p) => `${p.username}:${p.team}:${p.status}`).join(', ');
 
 async function send(
-  who: 'hunter' | 'runner',
+  actor: Actor,
   socket: GameSocket,
   event: keyof ClientToServerEvents,
   payload: object,
 ) {
-  const ack = await (socket.timeout(5000) as any).emitWithAck(event, payload);
+  // socket.io's generics don't cover emitWithAck with a variable event name.
+  const ack: Ack<unknown> = await (socket.timeout(5000) as any).emitWithAck(
+    event,
+    payload,
+  );
   log(
-    who,
+    actor,
     `${event} → ${ack.ok ? 'ok' : `ERROR ${ack.error.code}: ${ack.error.message}`}`,
   );
-  return ack;
 }
 
-function waitFor(
+function waitFor<E extends keyof ServerToClientEvents>(
   socket: GameSocket,
-  event: keyof ServerToClientEvents,
-  predicate: (p: any) => boolean = () => true,
-) {
-  return new Promise<any>((resolve) => {
-    const listener = (payload: any) => {
+  event: E,
+  predicate: (
+    payload: Parameters<ServerToClientEvents[E]>[0],
+  ) => boolean = () => true,
+): Promise<void> {
+  return new Promise((resolve) => {
+    const listener = (payload: Parameters<ServerToClientEvents[E]>[0]) => {
       if (!predicate(payload)) return;
-      socket.off(event, listener);
-      resolve(payload);
+      socket.off(event, listener as never);
+      resolve();
     };
-    socket.on(event, listener);
+    socket.on(event, listener as never);
   });
 }
 
-// --- Guion de la partida ------------------------------------------------------
+// --- The match ----------------------------------------------------------------
 
 async function main() {
-  step(`API en ${API_URL}`);
+  step(`API at ${API_URL}`);
   log('api', 'GET /health', await http('GET', '/health'));
 
-  step('Dos jugadores nuevos');
-  const hunter = await newUser('cazador');
-  const runner = await newUser('escapador');
+  step('Two new players');
+  const hunter = await registerUser('hunter');
+  const runner = await registerUser('runner');
 
-  step('El cazador crea la sala (5 s de escondite, ping cada 15 s)');
+  step('The hunter creates the lobby (5 s to hide, a ping every 15 s)');
   const match = await http<MatchDto>('POST', '/matches', hunter.token, {
-    playArea: { ...PLAZA, radiusMeters: 400 },
+    playArea: { ...ORIGIN, radiusMeters: 400 },
     hidingSeconds: 5,
     durationSeconds: 120,
     pingIntervalSeconds: 15,
   });
-  log('api', `sala creada, código ${match.joinCode}`);
+  log('api', `lobby created with code ${match.joinCode}`);
 
-  const hs = await connect('hunter', hunter.token);
-  const rs = await connect('runner', runner.token);
-  await send('hunter', hs, 'match:subscribe', { matchId: match.id });
+  const hunterSocket = await connect('hunter', hunter.token);
+  const runnerSocket = await connect('runner', runner.token);
+  await send('hunter', hunterSocket, 'match:subscribe', { matchId: match.id });
 
-  step('El escapador se une con el código');
+  step('The runner joins with the code');
   await http('POST', '/matches/join', runner.token, {
     joinCode: match.joinCode,
   });
-  await send('runner', rs, 'match:subscribe', { matchId: match.id });
+  await send('runner', runnerSocket, 'match:subscribe', { matchId: match.id });
 
-  step('Empieza la partida: HIDING 5 s y luego ACTIVE');
-  const active = waitFor(rs, 'match:updated', (m) => m.status === 'ACTIVE');
+  step('The match starts: 5 s of HIDING, then ACTIVE');
+  const active = waitFor(
+    runnerSocket,
+    'match:updated',
+    (m) => m.status === 'ACTIVE',
+  );
   await http('POST', `/matches/${match.id}/start`, hunter.token);
   await active;
 
-  step('Cada uno envía su posición (el escapador a ~150 m)');
-  await send('hunter', hs, 'location:update', { ...PLAZA, accuracy: 5 });
-  await send('runner', rs, 'location:update', {
+  step('Both report their positions (the runner is ~150 m away)');
+  await send('hunter', hunterSocket, 'location:update', {
+    ...ORIGIN,
+    accuracy: 5,
+  });
+  await send('runner', runnerSocket, 'location:update', {
     ...metersNorth(150),
     accuracy: 8,
   });
 
-  step('Intento de captura desde lejos (debe fallar con TOO_FAR)');
-  await send('hunter', hs, 'catch:attempt', { runnerId: runner.id });
+  step('A catch from too far away (should fail with TOO_FAR)');
+  await send('hunter', hunterSocket, 'catch:attempt', { runnerId: runner.id });
 
-  step('Esperando el primer ping (~15 s desde que empezó la caza)…');
-  await waitFor(hs, 'ping:reveal');
+  step('Waiting for the first ping (~15 s after the hunt starts)…');
+  await waitFor(hunterSocket, 'ping:reveal');
 
-  step('El cazador se acerca a ~5 m y captura');
-  await send('hunter', hs, 'location:update', metersNorth(145));
-  await send('runner', rs, 'location:update', metersNorth(150));
-  const finished = waitFor(rs, 'match:finished');
-  await send('hunter', hs, 'catch:attempt', { runnerId: runner.id });
+  step('The hunter moves within ~5 m and catches the runner');
+  await send('hunter', hunterSocket, 'location:update', metersNorth(145));
+  await send('runner', runnerSocket, 'location:update', metersNorth(150));
+  const finished = waitFor(runnerSocket, 'match:finished');
+  await send('hunter', hunterSocket, 'catch:attempt', { runnerId: runner.id });
   await finished;
 
-  await sleep(300);
-  hs.disconnect();
-  rs.disconnect();
-  step('Fin de la simulación ✔');
+  await new Promise((r) => setTimeout(r, 300));
+  hunterSocket.disconnect();
+  runnerSocket.disconnect();
+  step('Simulation finished ✔');
 }
 
 main().catch((error: unknown) => {
-  console.error('\n\x1b[31m✖ La simulación falló:\x1b[0m', error);
+  console.error(`\n\x1b[31m✖ The simulation failed:${RESET}`, error);
   process.exit(1);
 });

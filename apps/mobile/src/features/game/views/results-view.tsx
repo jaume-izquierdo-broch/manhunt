@@ -1,4 +1,4 @@
-import { Team } from '@manhunt/types';
+import { type MatchDto, type PlayerDto, Team } from '@manhunt/types';
 import { useRouter } from 'expo-router';
 import { useInvalidateCurrentMatch } from '@/features/matches/matches.queries';
 import { AppText, Button, Card, Screen } from '@/ui';
@@ -6,38 +6,33 @@ import { PlayerRow } from '../components/player-row';
 import { useGameSession, useLoadedMatch } from '../session/game-session';
 import { playerName, playersOfTeam } from '../state/game-state';
 
-/** Fin de la partida: quién ha ganado y qué le pasó a cada escapador. */
+/** End of the match: who won, and what happened to each runner. */
 export function ResultsView() {
   const { userId, state } = useGameSession();
   const match = useLoadedMatch();
   const router = useRouter();
-  const invalidateCurrent = useInvalidateCurrentMatch();
+  const invalidateCurrentMatch = useInvalidateCurrentMatch();
 
   const winner = match.winnerTeam;
-  const iWon = !!winner && state.me?.team === winner;
+  const myTeamWon = !!winner && state.me?.team === winner;
 
   const goHome = () => {
-    void invalidateCurrent();
+    void invalidateCurrentMatch();
     router.replace('/');
   };
 
   return (
-    <Screen
-      scroll
-      footer={<Button title="Volver al inicio" onPress={goHome} />}
-    >
+    <Screen scroll footer={<Button title="Back to home" onPress={goHome} />}>
       <Card>
         <AppText
           variant="title"
           tone={winner === Team.HUNTER ? 'hunter' : 'runner'}
           center
         >
-          {winner === Team.HUNTER
-            ? '¡Ganan los cazadores!'
-            : '¡Ganan los escapadores!'}
+          {winner === Team.HUNTER ? 'Hunters win!' : 'Runners win!'}
         </AppText>
         <AppText center tone="muted">
-          {iWon ? 'Tu equipo ha ganado 🎉' : 'Esta vez no ha podido ser.'}
+          {myTeamWon ? 'Your team won 🎉' : 'Better luck next time.'}
         </AppText>
       </Card>
 
@@ -47,7 +42,7 @@ export function ResultsView() {
             variant="label"
             tone={team === Team.HUNTER ? 'hunter' : 'runner'}
           >
-            {team === Team.HUNTER ? 'Cazadores' : 'Escapadores'}
+            {team === Team.HUNTER ? 'Hunters' : 'Runners'}
           </AppText>
           {playersOfTeam(match, team).map((player) => (
             <PlayerRow
@@ -55,17 +50,18 @@ export function ResultsView() {
               player={player}
               isMe={player.userId === userId}
               isHost={player.userId === match.hostId}
-              detail={
-                team === Team.RUNNER
-                  ? player.caughtBy
-                    ? `Capturado por ${playerName(match, player.caughtBy)}`
-                    : 'Sobrevivió'
-                  : undefined
-              }
+              detail={runnerOutcome(match, player)}
             />
           ))}
         </Card>
       ))}
     </Screen>
   );
+}
+
+function runnerOutcome(match: MatchDto, player: PlayerDto): string | undefined {
+  if (player.team !== Team.RUNNER) return undefined;
+  return player.caughtBy
+    ? `Caught by ${playerName(match, player.caughtBy)}`
+    : 'Survived';
 }

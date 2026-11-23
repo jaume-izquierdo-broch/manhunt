@@ -1,10 +1,11 @@
-// Variables de entorno: se validan UNA vez al arrancar; si falta algo, la API no arranca.
+import { Inject } from '@nestjs/common';
 import { z } from 'zod';
 
 const booleanFromString = z
   .enum(['true', 'false', '1', '0'])
   .transform((v) => v === 'true' || v === '1');
 
+/** Environment variables, validated once at startup: the API refuses to start if any is invalid. */
 export const envSchema = z.object({
   NODE_ENV: z
     .enum(['development', 'test', 'production'])
@@ -19,25 +20,29 @@ export const envSchema = z.object({
   REDIS_PORT: z.coerce.number().int().positive().default(6379),
   REDIS_PASSWORD: z.string().optional(),
 
-  JWT_SECRET: z
-    .string()
-    .min(16, 'JWT_SECRET debe tener al menos 16 caracteres'),
+  JWT_SECRET: z.string().min(16, 'JWT_SECRET must be at least 16 characters'),
   JWT_EXPIRES_IN_SECONDS: z.coerce
     .number()
     .int()
     .positive()
     .default(60 * 60 * 24 * 7),
 
-  /** Orígenes permitidos (separados por coma) o "*". Solo afecta a clientes web. */
+  /** Comma-separated list of allowed origins, or "*". Only affects browser clients. */
   CORS_ORIGIN: z.string().default('*'),
 
-  /** Distancia máxima (m) entre cazador y escapador para que cuente la captura. */
+  /** Maximum hunter-runner distance (meters) for a catch to count. */
   CATCH_RADIUS_METERS: z.coerce.number().positive().default(25),
-  /** Antigüedad máxima (s) de una posición para usarla en una captura. */
+  /** Maximum age (seconds) of a position for it to be used in a catch. */
   POSITION_MAX_AGE_SECONDS: z.coerce.number().int().positive().default(30),
 });
 
 export type Env = z.infer<typeof envSchema>;
+
+/** DI token for the validated environment. */
+export const ENV = Symbol('ENV');
+
+/** Usage: `constructor(@InjectEnv() env: Env)`. */
+export const InjectEnv = () => Inject(ENV);
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   const parsed = envSchema.safeParse(source);
@@ -45,20 +50,21 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     const issues = parsed.error.issues
       .map((i) => `  - ${i.path.join('.')}: ${i.message}`)
       .join('\n');
-    throw new Error(`Variables de entorno inválidas:\n${issues}`);
+    throw new Error(`Invalid environment variables:\n${issues}`);
   }
   return parsed.data;
 }
 
-/** Carga `.env` si existe (en Docker/CI las variables llegan por el entorno). */
+/** Loads `.env` when present. In Docker and CI the variables come from the environment. */
 export function loadDotEnvFile(path = '.env'): void {
   try {
     process.loadEnvFile(path);
   } catch {
-    // No hay .env: no pasa nada.
+    // No .env file: nothing to load.
   }
 }
 
+/** "*" allows every origin; otherwise a comma-separated list. */
 export function parseCorsOrigin(value: string): string[] | boolean {
   if (value.trim() === '*') return true;
   return value

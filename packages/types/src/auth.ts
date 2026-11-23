@@ -1,46 +1,49 @@
 import { z } from 'zod';
 
-/** Versión vigente de la política de privacidad y condiciones (se guarda al registrarse). */
+/**
+ * Current version of the privacy policy and terms of use. The API stores the
+ * version each user accepted, so bump it whenever the text changes materially.
+ */
 export const TERMS_VERSION = '2026-11';
 
 export const usernameSchema = z
   .string()
   .trim()
-  .min(3, 'Mínimo 3 caracteres')
-  .max(30, 'Máximo 30 caracteres')
-  // Sin "@": así "usuario o email" en el login nunca es ambiguo.
-  .regex(/^[a-zA-Z0-9_]+$/, 'Solo letras, números y _');
+  .min(3, 'At least 3 characters')
+  .max(30, 'At most 30 characters')
+  // No "@" allowed, so a login identifier is never ambiguous between username and email.
+  .regex(/^[a-zA-Z0-9_]+$/, 'Only letters, numbers and _');
 
 export const emailSchema = z
   .string()
   .trim()
   .toLowerCase()
-  .max(254, 'Email demasiado largo')
-  .pipe(z.email('Email no válido'));
+  .max(254, 'Email is too long')
+  .pipe(z.email('Invalid email'));
 
 export const passwordSchema = z
   .string()
-  .min(8, 'Mínimo 8 caracteres')
-  .max(128, 'Máximo 128 caracteres');
+  .min(8, 'At least 8 characters')
+  .max(128, 'At most 128 characters');
 
-/** Lo que recibe la API en POST /auth/register. */
+/** Body of `POST /auth/register`. */
 export const registerSchema = z.object({
   username: usernameSchema,
   email: emailSchema,
   password: passwordSchema,
   acceptTerms: z.literal(true, {
-    error: 'Debes aceptar la política de privacidad y las condiciones',
+    error: 'You must accept the privacy policy and terms of use',
   }),
 });
 export type RegisterInput = z.infer<typeof registerSchema>;
 
-/** Formulario de registro de la app: añade la confirmación de contraseña. */
+/** The app's sign-up form: the API body plus a password confirmation. */
 export const registerFormSchema = registerSchema
   .extend({ confirmPassword: z.string() })
   .refine((v) => v.password === v.confirmPassword, {
     path: ['confirmPassword'],
-    message: 'Las contraseñas no coinciden',
-    // Se comprueba aunque otros campos tengan errores (por defecto zod lo saltaría).
+    message: 'Passwords do not match',
+    // Run this check even when other fields are invalid (zod skips it by default).
     when: ({ value }) => {
       const v = value as { password?: unknown; confirmPassword?: unknown };
       return (
@@ -50,17 +53,17 @@ export const registerFormSchema = registerSchema
   });
 export type RegisterFormInput = z.infer<typeof registerFormSchema>;
 
-/** Login con nombre de usuario o email. */
+/** Body of `POST /auth/login`. `identifier` is a username or an email. */
 export const loginSchema = z.object({
-  identifier: z.string().trim().min(1, 'Escribe tu usuario o email'),
-  password: z.string().min(1, 'Escribe tu contraseña'),
+  identifier: z.string().trim().min(1, 'Enter your username or email'),
+  password: z.string().min(1, 'Enter your password'),
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
 export interface UserDto {
   id: string;
   username: string;
-  /** null solo en cuentas antiguas creadas antes de pedir email. */
+  /** Only null for legacy accounts created before email was required. */
   email: string | null;
   createdAt: string;
 }

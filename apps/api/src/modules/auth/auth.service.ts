@@ -20,7 +20,7 @@ export class AuthService {
     private readonly tokens: TokenService,
   ) {}
 
-  /** `acceptTerms` ya viene validado como `true` por el esquema. */
+  /** The schema has already checked that `acceptTerms` is true. */
   async register(input: RegisterInput): Promise<AuthResponse> {
     const result = await this.users.create({
       username: input.username,
@@ -36,10 +36,10 @@ export class AuthService {
     return this.issueToken(result.user);
   }
 
-  /** Login con nombre de usuario o email. */
   async login(input: LoginInput): Promise<AuthResponse> {
     const user = await this.users.findByIdentifier(input.identifier);
-    // Se verifica siempre (aunque no exista) para no revelar usuarios por el tiempo de respuesta.
+    // Always run the hash check, even for unknown users, so response time
+    // doesn't reveal which accounts exist.
     const valid = await verifyPassword(
       input.password,
       user?.passwordHash ?? DUMMY_HASH,
@@ -50,7 +50,7 @@ export class AuthService {
 
   async me(userId: string): Promise<UserDto> {
     const user = await this.users.findById(userId);
-    if (!user) throw AuthErrors.unauthorized('El usuario ya no existe');
+    if (!user) throw AuthErrors.unauthorized('This user no longer exists');
     return toUserDto(user);
   }
 

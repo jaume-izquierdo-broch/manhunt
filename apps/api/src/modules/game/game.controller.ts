@@ -10,12 +10,12 @@ import type { AuthUser } from '../auth/auth.types.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { MatchLifecycleService } from './match-lifecycle.service.js';
 
-/** Única acción REST de la partida en juego: empezarla. El resto va por WebSocket. */
+/** The only REST action of a live match is starting it; the rest goes over WebSocket. */
 @Controller('matches')
 export class GameController {
   constructor(private readonly lifecycle: MatchLifecycleService) {}
 
-  /** WAITING -> HIDING (solo el anfitrión). */
+  /** WAITING -> HIDING. Host only. */
   @Post(':id/start')
   @HttpCode(200)
   start(

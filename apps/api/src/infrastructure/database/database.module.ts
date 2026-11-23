@@ -6,8 +6,7 @@ import {
 } from '@nestjs/common';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
-import { ENV } from '../../config/config.module.js';
-import type { Env } from '../../config/env.js';
+import { ENV, type Env } from '../../config/env.js';
 import { DB, type Database, InjectPgPool, PG_POOL } from './database.tokens.js';
 import { runMigrations } from './migrate.js';
 import * as schema from './schema.js';
@@ -24,7 +23,7 @@ import * as schema from './schema.js';
           max: env.DATABASE_POOL_MAX,
         });
         pool.on('error', (err) =>
-          new Logger('Postgres').error(`Error en el pool: ${err.message}`),
+          new Logger('Postgres').error(`Pool error: ${err.message}`),
         );
         if (env.RUN_MIGRATIONS) await runMigrations(pool);
         return pool;

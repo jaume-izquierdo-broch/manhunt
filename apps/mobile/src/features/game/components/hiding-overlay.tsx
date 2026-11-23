@@ -2,7 +2,7 @@ import { StyleSheet, View } from 'react-native';
 import { AppText, spacing, useThemeColors } from '@/ui';
 import { formatCountdown } from '../domain/time';
 
-/** Para los cazadores durante el escondite: tapa el mapa hasta que empieza la caza. */
+/** Shown to hunters during the hiding phase: covers the map until the hunt begins. */
 export function HidingOverlay({ remainingMs }: { remainingMs: number | null }) {
   const c = useThemeColors();
   return (
@@ -15,13 +15,13 @@ export function HidingOverlay({ remainingMs }: { remainingMs: number | null }) {
       accessibilityRole="alert"
     >
       <AppText variant="subtitle" tone="onPrimary" center>
-        Los escapadores se están escondiendo
+        The runners are hiding
       </AppText>
       <AppText variant="title" tone="onPrimary" style={styles.countdown}>
         {remainingMs === null ? '--:--' : formatCountdown(remainingMs)}
       </AppText>
       <AppText tone="onPrimary" center>
-        No mires. Cuando acabe la cuenta atrás, empieza la caza.
+        No peeking. The hunt starts when the countdown ends.
       </AppText>
     </View>
   );

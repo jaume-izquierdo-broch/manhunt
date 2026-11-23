@@ -6,62 +6,62 @@ export const GameErrors = {
   notSubscribed: () =>
     new AppError(
       ErrorCode.NOT_IN_MATCH,
-      'Primero suscríbete a la partida con match:subscribe',
+      'Subscribe to the match first (match:subscribe)',
     ),
 
   notPlaying: () =>
     new AppError(
       ErrorCode.INVALID_MATCH_STATUS,
-      'La partida no está en juego',
+      'The match is not being played',
       HttpStatus.CONFLICT,
     ),
 
   notHuntingPhase: () =>
     new AppError(
       ErrorCode.INVALID_MATCH_STATUS,
-      'Solo se puede capturar durante la caza',
+      'Catches are only allowed during the hunt',
       HttpStatus.CONFLICT,
     ),
 
   youAreCaught: () =>
     new AppError(
       ErrorCode.NOT_ALIVE,
-      'Ya has sido capturado',
+      'You have already been caught',
       HttpStatus.CONFLICT,
     ),
 
   notHunter: () =>
     new AppError(
       ErrorCode.NOT_A_HUNTER,
-      'Solo los cazadores capturan',
+      'Only hunters can catch',
       HttpStatus.FORBIDDEN,
     ),
 
   notRunner: () =>
     new AppError(
       ErrorCode.NOT_A_RUNNER,
-      'Ese jugador no es un escapador',
+      'That player is not a runner',
       HttpStatus.NOT_FOUND,
     ),
 
   runnerAlreadyCaught: () =>
     new AppError(
       ErrorCode.NOT_ALIVE,
-      'Ese escapador ya está capturado',
+      'That runner has already been caught',
       HttpStatus.CONFLICT,
     ),
 
   positionUnknown: () =>
     new AppError(
       ErrorCode.POSITION_UNKNOWN,
-      'No hay una posición reciente de alguno de los dos',
+      'There is no recent position for one of you',
       HttpStatus.CONFLICT,
     ),
 
   tooFar: (distanceMeters: number, maxMeters: number) =>
     new AppError(
       ErrorCode.TOO_FAR,
-      `Estáis a ${Math.round(distanceMeters)} m (máximo ${maxMeters} m)`,
+      `You are ${Math.round(distanceMeters)} m apart (max ${maxMeters} m)`,
       HttpStatus.CONFLICT,
       { distanceMeters },
     ),

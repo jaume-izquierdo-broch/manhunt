@@ -5,7 +5,7 @@ export function useColorSchemeName(): ColorScheme {
   return useColorScheme() === 'dark' ? 'dark' : 'light';
 }
 
-/** Colores del tema actual (claro u oscuro según el sistema). */
+/** Colors of the current theme (light or dark, following the system setting). */
 export function useThemeColors(): ThemeColors {
   return colors[useColorSchemeName()];
 }

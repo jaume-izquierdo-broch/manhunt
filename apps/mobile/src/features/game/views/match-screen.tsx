@@ -10,24 +10,24 @@ import { PlayView } from './play-view';
 import { ResultsView } from './results-view';
 
 const TITLES: Record<MatchStatus, string> = {
-  WAITING: 'Sala',
-  HIDING: 'Escondite',
-  ACTIVE: 'Caza',
-  FINISHED: 'Resultados',
+  WAITING: 'Lobby',
+  HIDING: 'Hiding',
+  ACTIVE: 'Hunt',
+  FINISHED: 'Results',
 };
 
-/** Pantalla de una partida: muestra la sala, el juego o los resultados según su estado. */
+/** A match screen: shows the lobby, the game or the results depending on the status. */
 export function MatchScreen() {
   const { state } = useGameSession();
   const router = useRouter();
-  const invalidateCurrent = useInvalidateCurrentMatch();
+  const invalidateCurrentMatch = useInvalidateCurrentMatch();
 
   const onClosed = useEffectEvent(() => {
-    void invalidateCurrent();
+    void invalidateCurrentMatch();
     router.replace('/');
     Alert.alert(
-      'Partida cerrada',
-      'El anfitrión ha cerrado la sala o te ha expulsado.',
+      'Match closed',
+      'The host closed the lobby or removed you from it.',
     );
   });
   useEffect(() => {
@@ -38,16 +38,13 @@ export function MatchScreen() {
     return state.error ? (
       <Screen
         footer={
-          <Button
-            title="Volver al inicio"
-            onPress={() => router.replace('/')}
-          />
+          <Button title="Back to home" onPress={() => router.replace('/')} />
         }
       >
         <Banner tone="danger" message={state.error} />
       </Screen>
     ) : (
-      <LoadingView message="Conectando con la partida…" />
+      <LoadingView message="Connecting to the match…" />
     );
   }
 

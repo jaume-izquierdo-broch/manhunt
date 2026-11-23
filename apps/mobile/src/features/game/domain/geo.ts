@@ -8,7 +8,7 @@ export interface LatLng {
 const EARTH_RADIUS_METERS = 6_371_000;
 const METERS_PER_DEGREE_LAT = 111_320;
 
-/** Distancia en metros (Haversine). Misma fórmula que usa el servidor para validar capturas. */
+/** Distance in meters (haversine). The server validates catches with the same formula. */
 export function distanceMeters(a: LatLng, b: LatLng): number {
   const toRad = (deg: number) => (deg * Math.PI) / 180;
   const dLat = toRad(b.lat - a.lat);
@@ -26,7 +26,7 @@ export interface MapRegion {
   longitudeDelta: number;
 }
 
-/** Región del mapa que muestra la zona entera con un pequeño margen. */
+/** The map region that shows the whole play area with a small margin. */
 export function regionForArea(area: PlayArea, margin = 1.25): MapRegion {
   const spanMeters = area.radiusMeters * 2 * margin;
   const latitudeDelta = spanMeters / METERS_PER_DEGREE_LAT;

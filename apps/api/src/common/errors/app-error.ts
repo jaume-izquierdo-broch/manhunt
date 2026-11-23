@@ -2,12 +2,12 @@ import { HttpStatus } from '@nestjs/common';
 import type { ErrorCode } from '@manhunt/types';
 
 /**
- * Error de negocio con un código estable (`ErrorCode`) que la app puede interpretar.
+ * A business error with a stable `ErrorCode` that clients can rely on.
  *
- * - En HTTP, `HttpExceptionFilter` lo convierte en `{ statusCode, code, message, details }`.
- * - En WebSocket, `withAck` lo convierte en `{ ok: false, error: { code, message } }`.
+ * - Over HTTP, `HttpExceptionFilter` turns it into `{ statusCode, code, message, details }`.
+ * - Over WebSocket, `withAck` turns it into `{ ok: false, error: { code, message } }`.
  *
- * No se crean a mano en los servicios: cada módulo tiene su `*.errors.ts`.
+ * Services don't build these by hand: each module defines its errors in `*.errors.ts`.
  */
 export class AppError extends Error {
   constructor(

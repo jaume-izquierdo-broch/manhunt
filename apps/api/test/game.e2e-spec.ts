@@ -1,32 +1,31 @@
 import type { MatchDto } from '@manhunt/types';
 import { type ClientSocket, emit, waitFor } from './support/socket.js';
-import { PLAZA, type TestPlayer, useTestApp } from './support/test-app.js';
+import {
+  metersNorth,
+  ORIGIN,
+  type TestPlayer,
+  useTestApp,
+} from './support/test-app.js';
 
-/** ~0.0001º de latitud ≈ 11 m */
-const metersNorth = (meters: number) => ({
-  lat: PLAZA.lat + meters / 111_000,
-  lng: PLAZA.lng,
-});
-
-describe('partida en juego', () => {
+describe('live match', () => {
   const t = useTestApp();
 
   interface Setup {
     match: MatchDto;
     hunter: TestPlayer;
     runner: TestPlayer;
-    hs: ClientSocket;
-    rs: ClientSocket;
+    hunterSocket: ClientSocket;
+    runnerSocket: ClientSocket;
   }
 
-  /** Cazador + escapador suscritos y la partida ya en ACTIVE (escondite de 0 s). */
+  /** A hunter and a runner, both subscribed, with the match already ACTIVE (no hiding phase). */
   async function startedMatch(pingIntervalSeconds = 60): Promise<Setup> {
-    const hunter = await t.register('cazador');
-    const runner = await t.register('escapador');
+    const hunter = await t.register('hunter');
+    const runner = await t.register('runner');
     const match = (
       await hunter.api
         .post('/matches', {
-          playArea: { ...PLAZA, radiusMeters: 500 },
+          playArea: { ...ORIGIN, radiusMeters: 500 },
           hidingSeconds: 0,
           durationSeconds: 600,
           pingIntervalSeconds,
@@ -37,25 +36,30 @@ describe('partida en juego', () => {
       .post('/matches/join', { joinCode: match.joinCode })
       .expect(200);
 
-    const [hs, rs] = await Promise.all([hunter.connect(), runner.connect()]);
-    expect((await emit(hs, 'match:subscribe', { matchId: match.id })).ok).toBe(
-      true,
-    );
-    expect((await emit(rs, 'match:subscribe', { matchId: match.id })).ok).toBe(
-      true,
-    );
+    const [hunterSocket, runnerSocket] = await Promise.all([
+      hunter.connect(),
+      runner.connect(),
+    ]);
+    for (const socket of [hunterSocket, runnerSocket]) {
+      const ack = await emit(socket, 'match:subscribe', { matchId: match.id });
+      expect(ack.ok).toBe(true);
+    }
 
-    const active = waitFor(rs, 'match:updated', (m) => m.status === 'ACTIVE');
+    const active = waitFor(
+      runnerSocket,
+      'match:updated',
+      (m) => m.status === 'ACTIVE',
+    );
     const started = await hunter.api
       .post(`/matches/${match.id}/start`)
       .expect(200);
     expect((started.body as MatchDto).status).toBe('HIDING');
     await active;
 
-    return { match, hunter, runner, hs, rs };
+    return { match, hunter, runner, hunterSocket, runnerSocket };
   }
 
-  it('solo el anfitrión puede empezar y solo una vez', async () => {
+  it('only the host can start the match, and only once', async () => {
     const { match, hunter, runner } = await startedMatch();
     await runner.api.post(`/matches/${match.id}/start`).expect(403);
     const again = await hunter.api
@@ -64,64 +68,62 @@ describe('partida en juego', () => {
     expect(again.body.code).toBe('INVALID_MATCH_STATUS');
   });
 
-  it('las posiciones llegan en directo solo a los compañeros', async () => {
-    const { hs, rs } = await startedMatch();
+  it('live positions only reach teammates', async () => {
+    const { hunterSocket, runnerSocket } = await startedMatch();
     let runnerSawHunter = false;
-    rs.on('player:position', () => (runnerSawHunter = true));
+    runnerSocket.on('player:position', () => (runnerSawHunter = true));
 
-    const ack = await emit(hs, 'location:update', { ...PLAZA, accuracy: 5 });
+    const ack = await emit(hunterSocket, 'location:update', {
+      ...ORIGIN,
+      accuracy: 5,
+    });
     expect(ack.ok).toBe(true);
     await new Promise((r) => setTimeout(r, 300));
     expect(runnerSawHunter).toBe(false);
   });
 
-  it('validaciones de captura', async () => {
-    const { runner, hs, rs } = await startedMatch();
+  it('validates catch attempts', async () => {
+    const { runner, hunterSocket, runnerSocket } = await startedMatch();
+    const attempt = (socket: ClientSocket, runnerId = runner.user.id) =>
+      emit(socket, 'catch:attempt', { runnerId });
 
-    // Sin posiciones
-    expect(
-      await emit(hs, 'catch:attempt', { runnerId: runner.user.id }),
-    ).toMatchObject({
+    // No positions yet
+    expect(await attempt(hunterSocket)).toMatchObject({
       ok: false,
       error: { code: 'POSITION_UNKNOWN' },
     });
 
-    // Demasiado lejos (~200 m)
-    await emit(hs, 'location:update', PLAZA);
-    await emit(rs, 'location:update', metersNorth(200));
-    expect(
-      await emit(hs, 'catch:attempt', { runnerId: runner.user.id }),
-    ).toMatchObject({
+    // Too far apart (~200 m)
+    await emit(hunterSocket, 'location:update', ORIGIN);
+    await emit(runnerSocket, 'location:update', metersNorth(200));
+    expect(await attempt(hunterSocket)).toMatchObject({
       ok: false,
       error: { code: 'TOO_FAR' },
     });
 
-    // Un escapador no captura
-    expect(
-      await emit(rs, 'catch:attempt', { runnerId: runner.user.id }),
-    ).toMatchObject({
+    // Runners cannot catch
+    expect(await attempt(runnerSocket)).toMatchObject({
       ok: false,
       error: { code: 'NOT_A_HUNTER' },
     });
 
-    // Payload inválido
-    expect(
-      await emit(hs, 'catch:attempt', { runnerId: 'no-es-uuid' }),
-    ).toMatchObject({
+    // Invalid payload
+    expect(await attempt(hunterSocket, 'not-a-uuid')).toMatchObject({
       ok: false,
       error: { code: 'VALIDATION_ERROR' },
     });
   });
 
-  it('capturar al último escapador da la victoria a los cazadores', async () => {
-    const { match, hunter, runner, hs, rs } = await startedMatch();
+  it('catching the last runner makes the hunters win', async () => {
+    const { match, hunter, runner, hunterSocket, runnerSocket } =
+      await startedMatch();
 
-    await emit(hs, 'location:update', PLAZA);
-    await emit(rs, 'location:update', metersNorth(5));
+    await emit(hunterSocket, 'location:update', ORIGIN);
+    await emit(runnerSocket, 'location:update', metersNorth(5));
 
-    const caught = waitFor(rs, 'player:caught');
-    const finished = waitFor(rs, 'match:finished');
-    const result = await emit(hs, 'catch:attempt', {
+    const caught = waitFor(runnerSocket, 'player:caught');
+    const finished = waitFor(runnerSocket, 'match:finished');
+    const result = await emit(hunterSocket, 'catch:attempt', {
       runnerId: runner.user.id,
     });
 
@@ -145,28 +147,36 @@ describe('partida en juego', () => {
       caughtBy: hunter.user.id,
     });
 
-    // El capturado ya no puede enviar posición y nadie tiene partida abierta
-    expect(await emit(rs, 'location:update', PLAZA)).toMatchObject({
+    // The caught runner can no longer report positions, and nobody has an open match.
+    expect(await emit(runnerSocket, 'location:update', ORIGIN)).toMatchObject({
       ok: false,
     });
     await runner.api.get('/matches/current').expect(200, { match: null });
   });
 
-  it('los pings revelan a los escapadores a los cazadores', async () => {
-    const { runner, hs, rs, match } = await startedMatch(15);
+  it('pings reveal the runners to the hunters', async () => {
+    const { runner, hunterSocket, runnerSocket, match } =
+      await startedMatch(15);
     const hidden = metersNorth(120);
-    await emit(rs, 'location:update', hidden);
+    await emit(runnerSocket, 'location:update', hidden);
 
-    const notice = waitFor(rs, 'ping:notice', () => true, 25_000);
-    const reveal = await waitFor(hs, 'ping:reveal', () => true, 25_000);
+    const notice = waitFor(runnerSocket, 'ping:notice', () => true, 25_000);
+    const reveal = await waitFor(
+      hunterSocket,
+      'ping:reveal',
+      () => true,
+      25_000,
+    );
     expect(reveal.runners).toEqual([
       expect.objectContaining({ userId: runner.user.id, ...hidden }),
     ]);
     expect(reveal.nextPingAt).not.toBeNull();
     await notice;
 
-    // Al re-suscribirse (reconexión), el cazador recupera el último ping
-    const snapshot = await emit(hs, 'match:subscribe', { matchId: match.id });
+    // Subscribing again (as after a reconnection) restores the latest ping.
+    const snapshot = await emit(hunterSocket, 'match:subscribe', {
+      matchId: match.id,
+    });
     expect(snapshot.ok && snapshot.data.lastPing?.runners).toHaveLength(1);
   }, 40_000);
 });

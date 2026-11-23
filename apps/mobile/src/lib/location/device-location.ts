@@ -7,7 +7,7 @@ export interface DevicePosition {
   lat: number;
   lng: number;
   accuracy: number | null;
-  /** Momento de la lectura (ms). */
+  /** When the reading was taken (epoch ms). */
   at: number;
 }
 
@@ -30,12 +30,10 @@ export async function requestLocationPermission(): Promise<LocationPermission> {
   return toPermission(status);
 }
 
-/** Una lectura puntual (p. ej. para fijar el centro de la zona al crear la partida). */
+/** A one-off reading, e.g. to center the play area when creating a match. */
 export async function getCurrentPosition(): Promise<DevicePosition> {
   if ((await requestLocationPermission()) !== 'granted') {
-    throw new Error(
-      'Necesitamos permiso de ubicación para colocar la zona de juego.',
-    );
+    throw new Error('Location permission is needed to place the play area.');
   }
   return toDevicePosition(
     await Location.getCurrentPositionAsync({
@@ -45,8 +43,8 @@ export async function getCurrentPosition(): Promise<DevicePosition> {
 }
 
 /**
- * Permiso y posición del dispositivo en primer plano.
- * Con `watch` activo pide permiso si hace falta y sigue la posición en directo.
+ * Foreground location permission and position.
+ * While `watch` is on, it asks for permission if needed and tracks the position live.
  */
 export function useDeviceLocation({ watch }: { watch: boolean }) {
   const [permission, setPermission] = useState<LocationPermission>('unknown');
@@ -90,7 +88,8 @@ export function useDeviceLocation({ watch }: { watch: boolean }) {
     };
   }, [watch]);
 
-  const request = async () => setPermission(await requestLocationPermission());
+  const requestPermission = async () =>
+    setPermission(await requestLocationPermission());
 
-  return { permission, position, requestPermission: request };
+  return { permission, position, requestPermission };
 }

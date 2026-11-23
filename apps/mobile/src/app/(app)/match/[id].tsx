@@ -2,11 +2,11 @@ import { useLocalSearchParams } from 'expo-router';
 import { GameSessionProvider } from '@/features/game/session/game-session';
 import { MatchScreen } from '@/features/game/views/match-screen';
 
-/** Una partida: la conexión en directo vive mientras estás en esta pantalla. */
+/** A match. The live connection lasts as long as this screen is open. */
 export default function MatchRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();
   return (
-    // key: si cambias de partida, conexión y estado empiezan de cero.
+    // Keyed by id: switching matches starts a fresh connection and state.
     <GameSessionProvider key={id} matchId={id}>
       <MatchScreen />
     </GameSessionProvider>

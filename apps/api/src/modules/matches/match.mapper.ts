@@ -4,7 +4,7 @@ import type { PlayerView } from './matches.repository.js';
 
 const iso = (date: Date | null) => (date ? date.toISOString() : null);
 
-/** Fila de BD + jugadores -> DTO público que recibe la app. */
+/** Database rows -> the public DTO sent to clients. */
 export function toMatchDto(match: MatchRow, players: PlayerView[]): MatchDto {
   return {
     id: match.id,

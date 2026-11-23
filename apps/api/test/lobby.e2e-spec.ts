@@ -1,18 +1,18 @@
 import type { MatchDto } from '@manhunt/types';
 import { emit, waitFor } from './support/socket.js';
-import { PLAZA, type TestPlayer, useTestApp } from './support/test-app.js';
+import { ORIGIN, type TestPlayer, useTestApp } from './support/test-app.js';
 
-describe('sala (WAITING)', () => {
+describe('lobby (WAITING)', () => {
   const t = useTestApp();
 
   async function createMatch(host: TestPlayer): Promise<MatchDto> {
     const res = await host.api
-      .post('/matches', { playArea: { ...PLAZA, radiusMeters: 300 } })
+      .post('/matches', { playArea: { ...ORIGIN, radiusMeters: 300 } })
       .expect(201);
     return res.body as MatchDto;
   }
 
-  it('crear con valores por defecto: el anfitrión entra como cazador', async () => {
+  it('creates a match with defaults; the host joins as a hunter', async () => {
     const host = await t.register('host');
     const match = await createMatch(host);
 
@@ -35,7 +35,7 @@ describe('sala (WAITING)', () => {
     await host.api.get('/matches/current').expect(200, { match });
   });
 
-  it('unirse con el código avisa a la sala y es idempotente', async () => {
+  it('joining by code notifies the lobby and is idempotent', async () => {
     const host = await t.register('host');
     const guest = await t.register('guest');
     const match = await createMatch(host);
@@ -57,23 +57,22 @@ describe('sala (WAITING)', () => {
     });
     await updated;
 
-    // Repetir no duplica
     const again = await guest.api
       .post('/matches/join', { joinCode: match.joinCode })
       .expect(200);
     expect((again.body as MatchDto).players).toHaveLength(2);
   });
 
-  it('no se puede estar en dos partidas a la vez', async () => {
+  it('a user cannot be in two matches at once', async () => {
     const host = await t.register('host');
     await createMatch(host);
     const res = await host.api
-      .post('/matches', { playArea: { ...PLAZA, radiusMeters: 300 } })
+      .post('/matches', { playArea: { ...ORIGIN, radiusMeters: 300 } })
       .expect(409);
     expect(res.body).toMatchObject({ code: 'ALREADY_IN_MATCH' });
   });
 
-  it('código inexistente -> 404', async () => {
+  it('an unknown code returns 404', async () => {
     const guest = await t.register('guest');
     const res = await guest.api
       .post('/matches/join', { joinCode: 'ZZZZZZ' })
@@ -81,7 +80,7 @@ describe('sala (WAITING)', () => {
     expect(res.body.code).toBe('MATCH_NOT_FOUND');
   });
 
-  it('solo los participantes pueden ver la partida', async () => {
+  it('only participants can see a match', async () => {
     const host = await t.register('host');
     const outsider = await t.register('outsider');
     const match = await createMatch(host);
@@ -89,7 +88,7 @@ describe('sala (WAITING)', () => {
     expect(res.body.code).toBe('NOT_IN_MATCH');
   });
 
-  it('el anfitrión cambia equipos y expulsa; los demás no', async () => {
+  it('the host can change teams and kick players; others cannot', async () => {
     const host = await t.register('host');
     const guest = await t.register('guest');
     const match = await createMatch(host);
@@ -120,7 +119,7 @@ describe('sala (WAITING)', () => {
     expect(await closed).toEqual({ matchId: match.id });
   });
 
-  it('un jugador puede salir; el anfitrión no (debe cerrar la sala)', async () => {
+  it('players can leave; the host must close the lobby instead', async () => {
     const host = await t.register('host');
     const guest = await t.register('guest');
     const match = await createMatch(host);
@@ -138,7 +137,7 @@ describe('sala (WAITING)', () => {
     await host.api.get(`/matches/${match.id}`).expect(404);
   });
 
-  it('no se puede empezar sin al menos un cazador y un escapador', async () => {
+  it('cannot start without at least one hunter and one runner', async () => {
     const host = await t.register('host');
     const match = await createMatch(host);
     const res = await host.api.post(`/matches/${match.id}/start`).expect(409);

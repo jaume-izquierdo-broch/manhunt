@@ -71,7 +71,7 @@ function loaded(overrides?: Partial<MatchSnapshot>): GameState {
 }
 
 describe('gameReducer', () => {
-  it('snapshot: carga partida, compañeros y desfase de reloj', () => {
+  it('snapshot: loads the match, teammates and clock offset', () => {
     const state = loaded();
     expect(state.match?.id).toBe('m1');
     expect(state.me?.team).toBe('RUNNER');
@@ -79,15 +79,15 @@ describe('gameReducer', () => {
     expect(state.clockOffsetMs).toBe(2000);
   });
 
-  it('conexión: reconectando y vuelta a conectado limpia el error', () => {
+  it('connection: reconnecting, then connected again, clears the error', () => {
     let state = gameReducer(loaded(), { type: 'disconnected' });
     expect(state.connection).toBe('reconnecting');
-    state = gameReducer(state, { type: 'failed', message: 'sin red' });
+    state = gameReducer(state, { type: 'failed', message: 'offline' });
     state = gameReducer(state, { type: 'connected' });
     expect(state).toMatchObject({ connection: 'connected', error: null });
   });
 
-  it('position: guarda compañeros pero ignora mi propia posición', () => {
+  it('position: stores teammates but ignores my own position', () => {
     const position = {
       userId: 'runner2',
       lat: 5,
@@ -106,7 +106,7 @@ describe('gameReducer', () => {
     expect(state).toBe(before);
   });
 
-  it('matchUpdated: recalcula mi equipo y borra compañeros si cambio de equipo', () => {
+  it('matchUpdated: recomputes my team and clears teammates when it changes', () => {
     const match = {
       ...baseMatch,
       players: baseMatch.players.map((p) =>
@@ -118,7 +118,7 @@ describe('gameReducer', () => {
     expect(state.teammates).toEqual({});
   });
 
-  it('matchUpdated: si ya no estoy en la partida, queda cerrada', () => {
+  it('matchUpdated: marks the match closed when I am no longer in it', () => {
     const match = {
       ...baseMatch,
       players: baseMatch.players.filter((p) => p.userId !== 'runner1'),
@@ -128,17 +128,17 @@ describe('gameReducer', () => {
     );
   });
 
-  it('matchUpdated de otra partida se ignora', () => {
+  it('matchUpdated for another match is ignored', () => {
     const state = loaded();
     expect(
       gameReducer(state, {
         type: 'matchUpdated',
-        match: { ...baseMatch, id: 'otra' },
+        match: { ...baseMatch, id: 'another' },
       }),
     ).toBe(state);
   });
 
-  it('playerCaught: marca al escapador y, si soy yo, quedo capturado', () => {
+  it('playerCaught: marks the runner, and me if I am the one caught', () => {
     const caught = {
       matchId: 'm1',
       runnerId: 'runner1',
@@ -157,7 +157,7 @@ describe('gameReducer', () => {
     expect(state.lastCatch).toEqual(caught);
   });
 
-  it('playerCaught de un compañero quita su posición', () => {
+  it('playerCaught of a teammate removes their position', () => {
     const caught = {
       matchId: 'm1',
       runnerId: 'runner2',
@@ -170,7 +170,7 @@ describe('gameReducer', () => {
     expect(state.me?.status).toBe('ALIVE');
   });
 
-  it('pings: el cazador guarda el último ping; el escapador, cuándo le localizaron', () => {
+  it('pings: hunters keep the latest ping; runners, when they were seen', () => {
     const ping = { matchId: 'm1', at: 'T1', runners: [], nextPingAt: 'T2' };
     let state = gameReducer(loaded(), { type: 'pingReveal', ping });
     expect(state.lastPing).toEqual(ping);
@@ -182,7 +182,7 @@ describe('gameReducer', () => {
     expect(state.lastNoticeAt).toBe('T3');
   });
 
-  it('matchFinished: termina la partida con el ganador', () => {
+  it('matchFinished: ends the match with the winner', () => {
     const state = gameReducer(loaded(), {
       type: 'matchFinished',
       finished: { matchId: 'm1', winnerTeam: 'HUNTER', endedAt: 'T' },
@@ -199,8 +199,8 @@ describe('gameReducer', () => {
   });
 });
 
-describe('selectores', () => {
-  it('aliveRunners, hasBalancedTeams y playerName', () => {
+describe('selectors', () => {
+  it('aliveRunners, hasBalancedTeams and playerName', () => {
     const match = {
       ...baseMatch,
       players: baseMatch.players.map((p) =>
@@ -213,6 +213,6 @@ describe('selectores', () => {
       hasBalancedTeams({ ...match, players: [player('hunter', 'HUNTER')] }),
     ).toBe(false);
     expect(playerName(match, 'runner1')).toBe('runner1');
-    expect(playerName(match, 'nadie')).toBe('Alguien');
+    expect(playerName(match, 'nobody')).toBe('Someone');
   });
 });

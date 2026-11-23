@@ -7,7 +7,7 @@ export interface PlayerRowProps {
   player: PlayerDto;
   isMe: boolean;
   isHost: boolean;
-  /** Botones a la derecha (acciones del anfitrión, capturar...). */
+  /** Buttons on the right (host actions, catch...). */
   actions?: ReactNode;
   detail?: string;
 }
@@ -21,15 +21,15 @@ export function PlayerRow({
 }: PlayerRowProps) {
   const caught = player.status === 'CAUGHT';
   return (
-    <View style={styles.row} accessibilityLabel={`Jugador ${player.username}`}>
+    <View style={styles.row} accessibilityLabel={`Player ${player.username}`}>
       <View style={styles.info}>
         <View style={styles.name}>
           <AppText variant="label" style={caught && styles.caught}>
             {player.username}
           </AppText>
-          {isMe ? <Badge label="Tú" tone="accent" /> : null}
-          {isHost ? <Badge label="Anfitrión" /> : null}
-          {caught ? <Badge label="Capturado" tone="hunter" /> : null}
+          {isMe ? <Badge label="You" tone="accent" /> : null}
+          {isHost ? <Badge label="Host" /> : null}
+          {caught ? <Badge label="Caught" tone="hunter" /> : null}
         </View>
         {detail ? (
           <AppText variant="caption" tone="muted">

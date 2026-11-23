@@ -25,7 +25,7 @@ export default function RootLayout() {
   );
 }
 
-/** Rutas protegidas: sin sesión solo existe (auth); con sesión, solo (app). */
+/** Protected routes: signed out, only (auth) exists; signed in, only (app). */
 function RootNavigator() {
   const { state } = useSession();
 
@@ -33,7 +33,8 @@ function RootNavigator() {
     if (state.status !== 'loading') void SplashScreen.hideAsync();
   }, [state.status]);
 
-  if (state.status === 'loading') return null; // se sigue viendo el splash
+  // Keep showing the splash screen while the stored session loads.
+  if (state.status === 'loading') return null;
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
@@ -43,12 +44,12 @@ function RootNavigator() {
       <Stack.Protected guard={state.status === 'signedOut'} redirectTo="/">
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
-      {/* Siempre accesible: se enlaza desde el registro y debe poder leerse sin cuenta. */}
+      {/* Always reachable: linked from sign-up, so it must be readable without an account. */}
       <Stack.Screen
         name="privacy"
         options={{
           headerShown: true,
-          title: 'Privacidad y condiciones',
+          title: 'Privacy and terms',
           presentation: 'modal',
         }}
       />

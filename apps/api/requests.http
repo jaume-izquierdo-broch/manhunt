@@ -1,35 +1,35 @@
 ### =====================================================================
-### Pruebas manuales de la API (extensión "REST Client" de VS Code)
+### Manual API requests (VS Code "REST Client" extension)
 ###
-### 1. Arranca la API:  pnpm docker:up  y luego  pnpm dev
-### 2. Pulsa "Send Request" encima de cada petición, EN ORDEN.
-###    Las peticiones con "@name" guardan su respuesta y las siguientes
-###    reutilizan el token / id / código automáticamente.
+### 1. Start the API: `pnpm docker:up`, then `pnpm dev`.
+### 2. Click "Send Request" above each request, IN ORDER. Requests tagged
+###    with "@name" store their response, and later requests reuse the
+###    token / id / join code automatically.
 ###
-### Si cambias el puerto (PORT en apps/api/.env), cámbialo aquí también.
+### If you change PORT in apps/api/.env, change @baseUrl too.
 ### =====================================================================
 
 @baseUrl = http://localhost:3000
-@password = contraseña-segura
+@password = correct-horse-battery
 
 
 ### ---------------------------------------------------------------------
-### 0. Salud
+### 0. Health
 ### ---------------------------------------------------------------------
 
 GET {{baseUrl}}/health
 
 
 ### ---------------------------------------------------------------------
-### 1. Usuarios (la primera vez: register; las siguientes: 409 y usa login)
+### 1. Users (first run: register; afterwards they return 409, just log in)
 ### ---------------------------------------------------------------------
 
 POST {{baseUrl}}/auth/register
 Content-Type: application/json
 
 {
-  "username": "cazador_demo",
-  "email": "cazador_demo@demo.manhunt",
+  "username": "demo_hunter",
+  "email": "demo_hunter@demo.manhunt",
   "password": "{{password}}",
   "acceptTerms": true
 }
@@ -40,8 +40,8 @@ POST {{baseUrl}}/auth/register
 Content-Type: application/json
 
 {
-  "username": "escapador_demo",
-  "email": "escapador_demo@demo.manhunt",
+  "username": "demo_runner",
+  "email": "demo_runner@demo.manhunt",
   "password": "{{password}}",
   "acceptTerms": true
 }
@@ -52,7 +52,7 @@ Content-Type: application/json
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
-{ "identifier": "cazador_demo", "password": "{{password}}" }
+{ "identifier": "demo_hunter", "password": "{{password}}" }
 
 ###
 
@@ -60,8 +60,8 @@ Content-Type: application/json
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
-# También vale con el email: "escapador_demo@demo.manhunt"
-{ "identifier": "escapador_demo", "password": "{{password}}" }
+# The email works too: "demo_runner@demo.manhunt"
+{ "identifier": "demo_runner", "password": "{{password}}" }
 
 ###
 
@@ -74,11 +74,11 @@ Authorization: Bearer {{hunterToken}}
 
 
 ### ---------------------------------------------------------------------
-### 2. Sala
+### 2. Lobby
 ### ---------------------------------------------------------------------
 
-# ¿Tengo ya una partida abierta? (si sí, ciérrala con la petición "Cerrar sala"
-# o espera a que termine: solo se puede estar en una a la vez)
+# Is there an open match already? You can only be in one at a time:
+# close it with "Close the lobby" below, or wait until it ends.
 GET {{baseUrl}}/matches/current
 Authorization: Bearer {{hunterToken}}
 
@@ -114,7 +114,7 @@ Authorization: Bearer {{runnerToken}}
 
 ###
 
-# Cambiar de equipo (solo el anfitrión). Pon "HUNTER" o "RUNNER".
+# Change a player's team (host only): "HUNTER" or "RUNNER".
 PATCH {{baseUrl}}/matches/{{matchId}}/players/{{runnerId}}
 Authorization: Bearer {{hunterToken}}
 Content-Type: application/json
@@ -123,37 +123,37 @@ Content-Type: application/json
 
 ###
 
-# Empezar: WAITING -> HIDING (y a los 10 s, ACTIVE)
+# Start: WAITING -> HIDING (and ACTIVE 10 s later)
 POST {{baseUrl}}/matches/{{matchId}}/start
 Authorization: Bearer {{hunterToken}}
 
 ###
 
-# Mira cómo cambia status / hidingEndsAt / endsAt
+# Watch status / hidingEndsAt / endsAt change
 GET {{baseUrl}}/matches/{{matchId}}
 Authorization: Bearer {{hunterToken}}
 
 ###
 
-# Cerrar sala (solo funciona ANTES de empezar)
+# Close the lobby (only BEFORE the match starts)
 DELETE {{baseUrl}}/matches/{{matchId}}
 Authorization: Bearer {{hunterToken}}
 
 
 ### ---------------------------------------------------------------------
-### 3. Errores esperados (para ver cómo responde)
+### 3. Expected errors
 ### ---------------------------------------------------------------------
 
-# 401 UNAUTHORIZED: sin token
+# 401 UNAUTHORIZED: no token
 GET {{baseUrl}}/matches/current
 
 ###
 
-# 400 VALIDATION_ERROR: con "details" por campo
+# 400 VALIDATION_ERROR, with per-field "details"
 POST {{baseUrl}}/auth/register
 Content-Type: application/json
 
-{ "username": "a", "email": "no-es-email", "password": "1", "acceptTerms": false }
+{ "username": "a", "email": "not-an-email", "password": "1", "acceptTerms": false }
 
 ###
 
@@ -161,7 +161,7 @@ Content-Type: application/json
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
-{ "identifier": "cazador_demo", "password": "incorrecta" }
+{ "identifier": "demo_hunter", "password": "wrong-password" }
 
 ###
 
@@ -174,18 +174,18 @@ Content-Type: application/json
 
 ###
 
-# 403 NOT_HOST: el escapador intenta empezar
+# 403 NOT_HOST: the runner tries to start the match
 POST {{baseUrl}}/matches/{{matchId}}/start
 Authorization: Bearer {{runnerToken}}
 
 ###
 
-# 400: id que no es UUID
-GET {{baseUrl}}/matches/no-es-un-uuid
+# 400: the id is not a UUID
+GET {{baseUrl}}/matches/not-a-uuid
 Authorization: Bearer {{hunterToken}}
 
 
 ### ---------------------------------------------------------------------
-### La parte en tiempo real (posiciones, pings, capturas) va por WebSocket
-### y no se puede probar desde aquí:  pnpm --filter @manhunt/api simulate
+### The real-time part (positions, pings, catches) runs over WebSocket and
+### can't be exercised from here. Use: pnpm --filter @manhunt/api simulate
 ### ---------------------------------------------------------------------

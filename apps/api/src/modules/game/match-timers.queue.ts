@@ -13,7 +13,7 @@ export type TimerKind = 'hiding-end' | 'ping' | 'match-end';
 export interface TimerJob {
   matchId: string;
   kind: TimerKind;
-  /** Número de ping (solo para `ping`; 0 en los demás). */
+  /** Ping number for `ping` jobs; 0 for the others. */
   seq: number;
 }
 
@@ -39,23 +39,23 @@ function createQueue(options: RedisOptions) {
     defaultJobOptions: {
       attempts: 3,
       backoff: { type: 'exponential', delay: 1000 },
-      // Se conservan un tiempo para que el jobId siga deduplicando.
+      // Kept for a while so their job ids keep deduplicating repeated schedules.
       removeOnComplete: { age: 24 * 3600 },
       removeOnFail: { age: 7 * 24 * 3600 },
     },
   });
 }
 
-/** jobId determinista: programar dos veces lo mismo no crea dos trabajos. */
+/** Deterministic job id: scheduling the same timer twice creates a single job. */
 const jobId = (job: TimerJob) => `${job.kind}-${job.matchId}-${job.seq}`;
 
 /**
- * Temporizadores de partida sobre BullMQ (trabajos retrasados en Redis).
- * - Sobreviven a reinicios de la API.
- * - Con varias réplicas, cada trabajo lo ejecuta UNA sola.
+ * Match timers on top of BullMQ (delayed jobs stored in Redis):
+ * - they survive API restarts;
+ * - with several replicas, each job runs on exactly one of them.
  *
- * Esta clase solo sabe programar y ejecutar; QUÉ pasa en cada temporizador
- * lo decide `MatchLifecycleService` registrando su handler.
+ * This class only schedules and runs jobs. WHAT each timer does is decided by
+ * `MatchLifecycleService`, which registers the handler.
  */
 @Injectable()
 export class MatchTimersQueue
@@ -76,13 +76,12 @@ export class MatchTimersQueue
     this.handler = handler;
   }
 
-  /** El worker arranca cuando ya están todos los módulos inicializados (y el handler registrado). */
+  /** The worker starts once every module is initialized, so the handler is registered by then. */
   onApplicationBootstrap() {
     this.worker = new Worker<TimerJob>(
       QUEUE_NAME,
       async (job: Job<TimerJob>) => {
-        if (!this.handler)
-          throw new Error('Handler de temporizadores sin registrar');
+        if (!this.handler) throw new Error('No timer handler registered');
         await this.handler(job.data);
       },
       {
@@ -92,7 +91,7 @@ export class MatchTimersQueue
       },
     );
     this.worker.on('failed', (job, err) =>
-      this.logger.error(`Temporizador ${job?.id} falló: ${err.message}`),
+      this.logger.error(`Timer ${job?.id} failed: ${err.message}`),
     );
   }
 

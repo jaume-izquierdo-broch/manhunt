@@ -37,7 +37,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Manhunt usa tu ubicación durante la partida para mostrarte en el mapa y compartirla con tu equipo."
+          "locationWhenInUsePermission": "Manhunt uses your location during a match to show you on the map and share it with your team."
         }
       ]
     ],

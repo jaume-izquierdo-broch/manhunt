@@ -19,7 +19,7 @@ export type SessionState =
 
 export interface Session {
   state: SessionState;
-  /** Tras login o registro correctos. */
+  /** Call after a successful login or sign-up. */
   signIn: (auth: AuthResponse) => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -27,29 +27,40 @@ export interface Session {
 const SessionContext = createContext<Session | null>(null);
 
 /**
- * Dueño de la sesión:
- * - Al arrancar carga la sesión guardada y entra directamente (funciona sin red);
- *   después la valida con GET /auth/me en segundo plano.
- * - Da el token al cliente HTTP. Si la API responde 401, cierra la sesión.
+ * Owns the user session:
+ * - On startup it restores the stored session and signs in right away (works
+ *   offline), then validates it in the background with GET /auth/me.
+ * - It hands the token to the HTTP client and signs out whenever the API answers 401.
  */
 export function SessionProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [state, setState] = useState<SessionState>({ status: 'loading' });
   const tokenRef = useRef<string | null>(null);
 
+  const signOut = async () => {
+    tokenRef.current = null;
+    await sessionStorage.clear();
+    queryClient.clear();
+    setState({ status: 'signedOut' });
+  };
+
+  const signIn = async (auth: AuthResponse) => {
+    tokenRef.current = auth.accessToken;
+    await sessionStorage.save(auth);
+    setState({ status: 'signedIn', token: auth.accessToken, user: auth.user });
+  };
+
   useEffect(() => {
     let active = true;
 
-    const clear = async () => {
-      tokenRef.current = null;
-      await sessionStorage.clear();
-      queryClient.clear();
-      if (active) setState({ status: 'signedOut' });
-    };
-
     configureApiAuth({
       getToken: () => tokenRef.current,
-      onUnauthorized: () => void clear(),
+      onUnauthorized: () => {
+        tokenRef.current = null;
+        void sessionStorage.clear();
+        queryClient.clear();
+        if (active) setState({ status: 'signedOut' });
+      },
     });
 
     (async () => {
@@ -67,7 +78,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         user: stored.user,
       });
 
-      // Validación en segundo plano: un 401 dispara onUnauthorized; sin red se sigue.
+      // Background validation: a 401 triggers onUnauthorized; offline, the session stays.
       const user = await authApi.me().catch(() => null);
       if (active && user && tokenRef.current === stored.accessToken) {
         setState({ status: 'signedIn', token: stored.accessToken, user });
@@ -79,19 +90,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     };
   }, [queryClient]);
 
-  const signIn = async (auth: AuthResponse) => {
-    tokenRef.current = auth.accessToken;
-    await sessionStorage.save(auth);
-    setState({ status: 'signedIn', token: auth.accessToken, user: auth.user });
-  };
-
-  const signOut = async () => {
-    tokenRef.current = null;
-    await sessionStorage.clear();
-    queryClient.clear();
-    setState({ status: 'signedOut' });
-  };
-
   return (
     <SessionContext value={{ state, signIn, signOut }}>
       {children}
@@ -101,14 +99,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
 export function useSession(): Session {
   const session = use(SessionContext);
-  if (!session)
-    throw new Error('useSession debe usarse dentro de <SessionProvider>');
+  if (!session) {
+    throw new Error('useSession must be used inside <SessionProvider>');
+  }
   return session;
 }
 
-/** Usuario autenticado. Solo para pantallas protegidas (grupo `(app)`). */
+/** The signed-in user. Only for protected screens (the `(app)` route group). */
 export function useCurrentUser(): { user: UserDto; token: string } {
   const { state } = useSession();
-  if (state.status !== 'signedIn') throw new Error('No hay sesión iniciada');
+  if (state.status !== 'signedIn') throw new Error('No user is signed in');
   return { user: state.user, token: state.token };
 }

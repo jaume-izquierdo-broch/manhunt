@@ -1,14 +1,16 @@
 import { type ApiErrorBody, ErrorCode } from '@manhunt/types';
 
-/** Códigos que solo genera el cliente (no vienen del servidor). */
+/** Codes produced by the client itself (they never come from the server). */
 export const ClientErrorCode = {
   NETWORK_ERROR: 'NETWORK_ERROR',
   TIMEOUT: 'TIMEOUT',
 } as const;
 
+const UNEXPECTED_ERROR = 'Something went wrong';
+
 /**
- * Error de una llamada a la API. `code` es estable (ErrorCode del servidor o
- * ClientErrorCode) y `message` ya viene en español listo para mostrar.
+ * A failed API call. `code` is stable (a server `ErrorCode` or a
+ * `ClientErrorCode`) and `message` is ready to show to the user.
  */
 export class ApiError extends Error {
   constructor(
@@ -25,9 +27,7 @@ export class ApiError extends Error {
     const b = body as Partial<ApiErrorBody> | undefined;
     return new ApiError(
       typeof b?.code === 'string' ? b.code : `HTTP_${status}`,
-      typeof b?.message === 'string'
-        ? b.message
-        : 'Ha ocurrido un error inesperado',
+      typeof b?.message === 'string' ? b.message : UNEXPECTED_ERROR,
       status,
       b?.details,
     );
@@ -36,7 +36,7 @@ export class ApiError extends Error {
   static network(): ApiError {
     return new ApiError(
       ClientErrorCode.NETWORK_ERROR,
-      'No se pudo conectar con el servidor. Revisa tu conexión.',
+      "Can't reach the server. Check your connection.",
       0,
     );
   }
@@ -44,12 +44,12 @@ export class ApiError extends Error {
   static timeout(): ApiError {
     return new ApiError(
       ClientErrorCode.TIMEOUT,
-      'El servidor tarda demasiado en responder.',
+      'The server is taking too long to respond.',
       0,
     );
   }
 
-  /** Si el usuario ya está en otra partida, el id de esa partida. */
+  /** When the user is already in another match, that match's id. */
   get openMatchId(): string | null {
     if (this.code !== ErrorCode.ALREADY_IN_MATCH) return null;
     const matchId = (this.details as { matchId?: unknown } | undefined)
@@ -58,9 +58,8 @@ export class ApiError extends Error {
   }
 }
 
-/** Mensaje mostrable para cualquier error capturado. */
+/** A user-facing message for any caught error. */
 export function errorMessage(error: unknown): string {
-  if (error instanceof ApiError) return error.message;
   if (error instanceof Error && error.message) return error.message;
-  return 'Ha ocurrido un error inesperado';
+  return UNEXPECTED_ERROR;
 }

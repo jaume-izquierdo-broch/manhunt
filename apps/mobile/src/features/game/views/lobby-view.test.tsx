@@ -14,47 +14,40 @@ const balanced = makeMatch({
   players: [player('host', 'HUNTER'), player('ana', 'RUNNER')],
 });
 
+const renderAs = (userId: string, match = balanced, extra = {}) =>
+  renderWithSession(<LobbyView />, {
+    state: loadedState(match, userId),
+    userId,
+    ...extra,
+  });
+
 describe('LobbyView', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('muestra el código y las reglas de la sala', async () => {
-    await renderWithSession(<LobbyView />, {
-      state: loadedState(balanced, 'host'),
-      userId: 'host',
-    });
+  it('shows the code, the rules and both teams', async () => {
+    await renderAs('host');
 
     expect(screen.getByText('ABC234')).toBeOnTheScreen();
-    expect(screen.getByText('Duración: 30 min')).toBeOnTheScreen();
-    expect(screen.getByText('Cazadores (1)')).toBeOnTheScreen();
-    expect(screen.getByText('Escapadores (1)')).toBeOnTheScreen();
+    expect(screen.getByText('Duration: 30 min')).toBeOnTheScreen();
+    expect(screen.getByText('Hunters (1)')).toBeOnTheScreen();
+    expect(screen.getByText('Runners (1)')).toBeOnTheScreen();
   });
 
-  it('el anfitrión no puede empezar sin escapadores', async () => {
-    const alone = makeMatch();
-    await renderWithSession(<LobbyView />, {
-      state: loadedState(alone, 'host'),
-      userId: 'host',
-    });
+  it('the host cannot start without runners', async () => {
+    await renderAs('host', makeMatch());
 
+    expect(screen.getByRole('button', { name: 'Start match' })).toBeDisabled();
     expect(
-      screen.getByRole('button', { name: 'Empezar partida' }),
-    ).toBeDisabled();
-    expect(
-      screen.getByText('Hace falta al menos un cazador y un escapador'),
+      screen.getByText('You need at least one hunter and one runner'),
     ).toBeOnTheScreen();
   });
 
-  it('el anfitrión empieza y la partida devuelta se aplica a la sesión', async () => {
+  it('the host starts the match and the returned match is applied', async () => {
     const started = { ...balanced, status: 'HIDING' as const };
     api.start.mockResolvedValue(started);
-    const { session } = await renderWithSession(<LobbyView />, {
-      state: loadedState(balanced, 'host'),
-      userId: 'host',
-    });
+    const { session } = await renderAs('host');
 
-    await fireEvent.press(
-      screen.getByRole('button', { name: 'Empezar partida' }),
-    );
+    await fireEvent.press(screen.getByRole('button', { name: 'Start match' }));
 
     await waitFor(() =>
       expect(session.applyMatch).toHaveBeenCalledWith(started),
@@ -62,49 +55,37 @@ describe('LobbyView', () => {
     expect(api.start).toHaveBeenCalledWith('m1');
   });
 
-  it('el anfitrión cambia a un jugador de equipo', async () => {
+  it('the host moves a player to the other team', async () => {
     api.setTeam.mockResolvedValue(balanced);
-    await renderWithSession(<LobbyView />, {
-      state: loadedState(balanced, 'host'),
-      userId: 'host',
-    });
+    await renderAs('host');
 
-    // Fila de "ana" (escapadora): su botón la pasa a cazadora.
-    await fireEvent.press(
-      screen.getAllByRole('button', { name: '→ Cazador' })[0]!,
-    );
+    // Only "ana" is a runner, so there is a single "→ Hunter" button.
+    await fireEvent.press(screen.getByRole('button', { name: '→ Hunter' }));
     await waitFor(() =>
       expect(api.setTeam).toHaveBeenCalledWith('m1', 'ana', 'HUNTER'),
     );
   });
 
-  it('un invitado solo puede salir: sin controles del anfitrión', async () => {
-    await renderWithSession(<LobbyView />, {
-      state: loadedState(balanced, 'ana'),
-      userId: 'ana',
-    });
+  it('a guest can only leave: no host controls', async () => {
+    await renderAs('ana');
 
     expect(
-      screen.getByRole('button', { name: 'Salir de la sala' }),
+      screen.getByRole('button', { name: 'Leave lobby' }),
     ).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Start match' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Kick' })).toBeNull();
     expect(
-      screen.queryByRole('button', { name: 'Empezar partida' }),
-    ).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Expulsar' })).toBeNull();
-    expect(
-      screen.getByText('Esperando a que el anfitrión empiece la partida…'),
+      screen.getByText('Waiting for the host to start the match…'),
     ).toBeOnTheScreen();
   });
 
-  it('avisa si falta el permiso de ubicación', async () => {
-    const { session } = await renderWithSession(<LobbyView />, {
-      state: loadedState(balanced, 'ana'),
-      userId: 'ana',
+  it('asks for location permission when missing', async () => {
+    const { session } = await renderAs('ana', balanced, {
       locationPermission: 'unknown',
     });
 
     await fireEvent.press(
-      screen.getByRole('button', { name: 'Permitir ubicación' }),
+      screen.getByRole('button', { name: 'Allow location' }),
     );
     expect(session.requestLocationPermission).toHaveBeenCalled();
   });

@@ -1,6 +1,6 @@
-// Esquema de la base de datos (Drizzle). Tras cambiarlo:
-//   pnpm --filter @manhunt/api db:generate   -> crea la migración SQL en ./drizzle
-// Las migraciones se aplican solas al arrancar la API (RUN_MIGRATIONS=true).
+// Database schema (Drizzle). After changing it:
+//   pnpm --filter @manhunt/api db:generate   -> writes a SQL migration to ./drizzle
+// Pending migrations run automatically when the API starts (RUN_MIGRATIONS=true).
 import type { MatchStatus, PlayerStatus, Team } from '@manhunt/types';
 import { sql } from 'drizzle-orm';
 import {
@@ -25,11 +25,11 @@ export const users = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     username: varchar('username', { length: 50 }).notNull(),
-    // Nullable solo por las cuentas creadas antes de pedir email; el registro lo exige.
-    // Se guarda ya en minúsculas (lo normaliza el esquema de validación).
+    // Nullable only for legacy accounts; sign-up requires it.
+    // Stored lowercase (the validation schema normalizes it).
     email: varchar('email', { length: 254 }),
     passwordHash: text('password_hash').notNull(),
-    // Consentimiento: cuándo y qué versión de la política de privacidad aceptó.
+    // Consent record: when the user accepted the privacy policy, and which version.
     termsAcceptedAt: timestamptz('terms_accepted_at'),
     termsVersion: varchar('terms_version', { length: 20 }),
     createdAt: timestamptz('created_at').notNull().defaultNow(),
@@ -53,7 +53,7 @@ export const matches = pgTable(
       .notNull()
       .default('WAITING'),
 
-    // Zona de juego (círculo). Más adelante se puede migrar a PostGIS.
+    // Play area: a circle. Could move to PostGIS if areas ever become polygons.
     centerLat: doublePrecision('center_lat').notNull(),
     centerLng: doublePrecision('center_lng').notNull(),
     radiusMeters: integer('radius_meters').notNull(),

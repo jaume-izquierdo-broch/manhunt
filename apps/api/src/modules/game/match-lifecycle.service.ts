@@ -20,19 +20,25 @@ import { MatchReader } from '../matches/match-reader.service.js';
 import { MatchErrors } from '../matches/matches.errors.js';
 import { MatchesRepository } from '../matches/matches.repository.js';
 import { RealtimePublisher } from '../realtime/realtime.publisher.js';
-import { computeTimeline, nextPingAfter, pingSlot } from './domain/timeline.js';
+import {
+  computeTimeline,
+  type HuntWindow,
+  huntWindowOf,
+  nextPingAfter,
+  pingSlot,
+} from './domain/timeline.js';
 import { MatchTimersQueue, type TimerJob } from './match-timers.queue.js';
 import { PositionsStore } from './positions.store.js';
 
 /**
- * Máquina de estados de la partida:
+ * The match state machine:
  *
- *   WAITING ──start()──▶ HIDING ──[hiding-end]──▶ ACTIVE ──[match-end]──▶ FINISHED (ganan RUNNER)
- *                                                   │  └─[ping]×N (revela escapadores)
- *                                                   └──finish(HUNTER) al capturar al último
+ *   WAITING ──start()──▶ HIDING ──[hiding-end]──▶ ACTIVE ──[match-end]──▶ FINISHED (runners win)
+ *                                                   │  └─[ping] × N (reveals runners to hunters)
+ *                                                   └──finish(HUNTER) when the last runner is caught
  *
- * Todas las transiciones son idempotentes (UPDATE condicional en el repositorio),
- * así que un temporizador repetido o tardío no hace daño.
+ * Every transition is idempotent (a conditional UPDATE in the repository), so a
+ * duplicated or late timer is harmless.
  */
 @Injectable()
 export class MatchLifecycleService
@@ -52,23 +58,26 @@ export class MatchLifecycleService
     this.timers.setHandler((job) => this.onTimer(job));
   }
 
-  /** Tras un reinicio o despliegue, vuelve a programar las partidas en curso. */
+  /** After a restart or a deploy, reschedule the timers of matches in progress. */
   async onApplicationBootstrap() {
     const live = await this.repo.findLive();
     for (const match of live) {
       try {
         await this.resume(match);
       } catch (error) {
-        this.logger.error(`No se pudo reanudar ${match.id}: ${String(error)}`);
+        this.logger.error(
+          `Could not resume match ${match.id}: ${String(error)}`,
+        );
       }
     }
-    if (live.length)
-      this.logger.log(`Reanudadas ${live.length} partidas en curso`);
+    if (live.length) {
+      this.logger.log(`Resumed ${live.length} match(es) in progress`);
+    }
   }
 
-  // --- Transiciones --------------------------------------------------------
+  // --- Transitions ---------------------------------------------------------
 
-  /** WAITING -> HIDING. Lo pide el anfitrión. */
+  /** WAITING -> HIDING, requested by the host. */
   async start(matchId: string, hostId: string): Promise<MatchDto> {
     const match = await this.reader.getOrThrow(matchId);
     assertHostInLobby(match, hostId);
@@ -82,24 +91,24 @@ export class MatchLifecycleService
       match.durationSeconds,
     );
     const started = await this.repo.markStarted(matchId, timeline);
-    if (!started) throw MatchErrors.invalidStatus('La partida ya ha empezado');
+    if (!started) {
+      throw MatchErrors.invalidStatus('The match has already started');
+    }
 
     await this.scheduleTimers(started, timeline.startedAt);
     for (const p of players) this.realtime.joinTeam(matchId, p.userId, p.team);
 
-    this.logger.log(
-      `Partida ${matchId} empezada (${players.length} jugadores)`,
-    );
-    return (await this.reader.publishUpdate(matchId))!;
+    this.logger.log(`Match ${matchId} started with ${players.length} players`);
+    return this.reader.publishUpdate(matchId);
   }
 
-  /** HIDING/ACTIVE -> FINISHED. Solo la primera llamada tiene efecto. */
+  /** HIDING/ACTIVE -> FINISHED. Only the first call has any effect. */
   async finish(matchId: string, winnerTeam: Team): Promise<void> {
     const endedAt = new Date();
     const finished = await this.repo.markFinished(matchId, winnerTeam, endedAt);
     if (!finished) return;
 
-    this.logger.log(`Partida ${matchId} terminada: ganan ${winnerTeam}`);
+    this.logger.log(`Match ${matchId} finished: ${winnerTeam} team wins`);
     await this.timers.cancel({ matchId, kind: 'match-end', seq: 0 });
     await this.positions.clear(matchId);
 
@@ -111,14 +120,14 @@ export class MatchLifecycleService
     await this.reader.publishUpdate(matchId);
   }
 
-  // --- Temporizadores ------------------------------------------------------
+  // --- Timers --------------------------------------------------------------
 
   private async onTimer(job: TimerJob): Promise<void> {
     switch (job.kind) {
       case 'hiding-end':
         return this.beginHunt(job.matchId);
       case 'ping':
-        // Por si el ping llega antes de procesar el fin del escondite.
+        // In case the ping fires before the hiding-end job has been processed.
         await this.beginHunt(job.matchId);
         return this.sendPing(job.matchId, job.seq);
       case 'match-end':
@@ -130,11 +139,11 @@ export class MatchLifecycleService
   private async beginHunt(matchId: string): Promise<void> {
     const activated = await this.repo.markActive(matchId, new Date());
     if (!activated) return;
-    this.logger.log(`Partida ${matchId}: empieza la caza`);
+    this.logger.log(`Match ${matchId}: the hunt begins`);
     await this.reader.publishUpdate(matchId);
   }
 
-  /** Revela a los cazadores la posición de los escapadores vivos y programa el siguiente ping. */
+  /** Reveals the free runners' positions to the hunters, then schedules the next ping. */
   private async sendPing(matchId: string, seq: number): Promise<void> {
     const match = await this.repo.findById(matchId);
     if (match?.status !== MatchStatus.ACTIVE) return;
@@ -143,7 +152,7 @@ export class MatchLifecycleService
       .filter((p) => p.team === Team.RUNNER && p.status === PlayerStatus.ALIVE)
       .map((p) => p.userId);
     const next = pingSlot(
-      timelineOf(match),
+      requireHuntWindow(match),
       match.pingIntervalSeconds,
       seq + 1,
     );
@@ -163,14 +172,15 @@ export class MatchLifecycleService
       nextPingAt: ping.nextPingAt,
     });
 
-    if (next)
+    if (next) {
       await this.timers.schedule(
         { matchId, kind: 'ping', seq: next.seq },
         next.at,
       );
+    }
   }
 
-  // --- Programación --------------------------------------------------------
+  // --- Scheduling ----------------------------------------------------------
 
   private async resume(match: MatchRow): Promise<void> {
     const now = new Date();
@@ -181,18 +191,18 @@ export class MatchLifecycleService
     await this.scheduleTimers(match, now);
   }
 
-  /** Programa fin de escondite, fin de partida y el siguiente ping. Idempotente. */
+  /** Schedules the end of hiding, the end of the match and the next ping. Idempotent. */
   private async scheduleTimers(match: MatchRow, now: Date): Promise<void> {
-    const timeline = timelineOf(match);
-    const nextPing = nextPingAfter(now, timeline, match.pingIntervalSeconds);
+    const window = requireHuntWindow(match);
+    const nextPing = nextPingAfter(now, window, match.pingIntervalSeconds);
     await Promise.all([
       this.timers.schedule(
         { matchId: match.id, kind: 'hiding-end', seq: 0 },
-        timeline.hidingEndsAt,
+        window.hidingEndsAt,
       ),
       this.timers.schedule(
         { matchId: match.id, kind: 'match-end', seq: 0 },
-        timeline.endsAt,
+        window.endsAt,
       ),
       nextPing &&
         this.timers.schedule(
@@ -203,12 +213,8 @@ export class MatchLifecycleService
   }
 }
 
-/** Horas de una partida ya empezada. */
-function timelineOf(match: MatchRow) {
-  if (!match.hidingEndsAt || !match.endsAt) {
-    throw new Error(
-      `La partida ${match.id} no tiene horario: ¿no ha empezado?`,
-    );
-  }
-  return { hidingEndsAt: match.hidingEndsAt, endsAt: match.endsAt };
+function requireHuntWindow(match: MatchRow): HuntWindow {
+  const window = huntWindowOf(match);
+  if (!window) throw new Error(`Match ${match.id} has not started yet`);
+  return window;
 }

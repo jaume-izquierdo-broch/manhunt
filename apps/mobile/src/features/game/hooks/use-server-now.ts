@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-/** "Ahora" según el reloj del servidor, refrescado cada segundo (para cuentas atrás). */
+/** "Now" by the server's clock, refreshed every second (for countdowns). */
 export function useServerNow(
   clockOffsetMs: number,
   intervalMs = 1_000,

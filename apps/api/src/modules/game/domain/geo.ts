@@ -5,7 +5,7 @@ export interface LatLng {
   lng: number;
 }
 
-/** Distancia en metros entre dos coordenadas (fórmula de Haversine). */
+/** Great-circle distance in meters (haversine formula). */
 export function distanceMeters(a: LatLng, b: LatLng): number {
   const toRad = (deg: number) => (deg * Math.PI) / 180;
   const dLat = toRad(b.lat - a.lat);

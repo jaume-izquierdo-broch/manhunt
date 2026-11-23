@@ -9,19 +9,19 @@ describe('nextPingTime', () => {
   };
   const at = (iso: string) => Date.parse(iso);
 
-  it('el primero llega un intervalo después de empezar la caza', () => {
+  it('fires the first ping one interval after the hunt starts', () => {
     expect(nextPingTime(match, at('2026-01-01T10:02:10.000Z'))).toBe(
       at('2026-01-01T10:05:00.000Z'),
     );
   });
 
-  it('a mitad de la caza, el siguiente posterior a ahora', () => {
+  it('mid-hunt, returns the next ping after now', () => {
     expect(nextPingTime(match, at('2026-01-01T10:06:00.000Z'))).toBe(
       at('2026-01-01T10:08:00.000Z'),
     );
   });
 
-  it('null si ya no cabe ninguno o la partida no está en caza', () => {
+  it('is null when no ping is left or the match is not in the hunt', () => {
     expect(nextPingTime(match, at('2026-01-01T10:11:30.000Z'))).toBeNull();
     expect(
       nextPingTime(

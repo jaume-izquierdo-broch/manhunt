@@ -1,7 +1,7 @@
-// En local usa apps/api/.env; en CI las variables llegan del workflow.
+// Locally this reads apps/api/.env; in CI the variables come from the workflow.
 try {
   process.loadEnvFile('.env');
 } catch {
-  // sin .env
+  // No .env file.
 }
 process.env.NODE_ENV = 'test';

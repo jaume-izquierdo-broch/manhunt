@@ -6,24 +6,24 @@ export const AuthErrors = {
   usernameTaken: () =>
     new AppError(
       ErrorCode.USERNAME_TAKEN,
-      'Ese nombre de usuario ya existe',
+      'That username is already taken',
       HttpStatus.CONFLICT,
     ),
 
   emailTaken: () =>
     new AppError(
       ErrorCode.EMAIL_TAKEN,
-      'Ya existe una cuenta con ese email',
+      'An account with that email already exists',
       HttpStatus.CONFLICT,
     ),
 
   invalidCredentials: () =>
     new AppError(
       ErrorCode.INVALID_CREDENTIALS,
-      'Usuario/email o contraseña incorrectos',
+      'Incorrect username/email or password',
       HttpStatus.UNAUTHORIZED,
     ),
 
-  unauthorized: (message = 'Token inválido o ausente') =>
+  unauthorized: (message = 'Missing or invalid token') =>
     new AppError(ErrorCode.UNAUTHORIZED, message, HttpStatus.UNAUTHORIZED),
 };

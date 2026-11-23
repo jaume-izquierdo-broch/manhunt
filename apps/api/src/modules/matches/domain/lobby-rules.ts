@@ -1,4 +1,4 @@
-// Reglas puras de la sala (sin BD ni red), testeadas en lobby-rules.spec.ts.
+// Pure lobby rules: no database or network access.
 import {
   JOIN_CODE_ALPHABET,
   JOIN_CODE_LENGTH,
@@ -9,7 +9,7 @@ import { randomInt } from 'node:crypto';
 import type { MatchRow } from '../../../infrastructure/database/schema.js';
 import { MatchErrors } from '../matches.errors.js';
 
-/** Código de 6 caracteres sin 0/O ni 1/I (fácil de dictar). */
+/** A random join code from the unambiguous alphabet. */
 export function generateJoinCode(): string {
   let code = '';
   for (let i = 0; i < JOIN_CODE_LENGTH; i++) {
@@ -18,7 +18,7 @@ export function generateJoinCode(): string {
   return code;
 }
 
-/** Para empezar hace falta al menos un cazador y un escapador. */
+/** A match needs at least one hunter and one runner to start. */
 export function hasBalancedTeams(players: { team: Team }[]): boolean {
   return (
     players.some((p) => p.team === Team.HUNTER) &&
@@ -26,7 +26,7 @@ export function hasBalancedTeams(players: { team: Team }[]): boolean {
   );
 }
 
-/** Lanza si el usuario no es el anfitrión o si la partida ya no está en la sala. */
+/** Throws unless the user is the host and the match is still in the lobby. */
 export function assertHostInLobby(match: MatchRow, userId: string): void {
   if (match.hostId !== userId) throw MatchErrors.notHost();
   assertInLobby(match);
@@ -34,8 +34,9 @@ export function assertHostInLobby(match: MatchRow, userId: string): void {
 
 export function assertInLobby(
   match: MatchRow,
-  message = 'La partida ya ha empezado',
+  message = 'The match has already started',
 ): void {
-  if (match.status !== MatchStatus.WAITING)
+  if (match.status !== MatchStatus.WAITING) {
     throw MatchErrors.invalidStatus(message);
+  }
 }

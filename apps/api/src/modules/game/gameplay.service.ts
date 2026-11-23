@@ -9,14 +9,13 @@ import {
   type PositionDto,
   Team,
 } from '@manhunt/types';
-import { InjectEnv } from '../../config/config.module.js';
-import type { Env } from '../../config/env.js';
+import { type Env, InjectEnv } from '../../config/env.js';
 import type { MatchRow } from '../../infrastructure/database/schema.js';
 import { MatchReader } from '../matches/match-reader.service.js';
 import { MatchesRepository } from '../matches/matches.repository.js';
 import { RealtimePublisher } from '../realtime/realtime.publisher.js';
 import { checkCatch } from './domain/catch-rules.js';
-import { nextPingAfter } from './domain/timeline.js';
+import { huntWindowOf, nextPingAfter } from './domain/timeline.js';
 import { GameErrors } from './game.errors.js';
 import { MatchLifecycleService } from './match-lifecycle.service.js';
 import { PositionsStore } from './positions.store.js';
@@ -24,7 +23,7 @@ import { PositionsStore } from './positions.store.js';
 const isLive = (match: MatchRow) =>
   (LIVE_MATCH_STATUSES as readonly MatchStatus[]).includes(match.status);
 
-/** Acciones de los jugadores durante la partida (llegan por WebSocket). */
+/** Player actions during a match (they arrive over WebSocket). */
 @Injectable()
 export class GameplayService {
   private readonly logger = new Logger(GameplayService.name);
@@ -38,7 +37,7 @@ export class GameplayService {
     private readonly lifecycle: MatchLifecycleService,
   ) {}
 
-  /** Todo lo necesario para pintar la pantalla de juego (también al reconectar). */
+  /** Everything a client needs to render the match, on first load or after reconnecting. */
   async snapshot(userId: string, matchId: string): Promise<MatchSnapshot> {
     const { match, player } = await this.reader.getMembershipOrThrow(
       matchId,
@@ -50,13 +49,10 @@ export class GameplayService {
     const teammateIds = (await this.repo.listPlayers(matchId))
       .filter((p) => p.team === player.team && p.userId !== userId)
       .map((p) => p.userId);
+    const window = huntWindowOf(match);
     const nextPing =
-      live && match.hidingEndsAt && match.endsAt
-        ? nextPingAfter(
-            now,
-            { hidingEndsAt: match.hidingEndsAt, endsAt: match.endsAt },
-            match.pingIntervalSeconds,
-          )
+      live && window
+        ? nextPingAfter(now, window, match.pingIntervalSeconds)
         : null;
 
     return {
@@ -72,7 +68,7 @@ export class GameplayService {
     };
   }
 
-  /** Guarda la posición y la reenvía a los compañeros de equipo. */
+  /** Stores the position and forwards it to the player's teammates. */
   async updateLocation(
     userId: string,
     matchId: string,
@@ -103,7 +99,7 @@ export class GameplayService {
     return { at: position.at };
   }
 
-  /** Un cazador intenta capturar a un escapador. Si era el último, ganan los cazadores. */
+  /** A hunter tries to catch a runner. Catching the last free runner wins the match. */
   async attemptCatch(
     hunterId: string,
     matchId: string,
@@ -118,8 +114,9 @@ export class GameplayService {
 
     const runner = await this.repo.getPlayer(matchId, runnerId);
     if (runner?.team !== Team.RUNNER) throw GameErrors.notRunner();
-    if (runner.status !== PlayerStatus.ALIVE)
+    if (runner.status !== PlayerStatus.ALIVE) {
       throw GameErrors.runnerAlreadyCaught();
+    }
 
     const now = new Date();
     const check = checkCatch(
@@ -137,7 +134,7 @@ export class GameplayService {
         : GameErrors.positionUnknown();
     }
 
-    // Si dos cazadores capturan a la vez, solo cuenta el primero.
+    // If two hunters catch the same runner at once, only the first one counts.
     if (!(await this.repo.markCaught(matchId, runnerId, hunterId, now))) {
       throw GameErrors.runnerAlreadyCaught();
     }
@@ -152,7 +149,7 @@ export class GameplayService {
       runnersRemaining,
     });
     this.logger.log(
-      `Partida ${matchId}: captura a ${Math.round(check.distanceMeters)} m, quedan ${runnersRemaining}`,
+      `Match ${matchId}: catch at ${Math.round(check.distanceMeters)} m, ${runnersRemaining} runner(s) left`,
     );
 
     if (runnersRemaining === 0) {

@@ -2,22 +2,22 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 export interface ApiUrlSources {
-  /** EXPO_PUBLIC_API_URL: si existe, manda. */
+  /** EXPO_PUBLIC_API_URL. When set, it always wins. */
   envUrl?: string;
-  /** Puerto de la API en el ordenador de desarrollo. */
+  /** API port on the development machine. */
   port: number;
-  /** `host:puerto` del servidor de Metro (p. ej. "192.168.1.20:8081"). */
+  /** `host:port` of the Metro dev server (e.g. "192.168.1.20:8081"). */
   hostUri?: string | null;
   platform: typeof Platform.OS;
 }
 
 /**
- * Decide a qué URL llama la app:
+ * Decides which URL the app calls:
  *
- * 1. `EXPO_PUBLIC_API_URL` si está definida (túnel, API desplegada...).
- * 2. En desarrollo, la IP del ordenador que sirve Metro: así un móvil real en la
- *    misma Wi-Fi llega a la API sin configurar nada.
- * 3. Emulador Android -> 10.0.2.2 (el localhost del ordenador); resto -> localhost.
+ * 1. `EXPO_PUBLIC_API_URL`, if set (tunnels, a deployed API...).
+ * 2. In development, the IP of the machine serving Metro, so a real phone on
+ *    the same Wi-Fi reaches the API with zero configuration.
+ * 3. Android emulator -> 10.0.2.2 (the host machine's localhost); otherwise localhost.
  */
 export function resolveApiUrl({
   envUrl,

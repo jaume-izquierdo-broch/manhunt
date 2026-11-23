@@ -1,92 +1,92 @@
 # @manhunt/mobile
 
-App de Manhunt con Expo (React Native). Funciona en iOS y Android con **Expo Go**. En web también funciona, pero sin mapa: sirve solo para probar.
+The Manhunt app, built with Expo (React Native). It runs on iOS and Android with **Expo Go**. The web build also works, but without a map: it's only meant for testing.
 
-## Arrancar
+## Getting started
 
-1. Levanta la API (ver el [README principal](../../README.md)): `pnpm docker:up` y `pnpm --filter @manhunt/api dev`.
-2. Arranca la app:
+1. Start the API (see the [main README](../../README.md)): `pnpm docker:up`, then `pnpm --filter @manhunt/api dev`.
+2. Start the app:
    ```bash
    pnpm --filter @manhunt/mobile start
    ```
-3. Escanea el QR con Expo Go (Android) o con la cámara (iOS). El móvil y el ordenador deben estar en la **misma Wi-Fi**.
+3. Scan the QR code with Expo Go (Android) or the camera (iOS). The phone and the computer must be on the **same Wi-Fi**. For an Android emulator, use `pnpm --filter @manhunt/mobile android`.
 
-**¿A qué API llama la app?** No hace falta configurar nada: usa la IP del ordenador que ejecuta `expo start` y el puerto 3000. Puedes cambiarlo en `apps/mobile/.env` (ver `.env.example`):
+**Which API does the app call?** No setup needed: it uses the IP of the machine running `expo start` and port 3000. Override it in `apps/mobile/.env` (see `.env.example`):
 
-| Variable | Cuándo usarla |
+| Variable | When to use it |
 |---|---|
-| `EXPO_PUBLIC_API_PORT` | La API no está en el 3000 (por ejemplo, `PORT=3100`) |
-| `EXPO_PUBLIC_API_URL` | Usas `expo start --tunnel` o una API desplegada |
+| `EXPO_PUBLIC_API_PORT` | The API isn't on port 3000 (e.g. `PORT=3100`) |
+| `EXPO_PUBLIC_API_URL` | You use `expo start --tunnel` or a deployed API |
 
-> En Windows, si el móvil no conecta, permite Node.js en el firewall para redes privadas.
+> On Windows, if the phone can't connect, allow Node.js through the firewall for private networks.
 
-## Estructura
+## Structure
 
 ```
 src/
-├── app/                  Rutas de Expo Router. Solo enlazan URL → pantalla, sin lógica
-│   ├── _layout.tsx       Proveedores + rutas protegidas (con o sin sesión)
+├── app/                  Expo Router routes. They only map a URL to a screen, no logic
+│   ├── _layout.tsx       Providers + protected routes (signed in or out)
 │   ├── (auth)/           login, register
-│   ├── privacy.tsx       Política de privacidad (accesible sin sesión)
-│   └── (app)/            index (inicio), create, join, match/[id]
+│   ├── privacy.tsx       Privacy policy (reachable without a session)
+│   └── (app)/            index (home), create, join, match/[id]
 │
-├── lib/                  Piezas técnicas sin lógica de juego
-│   ├── config.ts         Resolución de la URL de la API
-│   ├── http/             Cliente HTTP tipado + ApiError
-│   ├── location/         Permiso y GPS (expo-location)
-│   ├── forms.ts          Validación con los esquemas zod compartidos
-│   ├── use-form.ts       Hook de formularios (valores, errores por campo, envío)
-│   ├── format.ts         Formateo de distancias y duraciones
-│   └── haptics.ts        Vibraciones
+├── lib/                  Technical building blocks, no game logic
+│   ├── config.ts         Resolves the API URL
+│   ├── http/             Typed HTTP client + ApiError
+│   ├── location/         Location permission and GPS (expo-location)
+│   ├── forms.ts          Validation with the shared zod schemas
+│   ├── use-form.ts       Form hook (values, per-field errors, submission)
+│   ├── format.ts         Distance and duration formatting
+│   └── haptics.ts        Vibrations
 │
-├── ui/                   Sistema de diseño: tema claro/oscuro + componentes base
+├── ui/                   Design system: light/dark theme + base components
 │
 ├── features/
-│   ├── auth/             Sesión (token en SecureStore), login/registro
-│   ├── legal/            Política de privacidad y condiciones
-│   ├── matches/          Inicio, crear partida, unirse (REST + React Query)
-│   └── game/             La partida en directo
-│       ├── socket/       Socket.IO tipado + emitWithAck
-│       ├── session/      GameSessionProvider: socket + estado + GPS
-│       ├── state/        Reducer PURO: cada evento del servidor es una acción
-│       ├── domain/       Geometría, tiempos y cuándo enviar la posición (puro)
-│       ├── hooks/        Reloj del servidor, envío periódico de la posición
-│       ├── components/   Mapa, HUD, panel de captura...
-│       └── views/        Sala, partida y resultados (según el estado)
+│   ├── auth/             Session (token in SecureStore), login and sign-up
+│   ├── legal/            Privacy policy and terms of use
+│   ├── matches/          Home, create match, join (REST + React Query)
+│   └── game/             The live match
+│       ├── socket/       Typed Socket.IO client + emitWithAck
+│       ├── session/      GameSessionProvider: socket + state + GPS
+│       ├── state/        PURE reducer: every server event is an action
+│       ├── domain/       Geometry, timing and when to report the position (pure)
+│       ├── hooks/        Server clock, periodic position reporting
+│       ├── components/   Map, HUD, catch panel, team list...
+│       └── views/        Lobby, play and results (picked by match status)
 │
-└── test-utils/           Fixtures y render con una sesión de partida falsa
+└── test-utils/           Fixtures and rendering with a fake match session
 ```
 
-Cómo encajan las piezas:
+How the pieces fit together:
 
-- **REST con React Query** para lo que no es en directo: sesión, crear partida, unirse y acciones de la sala.
-- **Una conexión Socket.IO por partida.** La abre `GameSessionProvider` al entrar en `match/[id]` y la cierra al salir.
-  - Tras cada (re)conexión se re-suscribe y recibe un snapshot completo.
-  - Cada evento del servidor se convierte en una acción del `gameReducer`.
-- **La pantalla de partida es una sola ruta** que muestra la sala, el juego o los resultados según `match.status`.
-- **El GPS se activa solo cuando hace falta:** mientras la partida está en juego y sigues libre.
-  - La posición se envía al moverte, como mucho cada 3 s, y cada 10 s aunque estés quieto. Así el servidor siempre tiene una posición reciente para validar capturas.
-- **Las cuentas atrás usan el reloj del servidor:** el desfase entre relojes se calcula en el snapshot.
-- **Los tipos y la validación vienen de `@manhunt/types`,** igual que en la API.
+- **REST with React Query** for everything that isn't live: the session, creating and joining matches, lobby actions.
+- **One Socket.IO connection per match.** `GameSessionProvider` opens it when entering `match/[id]` and closes it on leaving.
+  - After every (re)connection it subscribes again and receives a full snapshot.
+  - Every server event becomes an action of `gameReducer`.
+- **The match screen is a single route** that shows the lobby, the game or the results based on `match.status`.
+- **GPS only runs when needed:** while the match is live and you're still free.
+  - The position is sent when you move (at most every 3 s) and every 10 s even when you stand still, so the server always has a recent position to validate catches.
+- **Countdowns use the server's clock:** the offset is measured from the snapshot.
+- **Types and validation come from `@manhunt/types`**, the same as the API.
 
 ## Scripts
 
-| Comando | Qué hace |
+| Command | What it does |
 |---|---|
-| `pnpm start` | Servidor de desarrollo (QR para Expo Go) |
+| `pnpm start` | Dev server (QR code for Expo Go) |
 | `pnpm test` | Tests (jest-expo + Testing Library) |
-| `pnpm lint` / `pnpm check-types` | ESLint (config de Expo) y TypeScript |
-| `pnpm icons` | Regenera todos los iconos y el splash desde el logo vectorial (`scripts/generate-icons.mjs`) |
+| `pnpm lint` / `pnpm check-types` | ESLint (Expo config) and TypeScript |
+| `pnpm icons` | Regenerates every icon and the splash from the vector logo (`scripts/generate-icons.mjs`) |
 
-## Logo e iconos
+## Logo and icons
 
-El logo (pin de ubicación dentro de una mira) se dibuja en `scripts/generate-icons.mjs`: es la fuente de verdad. Para cambiar colores o formas, edítalo y ejecuta `pnpm icons`; genera `icon.png`, las capas del icono adaptativo de Android, `splash-icon.png`, `logo.png` (pantallas de acceso), `favicon.png` y `assets/logo.svg`.
+The logo (a location pin inside a crosshair) is drawn in `scripts/generate-icons.mjs`, which is its source of truth. To change colors or shapes, edit it and run `pnpm icons`: it writes `icon.png`, the Android adaptive icon layers, `splash-icon.png`, `logo.png` (login and sign-up screens), `favicon.png` and `assets/logo.svg`.
 
-## Privacidad
+## Privacy
 
-El texto está en `src/features/legal/privacy-policy.ts` y se ve en la ruta `/privacy`, con o sin sesión. Es un **borrador**: rellena `LEGAL_CONTACT` y revísalo antes de publicar. Si lo cambias de forma relevante, sube `TERMS_VERSION` en `packages/types/src/auth.ts`: la API guarda qué versión aceptó cada usuario.
+The text lives in `src/features/legal/privacy-policy.ts` and is shown at `/privacy`, with or without a session. It is a **draft**: fill in `LEGAL_CONTACT` and get it reviewed before publishing. If you change it materially, bump `TERMS_VERSION` in `packages/types/src/auth.ts`: the API records which version each user accepted.
 
-## Limitaciones actuales
+## Current limitations
 
-- **Ubicación solo en primer plano.** Con la app en segundo plano no se envía la posición. Hacerlo requiere una *development build* (no Expo Go) y `expo-task-manager`.
-- **En web no hay mapa:** `react-native-maps` no lo soporta y se muestra una lista de posiciones.
+- **Foreground location only.** With the app in the background, the position isn't sent. Background tracking needs a *development build* (not Expo Go) and `expo-task-manager`.
+- **No map on the web:** `react-native-maps` doesn't support it, so a list of positions is shown instead.

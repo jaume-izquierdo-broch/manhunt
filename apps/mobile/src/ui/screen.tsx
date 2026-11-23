@@ -12,13 +12,13 @@ import { useThemeColors } from './use-theme';
 
 export interface ScreenProps {
   children: ReactNode;
-  /** Envuelve el contenido en un ScrollView (formularios, listas cortas). */
+  /** Wraps the content in a ScrollView (forms, short lists). */
   scroll?: boolean;
-  /** Sin padding: para pantallas a sangre como el mapa. */
+  /** No padding, for edge-to-edge screens like the map. */
   bleed?: boolean;
-  /** Bordes con safe area (por defecto abajo: el header ya cubre arriba). */
+  /** Safe-area edges. Defaults to the bottom: the header already covers the top. */
   edges?: Edge[];
-  /** Pie fijo (botones de acción). */
+  /** A fixed footer (action buttons). */
   footer?: ReactNode;
 }
 

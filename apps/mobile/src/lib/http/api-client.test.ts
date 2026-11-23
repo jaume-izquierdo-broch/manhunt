@@ -15,11 +15,11 @@ beforeEach(() => {
   fetchMock.mockReset();
   global.fetch = fetchMock as unknown as typeof fetch;
   setApiBaseUrl('http://api.test');
-  configureApiAuth({ getToken: () => 'tok', onUnauthorized: jest.fn() });
+  configureApiAuth({ getToken: () => 'token', onUnauthorized: jest.fn() });
 });
 
 describe('api client', () => {
-  it('envía JSON con el token y devuelve el cuerpo', async () => {
+  it('sends JSON with the token and returns the body', async () => {
     fetchMock.mockResolvedValue(jsonResponse(200, { ok: 1 }));
 
     await expect(api.post('/matches', { a: 1 })).resolves.toEqual({ ok: 1 });
@@ -29,28 +29,28 @@ describe('api client', () => {
     expect(init.method).toBe('POST');
     expect(init.body).toBe('{"a":1}');
     expect(init.headers).toMatchObject({
-      Authorization: 'Bearer tok',
+      Authorization: 'Bearer token',
       'Content-Type': 'application/json',
     });
   });
 
-  it('no envía token en rutas públicas', async () => {
+  it('sends no token to public routes', async () => {
     fetchMock.mockResolvedValue(jsonResponse(200, {}));
     await api.post('/auth/login', {}, { auth: false });
     expect(fetchMock.mock.calls[0][1].headers.Authorization).toBeUndefined();
   });
 
-  it('204 devuelve undefined', async () => {
+  it('returns undefined for 204', async () => {
     fetchMock.mockResolvedValue(jsonResponse(204));
     await expect(api.post('/matches/x/leave')).resolves.toBeUndefined();
   });
 
-  it('convierte el error del servidor en ApiError con su código y detalles', async () => {
+  it('turns a server error into an ApiError with its code and details', async () => {
     fetchMock.mockResolvedValue(
       jsonResponse(409, {
         statusCode: 409,
         code: 'ALREADY_IN_MATCH',
-        message: 'Ya estás en otra partida',
+        message: 'You are already in another match',
         details: { matchId: 'm1' },
       }),
     );
@@ -58,11 +58,11 @@ describe('api client', () => {
     const error = (await api.post('/matches').catch((e) => e)) as ApiError;
     expect(error).toBeInstanceOf(ApiError);
     expect(error).toMatchObject({ code: 'ALREADY_IN_MATCH', status: 409 });
-    expect(error.message).toBe('Ya estás en otra partida');
+    expect(error.message).toBe('You are already in another match');
     expect(error.openMatchId).toBe('m1');
   });
 
-  it('un fallo de red se convierte en NETWORK_ERROR', async () => {
+  it('turns a network failure into NETWORK_ERROR', async () => {
     fetchMock.mockRejectedValue(new TypeError('Network request failed'));
     await expect(api.get('/health')).rejects.toMatchObject({
       code: 'NETWORK_ERROR',
@@ -70,9 +70,9 @@ describe('api client', () => {
     });
   });
 
-  it('un 401 con token cierra la sesión', async () => {
+  it('signs out on a 401 for an authenticated request', async () => {
     const onUnauthorized = jest.fn();
-    configureApiAuth({ getToken: () => 'caducado', onUnauthorized });
+    configureApiAuth({ getToken: () => 'expired', onUnauthorized });
     fetchMock.mockResolvedValue(
       jsonResponse(401, { code: 'UNAUTHORIZED', message: 'x' }),
     );
@@ -83,18 +83,16 @@ describe('api client', () => {
     expect(onUnauthorized).toHaveBeenCalledTimes(1);
   });
 
-  it('un 401 en el login no cierra ninguna sesión', async () => {
+  it('does not sign out on a 401 from the login itself', async () => {
     const onUnauthorized = jest.fn();
-    configureApiAuth({ getToken: () => 'tok', onUnauthorized });
+    configureApiAuth({ getToken: () => 'token', onUnauthorized });
     fetchMock.mockResolvedValue(
       jsonResponse(401, { code: 'INVALID_CREDENTIALS', message: 'x' }),
     );
 
     await expect(
       api.post('/auth/login', {}, { auth: false }),
-    ).rejects.toMatchObject({
-      code: 'INVALID_CREDENTIALS',
-    });
+    ).rejects.toMatchObject({ code: 'INVALID_CREDENTIALS' });
     expect(onUnauthorized).not.toHaveBeenCalled();
   });
 });

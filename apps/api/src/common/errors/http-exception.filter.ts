@@ -17,13 +17,13 @@ const STATUS_TO_CODE: Partial<Record<number, ErrorCode>> = {
   [HttpStatus.NOT_FOUND]: ErrorCode.NOT_FOUND,
 };
 
-/** Da a TODOS los errores HTTP la misma forma: `ApiErrorBody`. */
+/** Gives every HTTP error the same shape: `ApiErrorBody`. */
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(HttpExceptionFilter.name);
 
   catch(exception: unknown, host: ArgumentsHost): void {
-    // Los errores de WebSocket los resuelve el gateway con `withAck`.
+    // WebSocket errors are handled by the gateway through `withAck`.
     if (host.getType() !== 'http') throw exception;
 
     const body = this.toBody(exception);
@@ -44,7 +44,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       };
     }
 
-    // Errores propios de Nest (404 de ruta, ParseUUIDPipe, etc.)
+    // Errors raised by Nest itself (unknown route, ParseUUIDPipe...).
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
       const response = exception.getResponse();
@@ -64,7 +64,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     return {
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       code: ErrorCode.INTERNAL_ERROR,
-      message: 'Error interno',
+      message: 'Internal server error',
     };
   }
 }

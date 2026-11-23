@@ -15,8 +15,8 @@ export interface Membership {
 }
 
 /**
- * Lecturas compartidas por la sala (`LobbyService`) y el juego (`game` module):
- * cargar con comprobaciones, construir el DTO y difundir el estado actualizado.
+ * Reads shared by the lobby and the `game` module: load with access checks,
+ * build the DTO, and broadcast the latest state.
  */
 @Injectable()
 export class MatchReader {
@@ -31,7 +31,7 @@ export class MatchReader {
     return match;
   }
 
-  /** La partida y el jugador; lanza si el usuario no participa. */
+  /** The match and the user's player row. Throws if the user isn't in the match. */
   async getMembershipOrThrow(
     matchId: string,
     userId: string,
@@ -56,11 +56,9 @@ export class MatchReader {
     return match ? this.toDto(match) : null;
   }
 
-  /** Envía `match:updated` con el estado actual a todos los suscritos. Devuelve el DTO. */
-  async publishUpdate(matchId: string): Promise<MatchDto | null> {
-    const match = await this.repo.findById(matchId);
-    if (!match) return null;
-    const dto = await this.toDto(match);
+  /** Sends the current state to every subscriber (`match:updated`) and returns it. */
+  async publishUpdate(matchId: string): Promise<MatchDto> {
+    const dto = await this.toDto(await this.getOrThrow(matchId));
     this.realtime.toMatch(matchId, 'match:updated', dto);
     return dto;
   }

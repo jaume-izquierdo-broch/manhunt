@@ -1,4 +1,4 @@
-// Sustitutos de módulos nativos que no existen en el entorno de tests.
+// Stand-ins for native modules that don't exist in the test environment.
 
 jest.mock('expo-secure-store', () => {
   const store = new Map<string, string>();

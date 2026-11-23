@@ -26,7 +26,7 @@ import { MatchReader } from './match-reader.service.js';
 
 const uuid = new ParseUUIDPipe();
 
-/** Consultas de partidas y gestión de la sala. (`POST /matches/:id/start` está en `game`.) */
+/** Match queries and lobby management. `POST /matches/:id/start` lives in the `game` module. */
 @Controller('matches')
 export class MatchesController {
   constructor(
@@ -34,9 +34,9 @@ export class MatchesController {
     private readonly reader: MatchReader,
   ) {}
 
-  // --- Consultas -----------------------------------------------------------
+  // --- Queries -------------------------------------------------------------
 
-  /** Partida no terminada del usuario (`match: null` si no tiene). Útil al reabrir la app. */
+  /** The user's unfinished match, or `match: null`. Lets the app resume after a restart. */
   @Get('current')
   async current(
     @CurrentUser() user: AuthUser,
@@ -52,7 +52,7 @@ export class MatchesController {
     return this.reader.getDtoForMember(id, user.userId);
   }
 
-  // --- Sala ----------------------------------------------------------------
+  // --- Lobby ---------------------------------------------------------------
 
   @Post()
   create(
@@ -80,7 +80,7 @@ export class MatchesController {
     return this.lobby.leave(id, user.userId);
   }
 
-  /** Cierra la sala (anfitrión). */
+  /** Host only. */
   @Delete(':id')
   @HttpCode(204)
   close(
@@ -90,7 +90,7 @@ export class MatchesController {
     return this.lobby.close(id, user.userId);
   }
 
-  /** Cambia el equipo de un jugador (anfitrión). */
+  /** Host only. */
   @Patch(':id/players/:userId')
   setTeam(
     @CurrentUser() user: AuthUser,
@@ -101,7 +101,7 @@ export class MatchesController {
     return this.lobby.setTeam(id, user.userId, targetId, body.team);
   }
 
-  /** Expulsa a un jugador (anfitrión). */
+  /** Host only. */
   @Delete(':id/players/:userId')
   kick(
     @CurrentUser() user: AuthUser,

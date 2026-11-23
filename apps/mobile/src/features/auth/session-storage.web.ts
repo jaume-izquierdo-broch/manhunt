@@ -1,7 +1,7 @@
 import type { AuthResponse } from '@manhunt/types';
 import { parseStoredSession, SESSION_KEY } from './stored-session';
 
-// En web no hay SecureStore: localStorage (solo para probar en el navegador).
+/** There's no SecureStore on the web: localStorage, for browser testing only. */
 export const sessionStorage = {
   load: async (): Promise<AuthResponse | null> =>
     parseStoredSession(globalThis.localStorage?.getItem(SESSION_KEY) ?? null),

@@ -7,7 +7,7 @@ export interface LoginFormProps {
   onSubmit: (values: LoginInput) => Promise<void>;
 }
 
-/** Login con nombre de usuario o email. */
+/** Log in with a username or an email. */
 export function LoginForm({ onSubmit }: LoginFormProps) {
   const form = useForm({
     schema: loginSchema,
@@ -18,7 +18,7 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
   return (
     <View style={{ gap: spacing.lg }}>
       <TextField
-        label="Usuario o email"
+        label="Username or email"
         value={form.values.identifier}
         onChangeText={form.setField('identifier')}
         error={form.errors.identifier}
@@ -30,7 +30,7 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
         returnKeyType="next"
       />
       <TextField
-        label="Contraseña"
+        label="Password"
         value={form.values.password}
         onChangeText={form.setField('password')}
         error={form.errors.password}
@@ -44,7 +44,7 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
       {form.formError ? (
         <Banner tone="danger" message={form.formError} />
       ) : null}
-      <Button title="Entrar" onPress={form.submit} loading={form.submitting} />
+      <Button title="Log in" onPress={form.submit} loading={form.submitting} />
     </View>
   );
 }

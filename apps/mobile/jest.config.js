@@ -1,9 +1,9 @@
-// Tests con jest-expo (simula iOS por defecto). Los *.test.ts(x) viven junto al código.
+// Tests run on jest-expo (simulates iOS by default). *.test.ts(x) files live next to the code.
 
 /**
- * Con pnpm los paquetes están en node_modules/.pnpm/<pkg>/node_modules/<pkg>,
- * así que el patrón acepta ese prefijo. Todo lo listado se transforma con Babel
- * (React Native, Expo y librerías publicadas sin compilar).
+ * With pnpm, packages live under node_modules/.pnpm/<pkg>/node_modules/<pkg>, so
+ * the pattern accepts that prefix. Everything listed is transformed by Babel
+ * (React Native, Expo and libraries published as untranspiled source).
  */
 const transformPackages = [
   '(jest-)?react-native',

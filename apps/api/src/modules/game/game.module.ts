@@ -7,7 +7,7 @@ import { MatchLifecycleService } from './match-lifecycle.service.js';
 import { MatchTimersQueue } from './match-timers.queue.js';
 import { PositionsStore } from './positions.store.js';
 
-/** La partida en juego: fases, temporizadores, posiciones, capturas y WebSocket. */
+/** Live matches: phases, timers, positions, catches and the WebSocket gateway. */
 @Module({
   imports: [MatchesModule],
   controllers: [GameController],

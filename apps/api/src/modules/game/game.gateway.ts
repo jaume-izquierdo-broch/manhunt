@@ -28,10 +28,11 @@ import { GameErrors } from './game.errors.js';
 import { GameplayService } from './gameplay.service.js';
 
 /**
- * Entrada WebSocket de la partida (namespace `/game`).
+ * WebSocket entry point for live matches (namespace `/game`).
  *
- * Solo traduce: valida el payload, saca el usuario/partida del socket, gestiona
- * salas y delega en GameplayService. Cada handler responde con un ack.
+ * It only translates: validates payloads, reads the user and match from the
+ * socket, manages rooms and delegates to GameplayService. Every handler replies
+ * with an acknowledgement.
  */
 @WebSocketGateway({ namespace: GAME_NAMESPACE })
 export class GameGateway implements OnGatewayInit, OnGatewayConnection {
@@ -48,12 +49,12 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection {
     this.realtime.attach(ns);
   }
 
-  /** Sala personal: permite enviar eventos a un usuario aunque tenga varios sockets. */
+  /** A personal room lets the server reach a user on all their devices. */
   async handleConnection(socket: GameSocket) {
     await socket.join(Rooms.user(socket.data.userId));
   }
 
-  /** Suscribirse a una partida. Hay que repetirlo tras cada reconexión. */
+  /** Clients must subscribe again after every reconnection. */
   @SubscribeMessage('match:subscribe')
   onSubscribe(
     @ConnectedSocket() socket: GameSocket,
@@ -84,7 +85,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection {
     return withAck(this.logger, () =>
       this.gameplay.updateLocation(
         socket.data.userId,
-        subscribedMatch(socket),
+        subscribedMatchId(socket),
         parseOrThrow(locationUpdateSchema, body),
       ),
     );
@@ -98,22 +99,21 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection {
     return withAck(this.logger, () =>
       this.gameplay.attemptCatch(
         socket.data.userId,
-        subscribedMatch(socket),
+        subscribedMatchId(socket),
         parseOrThrow(catchAttemptSchema, body).runnerId,
       ),
     );
   }
 
   private async leaveCurrentMatch(socket: GameSocket) {
-    if (socket.data.matchId) {
-      for (const room of Rooms.allOfMatch(socket.data.matchId)) {
-        await socket.leave(room);
-      }
+    if (!socket.data.matchId) return;
+    for (const room of Rooms.allOfMatch(socket.data.matchId)) {
+      await socket.leave(room);
     }
   }
 }
 
-function subscribedMatch(socket: GameSocket): string {
+function subscribedMatchId(socket: GameSocket): string {
   if (!socket.data.matchId) throw GameErrors.notSubscribed();
   return socket.data.matchId;
 }

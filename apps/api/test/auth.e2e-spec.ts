@@ -8,7 +8,7 @@ import {
 describe('auth', () => {
   const t = useTestApp();
 
-  it('registro y /auth/me devuelven usuario y email, nunca la contraseña', async () => {
+  it('register and /auth/me return the user with their email, never the password', async () => {
     const username = uniqueName('ana');
     const res = await t
       .anonymous()
@@ -29,7 +29,7 @@ describe('auth', () => {
     expect(me.body).toEqual(res.body.user);
   });
 
-  it('el email se normaliza (espacios y mayúsculas)', async () => {
+  it('normalizes the email (whitespace and case)', async () => {
     const username = uniqueName('eva');
     const res = await t
       .anonymous()
@@ -41,7 +41,7 @@ describe('auth', () => {
     expect(res.body.user.email).toBe(`${username}@test.manhunt`);
   });
 
-  it('login con usuario o con email (sin distinguir mayúsculas)', async () => {
+  it('logs in with the username or the email, case-insensitively', async () => {
     const username = uniqueName('Leo');
     await t
       .anonymous()
@@ -60,7 +60,7 @@ describe('auth', () => {
     }
   });
 
-  it('usuario o email repetidos -> 409 con su código', async () => {
+  it('rejects a taken username or email with its own error code', async () => {
     const username = uniqueName('Bea');
     await t
       .anonymous()
@@ -71,7 +71,7 @@ describe('auth', () => {
       .anonymous()
       .post('/auth/register', {
         ...registration(username.toUpperCase()),
-        email: `${uniqueName('otro')}@test.manhunt`,
+        email: `${uniqueName('other')}@test.manhunt`,
       })
       .expect(409);
     expect(sameName.body.code).toBe('USERNAME_TAKEN');
@@ -79,18 +79,18 @@ describe('auth', () => {
     const sameEmail = await t
       .anonymous()
       .post('/auth/register', {
-        ...registration(uniqueName('otra')),
+        ...registration(uniqueName('another')),
         email: `${username}@test.manhunt`,
       })
       .expect(409);
     expect(sameEmail.body.code).toBe('EMAIL_TAKEN');
   });
 
-  it('sin aceptar la política de privacidad no hay registro', async () => {
+  it('refuses to register without accepting the privacy policy', async () => {
     const res = await t
       .anonymous()
       .post('/auth/register', {
-        ...registration(uniqueName('sin')),
+        ...registration(uniqueName('noterms')),
         acceptTerms: false,
       })
       .expect(400);
@@ -102,23 +102,23 @@ describe('auth', () => {
     );
   });
 
-  it('rechaza credenciales incorrectas sin decir cuál falla', async () => {
+  it('rejects wrong credentials without saying which part is wrong', async () => {
     const res = await t
       .anonymous()
       .post('/auth/login', {
-        identifier: uniqueName('nadie'),
+        identifier: uniqueName('nobody'),
         password: PASSWORD,
       })
       .expect(401);
     expect(res.body.code).toBe('INVALID_CREDENTIALS');
   });
 
-  it('valida el cuerpo con los esquemas compartidos', async () => {
+  it('validates the body with the shared schemas', async () => {
     const res = await t
       .anonymous()
       .post('/auth/register', {
         username: 'a',
-        email: 'no-es-email',
+        email: 'not-an-email',
         password: '1',
         acceptTerms: true,
       })
@@ -130,12 +130,12 @@ describe('auth', () => {
     );
   });
 
-  it('las rutas protegidas exigen token', async () => {
+  it('protected routes require a token', async () => {
     const res = await t.anonymous().get('/matches/current').expect(401);
     expect(res.body.code).toBe('UNAUTHORIZED');
   });
 
-  it('el WebSocket rechaza conexiones sin token válido', async () => {
-    await expect(t.connect('token-falso')).rejects.toThrow('UNAUTHORIZED');
+  it('the WebSocket rejects connections without a valid token', async () => {
+    await expect(t.connect('fake-token')).rejects.toThrow('UNAUTHORIZED');
   });
 });

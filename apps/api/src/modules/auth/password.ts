@@ -1,6 +1,6 @@
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 
-// scrypt viene con Node: sin dependencias nativas (bcrypt/argon2) que compliquen Docker.
+// scrypt ships with Node, so there's no native dependency (bcrypt/argon2) to build in Docker.
 const PARAMS = { N: 16384, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 const KEY_LENGTH = 64;
 
@@ -16,7 +16,7 @@ function derive(
   });
 }
 
-/** Formato guardado: `scrypt$N$r$p$salt(base64)$hash(base64)`. */
+/** Stored format: `scrypt$N$r$p$<salt base64>$<hash base64>`. */
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16);
   const key = await derive(password, salt);
@@ -46,7 +46,7 @@ export async function verifyPassword(
   return key.length === expected.length && timingSafeEqual(key, expected);
 }
 
-/** Hash de relleno: el login tarda lo mismo exista o no el usuario. */
+/** Checked against when the user doesn't exist, so login takes the same time either way. */
 export const DUMMY_HASH =
   'scrypt$16384$8$1$AAAAAAAAAAAAAAAAAAAAAA==$' +
   Buffer.alloc(64).toString('base64');

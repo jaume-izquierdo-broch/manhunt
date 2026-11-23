@@ -5,9 +5,9 @@ import type { GameSocket } from './realtime.types.js';
 type Next = (err?: Error) => void;
 
 /**
- * Middleware del handshake de Socket.IO: sin JWT válido no hay conexión.
- * Acepta `io(url, { auth: { token } })` o la cabecera `Authorization: Bearer`.
- * El cliente recibe `connect_error` con mensaje `UNAUTHORIZED`.
+ * Socket.IO handshake middleware: no valid JWT, no connection.
+ * Accepts `io(url, { auth: { token } })` or an `Authorization: Bearer` header.
+ * Rejected clients get a `connect_error` whose message is `UNAUTHORIZED`.
  */
 export function createWsAuthMiddleware(tokens: TokenService) {
   return (socket: GameSocket, next: Next) => {

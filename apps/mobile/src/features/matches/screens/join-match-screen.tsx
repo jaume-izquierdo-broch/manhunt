@@ -29,15 +29,13 @@ export function JoinMatchScreen() {
 
   return (
     <Screen
-      footer={
-        <Button title="Unirse" onPress={submit} loading={join.isPending} />
-      }
+      footer={<Button title="Join" onPress={submit} loading={join.isPending} />}
     >
       <AppText tone="muted">
-        Pide el código de {JOIN_CODE_LENGTH} caracteres al anfitrión.
+        Ask the host for the {JOIN_CODE_LENGTH}-character code.
       </AppText>
       <TextField
-        label="Código de la sala"
+        label="Lobby code"
         value={code}
         onChangeText={(text) => {
           setCode(text.toUpperCase());

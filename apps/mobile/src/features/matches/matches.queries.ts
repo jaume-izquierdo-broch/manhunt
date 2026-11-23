@@ -3,11 +3,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { matchesApi } from './matches.api';
 
 export const matchKeys = {
-  all: ['matches'] as const,
   current: ['matches', 'current'] as const,
 };
 
-/** Partida no terminada del usuario (o null). */
+/** The user's unfinished match, or null. */
 export function useCurrentMatch() {
   return useQuery({
     queryKey: matchKeys.current,
@@ -16,15 +15,21 @@ export function useCurrentMatch() {
   });
 }
 
-/** Tras crear/unirse, la "partida actual" pasa a ser esa sin volver a pedirla. */
-function useSetCurrent() {
+/** After creating or joining, that match becomes the "current match" without refetching. */
+function useSetCurrentMatch() {
   const queryClient = useQueryClient();
   return (match: MatchDto | null) =>
     queryClient.setQueryData(matchKeys.current, { match });
 }
 
+/** Makes the home screen fetch the current match again (e.g. after leaving one). */
+export function useInvalidateCurrentMatch() {
+  const queryClient = useQueryClient();
+  return () => queryClient.invalidateQueries({ queryKey: matchKeys.current });
+}
+
 export function useCreateMatch() {
-  const setCurrent = useSetCurrent();
+  const setCurrent = useSetCurrentMatch();
   return useMutation({
     mutationFn: (input: CreateMatchInput) => matchesApi.create(input),
     onSuccess: setCurrent,
@@ -32,7 +37,7 @@ export function useCreateMatch() {
 }
 
 export function useJoinMatch() {
-  const setCurrent = useSetCurrent();
+  const setCurrent = useSetCurrentMatch();
   return useMutation({
     mutationFn: (joinCode: string) => matchesApi.join(joinCode),
     onSuccess: setCurrent,
@@ -40,7 +45,7 @@ export function useJoinMatch() {
 }
 
 export function useLeaveMatch(matchId: string) {
-  const setCurrent = useSetCurrent();
+  const setCurrent = useSetCurrentMatch();
   return useMutation({
     mutationFn: () => matchesApi.leave(matchId),
     onSuccess: () => setCurrent(null),
@@ -48,15 +53,15 @@ export function useLeaveMatch(matchId: string) {
 }
 
 export function useCloseMatch(matchId: string) {
-  const setCurrent = useSetCurrent();
+  const setCurrent = useSetCurrentMatch();
   return useMutation({
     mutationFn: () => matchesApi.close(matchId),
     onSuccess: () => setCurrent(null),
   });
 }
 
-// Las siguientes devuelven el MatchDto actualizado: la pantalla lo aplica a la
-// sesión en directo para no esperar al evento `match:updated` del socket.
+// These return the updated MatchDto. The lobby applies it to the live session
+// right away instead of waiting for the socket's `match:updated` event.
 
 export function useStartMatch(matchId: string) {
   return useMutation({ mutationFn: () => matchesApi.start(matchId) });
@@ -73,10 +78,4 @@ export function useKickPlayer(matchId: string) {
   return useMutation({
     mutationFn: (userId: string) => matchesApi.kick(matchId, userId),
   });
-}
-
-/** Al salir de una partida terminada/cerrada, que el inicio vuelva a preguntar. */
-export function useInvalidateCurrentMatch() {
-  const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: matchKeys.current });
 }

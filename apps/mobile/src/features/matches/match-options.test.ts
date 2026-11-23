@@ -5,8 +5,8 @@ import {
   PING_OPTIONS,
 } from './match-options';
 
-describe('opciones de partida', () => {
-  it('están dentro de los límites del servidor', () => {
+describe('match options', () => {
+  it('stay within the server limits', () => {
     const within = (
       values: readonly { value: number }[],
       limits: { min: number; max: number },

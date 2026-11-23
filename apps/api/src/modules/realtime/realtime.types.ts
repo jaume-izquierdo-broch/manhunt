@@ -5,9 +5,9 @@ import type {
 import type { Namespace, Socket } from 'socket.io';
 import type { AuthUser } from '../auth/auth.types.js';
 
-/** Datos guardados en cada socket tras autenticarse. */
+/** Data attached to each socket once authenticated. */
 export interface SocketData extends AuthUser {
-  /** Partida a la que está suscrito (tras `match:subscribe`). */
+  /** The match the socket subscribed to with `match:subscribe`. */
   matchId?: string;
 }
 

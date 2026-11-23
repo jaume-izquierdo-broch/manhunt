@@ -2,10 +2,10 @@ import { type MatchDto, MatchStatus } from '@manhunt/types';
 import { AppText, Badge, type BadgeTone, Button, Card } from '@/ui';
 
 const STATUS: Record<MatchStatus, { label: string; tone: BadgeTone }> = {
-  WAITING: { label: 'En la sala', tone: 'accent' },
-  HIDING: { label: 'Escondite', tone: 'warning' },
-  ACTIVE: { label: 'En juego', tone: 'hunter' },
-  FINISHED: { label: 'Terminada', tone: 'neutral' },
+  WAITING: { label: 'In the lobby', tone: 'accent' },
+  HIDING: { label: 'Hiding', tone: 'warning' },
+  ACTIVE: { label: 'Hunting', tone: 'hunter' },
+  FINISHED: { label: 'Finished', tone: 'neutral' },
 };
 
 export function CurrentMatchCard({
@@ -19,15 +19,15 @@ export function CurrentMatchCard({
   return (
     <Card>
       <Badge label={status.label} tone={status.tone} />
-      <AppText variant="subtitle">Tienes una partida abierta</AppText>
+      <AppText variant="subtitle">You have an open match</AppText>
       <AppText tone="muted">
-        Código {match.joinCode} · {match.players.length} jugadores
+        Code {match.joinCode} · {match.players.length} players
       </AppText>
       <Button
         title={
           match.status === MatchStatus.WAITING
-            ? 'Volver a la sala'
-            : 'Volver a la partida'
+            ? 'Back to the lobby'
+            : 'Back to the match'
         }
         onPress={onOpen}
       />

@@ -1,7 +1,7 @@
 import { QueryClient } from '@tanstack/react-query';
 import { ApiError } from './http/api-error';
 
-/** Errores que no tiene sentido reintentar (el servidor ya ha dicho que no). */
+/** Retrying only makes sense for network and server errors, not when the API said no. */
 function isRetryable(error: unknown): boolean {
   return (
     !(error instanceof ApiError) || error.status === 0 || error.status >= 500

@@ -8,14 +8,21 @@ import { AppModule } from '../../src/app.module.js';
 import { setupApp } from '../../src/app.setup.js';
 import { type ClientSocket, connectSocket } from './socket.js';
 
-export const PASSWORD = 'contraseña-segura';
-/** Plaza de referencia para las coordenadas de los tests. */
-export const PLAZA = { lat: 41.387, lng: 2.17 };
+export const PASSWORD = 'correct-horse-battery';
+
+/** Reference point for test coordinates. */
+export const ORIGIN = { lat: 41.387, lng: 2.17 };
+
+/** ~111 km per degree of latitude. */
+export const metersNorth = (meters: number) => ({
+  lat: ORIGIN.lat + meters / 111_000,
+  lng: ORIGIN.lng,
+});
 
 export const uniqueName = (prefix: string) =>
   `${prefix}_${randomBytes(5).toString('hex')}`;
 
-/** Cuerpo válido de POST /auth/register para un nombre dado. */
+/** A valid `POST /auth/register` body for the given username. */
 export const registration = (username: string) => ({
   username,
   email: `${username}@test.manhunt`,
@@ -23,20 +30,19 @@ export const registration = (username: string) => ({
   acceptTerms: true,
 });
 
-/** Cliente HTTP autenticado. */
 export type ApiClient = ReturnType<typeof apiClient>;
 
 function apiClient(app: INestApplication, token?: string) {
   const server = app.getHttpServer();
-  const auth = (req: request.Test) =>
+  const withAuth = (req: request.Test) =>
     token ? req.set('Authorization', `Bearer ${token}`) : req;
   return {
-    get: (url: string) => auth(request(server).get(url)),
+    get: (url: string) => withAuth(request(server).get(url)),
     post: (url: string, body?: object) =>
-      auth(request(server).post(url)).send(body),
+      withAuth(request(server).post(url)).send(body),
     patch: (url: string, body: object) =>
-      auth(request(server).patch(url)).send(body),
-    delete: (url: string) => auth(request(server).delete(url)),
+      withAuth(request(server).patch(url)).send(body),
+    delete: (url: string) => withAuth(request(server).delete(url)),
   };
 }
 
@@ -46,8 +52,8 @@ export interface TestPlayer extends AuthResponse {
 }
 
 /**
- * Arranca la API completa (con Postgres y Redis reales) una vez por archivo
- * de tests y cierra sockets al acabar cada test.
+ * Boots the full API (against real Postgres and Redis) once per test file and
+ * disconnects any open sockets after each test.
  */
 export function useTestApp() {
   let app: INestApplication;
@@ -59,7 +65,7 @@ export function useTestApp() {
       imports: [AppModule],
     }).compile();
     app = moduleRef.createNestApplication();
-    await setupApp(app);
+    setupApp(app);
     await app.listen(0);
     const { port } = app.getHttpServer().address() as AddressInfo;
     baseUrl = `http://127.0.0.1:${port}`;
@@ -80,11 +86,11 @@ export function useTestApp() {
   };
 
   return {
-    /** Cliente sin token. */
+    /** An HTTP client without a token. */
     anonymous: () => apiClient(app),
     connect,
 
-    /** Registra un usuario nuevo y devuelve su token, su cliente HTTP y un conector WS. */
+    /** Registers a new user and returns their token, an HTTP client and a socket connector. */
     async register(prefix = 'user'): Promise<TestPlayer> {
       const res = await apiClient(app)
         .post('/auth/register', registration(uniqueName(prefix)))

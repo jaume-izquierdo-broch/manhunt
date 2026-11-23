@@ -1,4 +1,4 @@
-// Tokens de diseño. Los componentes de src/ui los usan; las pantallas no definen colores sueltos.
+// Design tokens. Components in src/ui use them; screens never hard-code colors.
 import { Platform } from 'react-native';
 
 const brand = {

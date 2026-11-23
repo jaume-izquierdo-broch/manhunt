@@ -1,6 +1,6 @@
 import { defineConfig } from 'vitest/config';
 
-// Necesita Postgres y Redis levantados (pnpm docker:up o los services del CI).
+// Needs Postgres and Redis running (`pnpm docker:up`, or the CI services).
 export default defineConfig({
   resolve: { tsconfigPaths: true },
   test: {

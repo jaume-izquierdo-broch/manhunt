@@ -7,8 +7,8 @@ export type ValidationResult<T> =
   | { ok: false; errors: FieldErrors<T> };
 
 /**
- * Valida un formulario con un esquema de `@manhunt/types` (el mismo que usa el
- * servidor) y devuelve el primer error de cada campo, listo para pintar.
+ * Validates form values with a `@manhunt/types` schema (the same one the server
+ * uses) and returns the first error of each field, ready to display.
  */
 export function validateForm<S extends z.ZodType>(
   schema: S,

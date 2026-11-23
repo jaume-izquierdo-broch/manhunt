@@ -22,7 +22,7 @@ type AckData<E extends ClientEvent> =
     ? T
     : never;
 
-/** Conecta al namespace `/game` igual que lo hará la app. */
+/** Connects to the `/game` namespace the same way the app does. */
 export async function connectSocket(
   baseUrl: string,
   token: string,
@@ -42,7 +42,7 @@ export async function connectSocket(
   return socket;
 }
 
-/** Emite un evento y espera el ack tipado. */
+/** Emits an event and waits for its typed acknowledgement. */
 export function emit<E extends ClientEvent>(
   socket: ClientSocket,
   event: E,
@@ -51,7 +51,7 @@ export function emit<E extends ClientEvent>(
   return (socket.timeout(10_000) as any).emitWithAck(event, payload);
 }
 
-/** Espera al primer evento del servidor que cumpla `predicate`. */
+/** Resolves with the first server event that matches `predicate`. */
 export function waitFor<E extends ServerEvent>(
   socket: ClientSocket,
   event: E,
@@ -67,7 +67,7 @@ export function waitFor<E extends ServerEvent>(
     };
     const timer = setTimeout(() => {
       socket.off(event, listener as never);
-      reject(new Error(`Timeout esperando "${event}"`));
+      reject(new Error(`Timed out waiting for "${event}"`));
     }, timeoutMs);
     socket.on(event, listener as never);
   });

@@ -10,12 +10,12 @@ import { RealtimeModule } from './modules/realtime/realtime.module.js';
 
 @Module({
   imports: [
-    // Infraestructura (globales)
+    // Global infrastructure
     ConfigModule,
     DatabaseModule,
     RedisModule,
     RealtimeModule,
-    // Funcionalidades
+    // Features
     AuthModule,
     HealthModule,
     MatchesModule,

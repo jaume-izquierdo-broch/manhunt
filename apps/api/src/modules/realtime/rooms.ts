@@ -1,10 +1,10 @@
 import type { Team } from '@manhunt/types';
 
 /**
- * Salas de Socket.IO:
- * - `user:<id>`            todos los sockets de un usuario (puede tener varios dispositivos)
- * - `match:<id>`           todos los suscritos a una partida
- * - `match:<id>:<TEAM>`    un equipo de una partida (solo desde que empieza)
+ * Socket.IO rooms:
+ * - `user:<id>`          every socket of a user (they may use several devices)
+ * - `match:<id>`         everyone subscribed to a match
+ * - `match:<id>:<TEAM>`  one team of a match (joined once the match starts)
  */
 export const Rooms = {
   user: (userId: string) => `user:${userId}`,

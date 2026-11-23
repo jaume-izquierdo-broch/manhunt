@@ -15,7 +15,7 @@ export interface OptionPickerProps<T> {
   onChange: (value: T) => void;
 }
 
-/** Selector de una opción entre unas pocas (chips). Sustituye a sliders y pickers nativos. */
+/** Pick one of a few options, shown as chips. Replaces sliders and native pickers. */
 export function OptionPicker<T extends string | number>({
   label,
   options,

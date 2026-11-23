@@ -4,7 +4,7 @@ import { useThemeColors } from '@/ui';
 import { regionForArea } from '../domain/geo';
 import type { GameMapProps } from './game-map.types';
 
-/** Mapa de la partida: zona de juego, compañeros y (para cazadores) el último ping. */
+/** The match map: play area, teammates and, for hunters, the latest ping. */
 export function GameMap({ area, markers, accentColor }: GameMapProps) {
   const c = useThemeColors();
   return (
@@ -15,7 +15,7 @@ export function GameMap({ area, markers, accentColor }: GameMapProps) {
       showsMyLocationButton
       showsCompass={false}
       toolbarEnabled={false}
-      accessibilityLabel="Mapa de la partida"
+      accessibilityLabel="Match map"
     >
       <Circle
         center={{ latitude: area.lat, longitude: area.lng }}

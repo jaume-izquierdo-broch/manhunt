@@ -1,15 +1,14 @@
 import { Global, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
-import { ENV } from '../../config/config.module.js';
-import type { Env } from '../../config/env.js';
+import { ENV, type Env } from '../../config/env.js';
 import { UsersModule } from '../users/users.module.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { TokenService } from './token.service.js';
 
-/** Global para que el gateway WebSocket pueda usar TokenService sin importarlo. */
+/** Global so the WebSocket gateway can use TokenService without importing this module. */
 @Global()
 @Module({
   imports: [

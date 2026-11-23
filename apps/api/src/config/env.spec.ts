@@ -6,7 +6,7 @@ const base = {
 };
 
 describe('loadEnv', () => {
-  it('aplica valores por defecto', () => {
+  it('applies defaults', () => {
     const env = loadEnv(base);
     expect(env.PORT).toBe(3000);
     expect(env.REDIS_HOST).toBe('localhost');
@@ -14,19 +14,19 @@ describe('loadEnv', () => {
     expect(env.CATCH_RADIUS_METERS).toBe(25);
   });
 
-  it('convierte números y booleanos desde texto', () => {
+  it('coerces numbers and booleans from strings', () => {
     const env = loadEnv({ ...base, PORT: '8080', RUN_MIGRATIONS: 'false' });
     expect(env.PORT).toBe(8080);
     expect(env.RUN_MIGRATIONS).toBe(false);
   });
 
-  it('falla con un JWT_SECRET corto', () => {
-    expect(() => loadEnv({ ...base, JWT_SECRET: 'corto' })).toThrow(
+  it('fails on a short JWT_SECRET', () => {
+    expect(() => loadEnv({ ...base, JWT_SECRET: 'short' })).toThrow(
       /JWT_SECRET/,
     );
   });
 
-  it('falla si falta DATABASE_URL', () => {
+  it('fails without DATABASE_URL', () => {
     expect(() => loadEnv({ JWT_SECRET: base.JWT_SECRET })).toThrow(
       /DATABASE_URL/,
     );
@@ -34,11 +34,11 @@ describe('loadEnv', () => {
 });
 
 describe('parseCorsOrigin', () => {
-  it('"*" permite cualquier origen', () => {
+  it('"*" allows every origin', () => {
     expect(parseCorsOrigin('*')).toBe(true);
   });
 
-  it('separa una lista por comas', () => {
+  it('splits a comma-separated list', () => {
     expect(parseCorsOrigin('https://a.com, https://b.com')).toEqual([
       'https://a.com',
       'https://b.com',

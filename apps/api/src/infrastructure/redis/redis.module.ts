@@ -1,7 +1,6 @@
 import { Global, Module, type OnApplicationShutdown } from '@nestjs/common';
 import { Redis, type RedisOptions } from 'ioredis';
-import { ENV } from '../../config/config.module.js';
-import type { Env } from '../../config/env.js';
+import { ENV, type Env } from '../../config/env.js';
 import { InjectRedis, REDIS, REDIS_OPTIONS } from './redis.tokens.js';
 
 export function redisOptionsFromEnv(env: Env): RedisOptions {
@@ -9,7 +8,7 @@ export function redisOptionsFromEnv(env: Env): RedisOptions {
     host: env.REDIS_HOST,
     port: env.REDIS_PORT,
     password: env.REDIS_PASSWORD || undefined,
-    // Requerido por BullMQ y razonable para el resto de clientes.
+    // Required by BullMQ; also fine for the other clients.
     maxRetriesPerRequest: null,
   };
 }

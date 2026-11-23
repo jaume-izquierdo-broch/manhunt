@@ -3,7 +3,7 @@ import type { PingRevealPayload, PositionDto } from '@manhunt/types';
 import type { Redis } from 'ioredis';
 import { InjectRedis } from '../../infrastructure/redis/redis.tokens.js';
 
-/** Las claves caducan solas por si una partida se queda colgada. */
+/** Keys expire on their own, in case a match is never cleaned up. */
 const TTL_SECONDS = 12 * 60 * 60;
 
 const keys = {
@@ -12,8 +12,9 @@ const keys = {
 };
 
 /**
- * Estado efímero de una partida en Redis: última posición de cada jugador
- * (hash userId -> JSON) y último ping. No va a Postgres porque cambia cada pocos segundos.
+ * Short-lived match state in Redis: each player's latest position (a hash of
+ * userId -> JSON) and the latest ping. It changes every few seconds, so it
+ * doesn't belong in Postgres.
  */
 @Injectable()
 export class PositionsStore {
@@ -59,7 +60,7 @@ export class PositionsStore {
     return raw ? (JSON.parse(raw) as PingRevealPayload) : null;
   }
 
-  /** Al terminar la partida. */
+  /** Called when the match ends. */
   async clear(matchId: string): Promise<void> {
     await this.redis.del(keys.positions(matchId), keys.lastPing(matchId));
   }

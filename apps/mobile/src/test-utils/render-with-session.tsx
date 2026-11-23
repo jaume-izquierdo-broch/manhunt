@@ -7,7 +7,7 @@ import {
 } from '@/features/game/session/game-session';
 import type { GameState } from '@/features/game/state/game-state';
 
-/** Renderiza una vista de partida con una sesión falsa (sin socket ni GPS). */
+/** Renders a match view with a fake session (no socket, no GPS). */
 export async function renderWithSession(
   ui: ReactElement,
   {

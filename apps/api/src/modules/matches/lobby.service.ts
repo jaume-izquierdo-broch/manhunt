@@ -18,8 +18,8 @@ import { MatchesRepository } from './matches.repository.js';
 const JOIN_CODE_ATTEMPTS = 5;
 
 /**
- * Casos de uso de la SALA (estado WAITING): crear, unirse, salir, cerrar,
- * cambiar equipos y expulsar. Empezar la partida es cosa del módulo `game`.
+ * Lobby use cases (WAITING status): create, join, leave, close, change teams
+ * and kick. Starting the match belongs to the `game` module.
  */
 @Injectable()
 export class LobbyService {
@@ -29,7 +29,7 @@ export class LobbyService {
     private readonly realtime: RealtimePublisher,
   ) {}
 
-  /** El creador es el anfitrión y entra como cazador. */
+  /** The creator becomes the host and joins as a hunter. */
   async create(hostId: string, input: CreateMatchInput): Promise<MatchDto> {
     await this.assertNotInOpenMatch(hostId);
 
@@ -46,13 +46,13 @@ export class LobbyService {
         },
         hostId,
       );
+      // null means the join code collided with an existing one: try another.
       if (match) return this.reader.toDto(match);
-      // null = colisión del código de unión: se prueba con otro.
     }
-    throw new Error('No se pudo generar un código de partida único');
+    throw new Error('Could not generate a unique join code');
   }
 
-  /** Los nuevos jugadores entran como escapadores. Volver a unirse es idempotente. */
+  /** New players join as runners. Joining again is a no-op. */
   async join(userId: string, joinCode: string): Promise<MatchDto> {
     const match = await this.repo.findByJoinCode(joinCode);
     if (!match) throw MatchErrors.joinCodeNotFound();
@@ -68,12 +68,12 @@ export class LobbyService {
     }
 
     await this.repo.addPlayer(match.id, userId, Team.RUNNER);
-    return (await this.reader.publishUpdate(match.id))!;
+    return this.reader.publishUpdate(match.id);
   }
 
   async leave(matchId: string, userId: string): Promise<void> {
     const { match } = await this.reader.getMembershipOrThrow(matchId, userId);
-    assertInLobby(match, 'No puedes salir de una partida empezada');
+    assertInLobby(match, 'You cannot leave a match that has started');
     if (match.hostId === userId) throw MatchErrors.hostCannotLeave();
     await this.removePlayer(matchId, userId);
   }
@@ -117,10 +117,8 @@ export class LobbyService {
     if (!(await this.repo.setPlayerTeam(matchId, targetId, team))) {
       throw MatchErrors.playerNotFound();
     }
-    return (await this.reader.publishUpdate(matchId))!;
+    return this.reader.publishUpdate(matchId);
   }
-
-  // -------------------------------------------------------------------------
 
   private async removePlayer(matchId: string, userId: string) {
     await this.repo.removePlayer(matchId, userId);

@@ -37,7 +37,7 @@ export const makeMatch = (overrides: Partial<MatchDto> = {}): MatchDto => ({
   ...overrides,
 });
 
-/** Estado de partida ya cargado para `userId`. */
+/** A loaded game state, seen by `userId`. */
 export function loadedState(
   match: MatchDto,
   userId: string,

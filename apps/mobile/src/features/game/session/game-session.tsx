@@ -32,11 +32,11 @@ import {
 export interface GameSession {
   state: GameState;
   userId: string;
-  /** Mi posición (si el GPS está activo). */
+  /** My position, while GPS tracking is on. */
   position: DevicePosition | null;
   locationPermission: LocationPermission;
   requestLocationPermission: () => Promise<void>;
-  /** Aplica un MatchDto devuelto por una petición REST (sin esperar al socket). */
+  /** Applies a MatchDto returned by a REST call, without waiting for the socket. */
   applyMatch: (match: MatchDto) => void;
   attemptCatch: (runnerId: string) => Promise<CatchResult>;
 }
@@ -44,11 +44,11 @@ export interface GameSession {
 export const GameSessionContext = createContext<GameSession | null>(null);
 
 /**
- * Conexión en directo con UNA partida, de la sala a los resultados:
+ * The live connection to ONE match, from the lobby to the results:
  *
- * - Abre el socket, se suscribe (y se re-suscribe tras cada reconexión).
- * - Traduce cada evento del servidor en una acción del reducer.
- * - Activa el GPS y envía la posición mientras la partida está en juego y sigues libre.
+ * - Opens the socket and subscribes (again after every reconnection).
+ * - Turns every server event into a reducer action.
+ * - Tracks GPS and reports the position while the match is live and you're free.
  */
 export function GameSessionProvider({
   matchId,
@@ -62,7 +62,7 @@ export function GameSessionProvider({
   const [state, dispatch] = useReducer(gameReducer, initialGameState);
   const socketRef = useRef<GameSocket | null>(null);
   const userId = user.id;
-  // Evento (no dependencia del efecto): cerrar sesión no debe reabrir el socket.
+  // An effect event, not a dependency: signing out must not reopen the socket.
   const onUnauthorized = useEffectEvent(() => void signOut());
 
   // --- Socket ---------------------------------------------------------------
@@ -93,7 +93,7 @@ export function GameSessionProvider({
       }
       dispatch({
         type: 'failed',
-        message: 'No se puede conectar con el servidor. Reintentando…',
+        message: "Can't reach the server. Retrying…",
       });
     });
 
@@ -127,7 +127,7 @@ export function GameSessionProvider({
     };
   }, [matchId, token, userId]);
 
-  // --- Ubicación ------------------------------------------------------------
+  // --- Location -------------------------------------------------------------
   const tracking =
     isLive(state.match?.status) && state.me?.status === PlayerStatus.ALIVE;
   const location = useDeviceLocation({ watch: tracking });
@@ -146,10 +146,10 @@ export function GameSessionProvider({
     },
   });
 
-  // --- Acciones -------------------------------------------------------------
+  // --- Actions --------------------------------------------------------------
   const attemptCatch = async (runnerId: string) => {
     const socket = socketRef.current;
-    if (!socket?.connected) throw new Error('Sin conexión con el servidor');
+    if (!socket?.connected) throw new Error('Not connected to the server');
     const result = await emitWithAck(socket, 'catch:attempt', { runnerId });
     haptics.success();
     return result;
@@ -177,9 +177,9 @@ export function useGameSession(): GameSession {
   return session;
 }
 
-/** La partida ya cargada (las vistas solo se pintan cuando existe). */
+/** The loaded match (views only render once it exists). */
 export function useLoadedMatch(): MatchDto {
   const { state } = useGameSession();
-  if (!state.match) throw new Error('La partida todavía no se ha cargado');
+  if (!state.match) throw new Error('The match has not loaded yet');
   return state.match;
 }

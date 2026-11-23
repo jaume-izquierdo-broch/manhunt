@@ -10,8 +10,9 @@ import { IS_PUBLIC_KEY } from '../decorators/public.decorator.js';
 import { TokenService } from '../token.service.js';
 
 /**
- * Guard global: toda ruta HTTP exige `Authorization: Bearer <token>` salvo las @Public().
- * (El WebSocket se autentica aparte, en el handshake: ver `ws-auth.middleware.ts`.)
+ * Global guard: every HTTP route requires `Authorization: Bearer <token>` unless
+ * it is marked @Public(). WebSockets authenticate separately, during the handshake
+ * (see `ws-auth.middleware.ts`).
  */
 @Injectable()
 export class JwtAuthGuard implements CanActivate {

@@ -19,10 +19,10 @@ env:
 
 jobs:
   # ------------------------------------------------------------------
-  # Lint, tipos, tests unitarios y build (API + paquetes de los que depende)
+  # Lint, types, unit tests and build (the API and the packages it depends on)
   # ------------------------------------------------------------------
   quality:
-    name: Lint · Tipos · Tests · Build
+    name: Lint · Types · Tests · Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -35,10 +35,10 @@ jobs:
       - run: pnpm turbo run lint check-types test build --filter=@manhunt/api...
 
   # ------------------------------------------------------------------
-  # App móvil (Expo): lint, tipos y tests con jest-expo
+  # Mobile app (Expo): lint, types and jest-expo tests
   # ------------------------------------------------------------------
   mobile:
-    name: App móvil
+    name: Mobile app
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -51,10 +51,10 @@ jobs:
       - run: pnpm turbo run lint check-types test --filter=@manhunt/mobile...
 
   # ------------------------------------------------------------------
-  # Tests e2e contra Postgres y Redis reales
+  # e2e tests against real Postgres and Redis
   # ------------------------------------------------------------------
   e2e:
-    name: Tests e2e
+    name: e2e tests
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -89,10 +89,10 @@ jobs:
       - run: pnpm turbo run test:e2e --filter=@manhunt/api
 
   # ------------------------------------------------------------------
-  # Imagen Docker: se construye siempre; se publica en GHCR solo en main
+  # Docker image: always built; pushed to GHCR only on main
   # ------------------------------------------------------------------
   docker:
-    name: Imagen Docker
+    name: Docker image
     runs-on: ubuntu-latest
     needs: [quality, e2e]
     permissions:
@@ -129,24 +129,24 @@ jobs:
           cache-to: type=gha,mode=max
 
   # ------------------------------------------------------------------
-  # Despliegue (opcional): se activa definiendo la variable DEPLOY_HOST.
-  # El servidor necesita Docker, este repo (o su docker-compose.yml) en
-  # DEPLOY_PATH y un .env con los secretos de producción.
+  # Deployment (optional): enabled by defining the DEPLOY_HOST variable.
+  # The server needs Docker, this repo (or its docker-compose.yml) at
+  # DEPLOY_PATH, and a .env with the production secrets.
   # ------------------------------------------------------------------
   deploy:
-    name: Desplegar
+    name: Deploy
     runs-on: ubuntu-latest
     needs: docker
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_HOST != ''
     environment: production
     steps:
-      - name: Configurar SSH
+      - name: Set up SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H "${{ vars.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
-      - name: Actualizar contenedores
+      - name: Update containers
         env:
           TARGET: ${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}
           IMAGE: ${{ env.API_IMAGE }}:${{ needs.docker.outputs.tag }}
