@@ -76,11 +76,22 @@ How the pieces fit together:
 | `pnpm start` | Dev server (QR code for Expo Go) |
 | `pnpm test` | Tests (jest-expo + Testing Library) |
 | `pnpm lint` / `pnpm check-types` | ESLint (Expo config) and TypeScript |
-| `pnpm icons` | Regenerates every icon and the splash from the vector logo (`scripts/generate-icons.mjs`) |
+| `pnpm icons` | Regenerates every icon and the splash from `assets/brand/manhunt-icon.svg` |
 
 ## Logo and icons
 
-The logo (a location pin inside a crosshair) is drawn in `scripts/generate-icons.mjs`, which is its source of truth. To change colors or shapes, edit it and run `pnpm icons`: it writes `icon.png`, the Android adaptive icon layers, `splash-icon.png`, `logo.png` (login and sign-up screens), `favicon.png` and `assets/logo.svg`.
+The source of truth is **`assets/brand/manhunt-icon.svg`** (a hooded figure inside a crosshair). To change the icon, replace or edit that SVG, keeping its `layer:` comments, then run `pnpm icons`. The script writes:
+
+| File | Used for |
+|---|---|
+| `images/icon.png` (1024, square, opaque) | App icon: iOS and the default everywhere else. iOS rounds the corners itself |
+| `images/android-icon-background.png` + `-foreground.png` | Android adaptive icon. The figure sits in the central 66% that every launcher mask keeps |
+| `images/android-icon-monochrome.png` | Android 13+ themed icons (single color, tinted by the system) |
+| `images/splash-icon.png` | Splash screen, over the `#030303` set in `app.json` |
+| `images/logo.png` / `images/favicon.png` | In-app logo (login and sign-up) and web favicon, with rounded corners |
+| `store/play-store-512.png` | Google Play listing. Uploaded by hand, not used by the app |
+
+There are no per-density sizes (Android `mipmap-*`, the iOS `AppIcon` set) or desktop formats (`.ico`, `.icns`) in the repo: `expo prebuild` and EAS generate the native sizes from these files, and the app has no desktop build.
 
 ## Privacy
 

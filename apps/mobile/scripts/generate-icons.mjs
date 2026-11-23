@@ -1,104 +1,121 @@
-// Generates every app icon from the vector logo.
+// Generates every icon, splash and logo image from the vector source.
 //
 //   pnpm --filter @manhunt/mobile icons
 //
-// The logo is a location pin (the runner, green) inside a crosshair (the hunter, red).
-// To change colors or shapes, edit the constants below and run the script again.
+// Source: assets/brand/manhunt-icon.svg (512x512, full-bleed). Its `layer:` comments
+// split it into a backdrop, the artwork (figure + crosshair) and an overlay
+// (scanlines + vignette), which lets us build Android's two-layer adaptive icon.
+//
+// Expo only needs these few large images: `expo prebuild` / EAS derive every
+// native size (Android mipmaps, iOS AppIcon set) from them.
 import { Resvg } from '@resvg/resvg-js';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', 'assets');
+const ASSETS = join(dirname(fileURLToPath(import.meta.url)), '..', 'assets');
+const source = readFileSync(join(ASSETS, 'brand', 'manhunt-icon.svg'), 'utf8');
 
-const COLORS = {
-  hunter: '#E5484D',
-  runner: '#30A46C',
-  backgroundTop: '#1C2030',
-  backgroundBottom: '#0B0D12',
-  /** Background of the splash screen and the adaptive icon (the darkest). */
-  solid: '#0F1117',
-};
-
+const VIEWBOX = 512;
+/** Corner radius of the rounded variant (logo, favicon), same as the brand kit. */
+const CORNER_RADIUS = 112;
 /**
- * Marca (mira + pin) en un lienzo de 1024 centrada en (512, 512).
- * `scale` encoge la marca hacia el centro (zona segura de Android, splash...).
+ * Android crops the adaptive icon's foreground to a mask (circle, squircle...) that
+ * only guarantees the central 66%. At 0.72 the crosshair (r = 214 + ticks) stays inside it.
  */
-function mark({ scale = 1, hunter = COLORS.hunter, runner = COLORS.runner }) {
-  const tick = (x1, y1, x2, y2) =>
-    `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${hunter}" stroke-width="44" stroke-linecap="round"/>`;
-  return `
-  <g transform="translate(512 512) scale(${scale}) translate(-512 -512)">
-    <circle cx="512" cy="512" r="330" fill="none" stroke="${hunter}" stroke-width="44"/>
-    ${tick(512, 92, 512, 232)}
-    ${tick(512, 792, 512, 932)}
-    ${tick(92, 512, 232, 512)}
-    ${tick(792, 512, 932, 512)}
-    <!-- The pin has a real hole (evenodd): the background shows through it. -->
-    <path fill="${runner}" fill-rule="evenodd"
-      d="M512 712 C 448 628 384 570 384 474 A 128 128 0 1 1 640 474 C 640 570 576 628 512 712 Z
-         M562 472 A 50 50 0 1 0 462 472 A 50 50 0 1 0 562 472 Z"/>
-  </g>`;
+const ADAPTIVE_SCALE = 0.72;
+
+function extract(pattern, name) {
+  const match = source.match(pattern);
+  if (!match) throw new Error(`manhunt-icon.svg: missing ${name}`);
+  return match[1];
 }
 
-const background = `
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="${COLORS.backgroundTop}"/>
-      <stop offset="1" stop-color="${COLORS.backgroundBottom}"/>
-    </linearGradient>
-  </defs>
-  <rect width="1024" height="1024" fill="url(#bg)"/>`;
+const defs = extract(/<defs>([\s\S]*?)<\/defs>/, '<defs>');
+const layer = (name) =>
+  extract(
+    new RegExp(`<!-- layer:${name} -->([\\s\\S]*?)<!-- /layer:${name} -->`),
+    `layer:${name}`,
+  );
+const backdrop = layer('backdrop');
+const artwork = layer('artwork');
+const overlay = layer('overlay');
 
-const svg = (body) =>
-  `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">${body}</svg>`;
+const svg = (body, extraDefs = '') =>
+  `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${VIEWBOX}" height="${VIEWBOX}" viewBox="0 0 ${VIEWBOX} ${VIEWBOX}"><defs>${defs}${extraDefs}</defs>${body}</svg>`;
 
-/** Logo variants -> PNG file and size. */
+const scaled = (body, scale) => {
+  const c = VIEWBOX / 2;
+  return `<g transform="translate(${c} ${c}) scale(${scale}) translate(${-c} ${-c})">${body}</g>`;
+};
+
+const rounded = (body) =>
+  `<clipPath id="corners"><rect width="${VIEWBOX}" height="${VIEWBOX}" rx="${CORNER_RADIUS}"/></clipPath>` +
+  `<g clip-path="url(#corners)">${body}</g>`;
+
+const full = backdrop + artwork + overlay;
+
+/**
+ * Android 13+ themed icon: one white ink the system tints. The hood is solid
+ * with the face cut out; eyes and crosshair are drawn on top.
+ */
+const monochrome = svg(
+  scaled(
+    `<g filter="url(#ink)" mask="url(#face-cut)"><use href="#hood"/></g>
+     <g filter="url(#ink)"><use href="#eyes"/><use href="#crosshair"/></g>`,
+    ADAPTIVE_SCALE,
+  ),
+  `<g id="source">${artwork}</g>
+   <filter id="ink" x="-20%" y="-20%" width="140%" height="140%">
+     <feFlood flood-color="#fff"/>
+     <feComposite in2="SourceAlpha" operator="in"/>
+     <feComponentTransfer><feFuncA type="linear" slope="1.8"/></feComponentTransfer>
+   </filter>
+   <mask id="face-cut"><rect width="${VIEWBOX}" height="${VIEWBOX}" fill="#fff"/><use href="#face"/></mask>`,
+);
+
+/** File (relative to assets/) -> size in px and SVG. */
 const outputs = [
-  // Main icon (iOS rounds the corners itself).
-  {
-    file: 'images/icon.png',
-    size: 1024,
-    svg: svg(background + mark({ scale: 0.86 })),
-  },
-  // Android adaptive icon: the system crops the foreground layer, so the mark stays in the 66% safe zone.
-  {
-    file: 'images/android-icon-foreground.png',
-    size: 1024,
-    svg: svg(mark({ scale: 0.6 })),
-  },
+  // App icon (iOS and the fallback everywhere else). Square and opaque: iOS rounds it.
+  { file: 'images/icon.png', size: 1024, svg: svg(full) },
+  // Android adaptive icon: an opaque backdrop plus the artwork inside the safe zone.
   {
     file: 'images/android-icon-background.png',
     size: 1024,
-    svg: svg(background),
+    svg: svg(backdrop + overlay),
   },
-  // Android 13+ themed icons: a single ink color that the system tints.
   {
-    file: 'images/android-icon-monochrome.png',
-    size: 432,
-    svg: svg(mark({ scale: 0.6, hunter: '#FFFFFF', runner: '#FFFFFF' })),
+    file: 'images/android-icon-foreground.png',
+    size: 1024,
+    svg: svg(scaled(artwork, ADAPTIVE_SCALE)),
   },
-  // Splash: the mark alone; Expo paints the background color.
-  { file: 'images/splash-icon.png', size: 512, svg: svg(mark({ scale: 1 })) },
-  // In-app logo (login and sign-up screens).
-  { file: 'images/logo.png', size: 512, svg: svg(mark({ scale: 1 })) },
+  { file: 'images/android-icon-monochrome.png', size: 432, svg: monochrome },
+  // Splash: the artwork alone over the background color from app.json. The body
+  // fades out at the bottom so it doesn't end in a hard edge mid-screen.
   {
-    file: 'images/favicon.png',
-    size: 48,
-    svg: svg(background + mark({ scale: 0.86 })),
+    file: 'images/splash-icon.png',
+    size: 512,
+    svg: svg(
+      `<g mask="url(#fade)">${artwork}</g>`,
+      `<linearGradient id="fade-ramp" x1="0" y1="0" x2="0" y2="1">
+         <stop offset="0.7" stop-color="#fff"/><stop offset="1" stop-color="#000"/>
+       </linearGradient>
+       <mask id="fade"><rect width="${VIEWBOX}" height="${VIEWBOX}" fill="url(#fade-ramp)"/></mask>`,
+    ),
   },
+  // In-app logo (login and sign-up screens) and the web favicon: rounded corners.
+  { file: 'images/logo.png', size: 512, svg: svg(rounded(full)) },
+  { file: 'images/favicon.png', size: 48, svg: svg(rounded(full)) },
+  // Google Play listing (uploaded by hand to the Play Console, not used by the app).
+  { file: 'store/play-store-512.png', size: 512, svg: svg(full) },
 ];
 
-for (const { file, size, svg: source } of outputs) {
-  const png = new Resvg(source, { fitTo: { mode: 'width', value: size } })
+for (const { file, size, svg: image } of outputs) {
+  const png = new Resvg(image, { fitTo: { mode: 'width', value: size } })
     .render()
     .asPng();
-  const path = join(ROOT, file);
+  const path = join(ASSETS, file);
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, png);
   console.log(`✔ ${file} (${size}px)`);
 }
-
-// Vector source, for anywhere else it's needed (web, social media, store listing...).
-writeFileSync(join(ROOT, 'logo.svg'), svg(background + mark({ scale: 0.86 })));
-console.log('✔ logo.svg');
