@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- Metro carga este archivo como CommonJS */
 const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
 

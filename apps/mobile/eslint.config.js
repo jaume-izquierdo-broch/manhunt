@@ -1,6 +1,10 @@
-import { config } from "@manhunt/config-eslint/base.json";
+// https://docs.expo.dev/guides/using-eslint/
+const { defineConfig } = require('eslint/config');
+const expoConfig = require('eslint-config-expo/flat');
 
-/** @type {import("eslint").Linter.Config[]} */
-export default [
-  ...config,
-];
+module.exports = defineConfig([
+  expoConfig,
+  {
+    ignores: ['dist/*', '.expo/*', 'coverage/*'],
+  },
+]);

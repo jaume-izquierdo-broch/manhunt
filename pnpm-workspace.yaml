@@ -2,6 +2,7 @@ packages:
   - "apps/*"
   - "packages/*"
 allowBuilds:
+  '@parcel/watcher': false
   esbuild: true
   msgpackr-extract: true
 minimumReleaseAgeExclude:
@@ -12,3 +13,5 @@ minimumReleaseAgeExclude:
   - '@turbo/windows-64@2.11.10'
   - '@turbo/windows-arm64@2.11.10'
   - turbo@2.11.10
+  - '@tanstack/query-core@5.108.3'
+  - '@tanstack/react-query@5.108.3'

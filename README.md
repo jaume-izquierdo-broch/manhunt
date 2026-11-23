@@ -22,17 +22,22 @@ Necesitas Node 24, pnpm 11 y Docker.
 
 ```bash
 pnpm install
-cp apps/api/.env.example apps/api/.env   # primera vez
-pnpm docker:up                           # Postgres + Redis
-pnpm dev                                 # API en http://localhost:3000 (aplica migraciones al arrancar)
+cp apps/api/.env.example apps/api/.env      # primera vez
+pnpm docker:up                              # Postgres + Redis
+pnpm --filter @manhunt/api dev              # API en http://localhost:3000 (aplica migraciones al arrancar)
+pnpm --filter @manhunt/mobile start         # App: escanea el QR con Expo Go (misma Wi-Fi)
 ```
+
+La app móvil encuentra la API sola (usa la IP de tu ordenador). Detalles en [apps/mobile/README.md](apps/mobile/README.md).
+
+> **¿Puerto ocupado?** Si ya tienes otro Postgres o servicio en el 5432/6379/3000 (por ejemplo, dentro de WSL), crea un `.env` en la raíz con `DB_PORT=5433` (o `REDIS_PORT`), pon ese puerto en `DATABASE_URL` de `apps/api/.env` y, para la API, cambia `PORT` y `EXPO_PUBLIC_API_PORT`.
 
 | Comando | Qué hace |
 |---|---|
-| `pnpm test` | Tests unitarios |
+| `pnpm test` | Tests unitarios (API y app móvil) |
 | `pnpm test:e2e` | Tests e2e (partida completa) contra Postgres y Redis reales |
 | `pnpm lint` / `pnpm check-types` | Lint y tipos |
-| `pnpm --filter @manhunt/api db:generate` | Genera una migración tras cambiar `apps/api/src/database/schema.ts` |
+| `pnpm --filter @manhunt/api db:generate` | Genera una migración tras cambiar `apps/api/src/infrastructure/database/schema.ts` |
 | `pnpm docker:up:all` | Construye la imagen de la API y levanta todo en Docker |
 
 ### Probar a mano
