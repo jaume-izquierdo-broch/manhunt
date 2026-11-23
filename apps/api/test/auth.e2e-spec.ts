@@ -1,9 +1,14 @@
+import type { ClientSocket } from './support/socket.js';
 import {
   PASSWORD,
   registration,
   uniqueName,
   useTestApp,
 } from './support/test-app.js';
+
+/** Resolves when the server closes the socket. */
+const serverDisconnect = (socket: ClientSocket) =>
+  new Promise<string>((resolve) => socket.once('disconnect', resolve));
 
 describe('auth', () => {
   const t = useTestApp();
@@ -137,5 +142,63 @@ describe('auth', () => {
 
   it('the WebSocket rejects connections without a valid token', async () => {
     await expect(t.connect('fake-token')).rejects.toThrow('UNAUTHORIZED');
+  });
+
+  describe('sessions', () => {
+    /** A second login of the same user: another device, another session. */
+    async function loginAgain(username: string): Promise<string> {
+      const res = await t
+        .anonymous()
+        .post('/auth/login', { identifier: username, password: PASSWORD })
+        .expect(200);
+      return res.body.accessToken as string;
+    }
+
+    const me = (token: string) =>
+      t.anonymous().get('/auth/me').set('Authorization', `Bearer ${token}`);
+
+    it('logout revokes only that session and closes its sockets', async () => {
+      const phone = await t.register('dev');
+      const tabletToken = await loginAgain(phone.user.username);
+      expect(tabletToken).not.toBe(phone.accessToken);
+
+      const phoneSocket = await phone.connect();
+      const tabletSocket = await t.connect(tabletToken);
+      const closed = serverDisconnect(phoneSocket);
+
+      await phone.api.post('/auth/logout').expect(204);
+
+      await expect(closed).resolves.toBe('io server disconnect');
+      expect(tabletSocket.connected).toBe(true);
+      const revoked = await me(phone.accessToken).expect(401);
+      expect(revoked.body.code).toBe('UNAUTHORIZED');
+      await me(tabletToken).expect(200);
+      await expect(t.connect(phone.accessToken)).rejects.toThrow(
+        'UNAUTHORIZED',
+      );
+    });
+
+    it('logout-all revokes every session of the user', async () => {
+      const player = await t.register('all');
+      const otherToken = await loginAgain(player.user.username);
+      const otherSocket = await t.connect(otherToken);
+      const closed = serverDisconnect(otherSocket);
+
+      await player.api.post('/auth/logout-all').expect(204);
+
+      await expect(closed).resolves.toBe('io server disconnect');
+      await me(player.accessToken).expect(401);
+      await me(otherToken).expect(401);
+    });
+
+    it('does not touch other users', async () => {
+      const [a, b] = await Promise.all([t.register('a'), t.register('b')]);
+      await a.api.post('/auth/logout-all').expect(204);
+      await me(b.accessToken).expect(200);
+    });
+
+    it('logout needs a valid session', async () => {
+      await t.anonymous().post('/auth/logout').expect(401);
+    });
   });
 });

@@ -11,13 +11,14 @@ import { toUserDto } from '../users/user.mapper.js';
 import { UsersRepository } from '../users/users.repository.js';
 import { AuthErrors } from './auth.errors.js';
 import { DUMMY_HASH, hashPassword, verifyPassword } from './password.js';
-import { TokenService } from './token.service.js';
+import type { AuthUser } from './auth.types.js';
+import { SessionStore } from './session.store.js';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly users: UsersRepository,
-    private readonly tokens: TokenService,
+    private readonly sessions: SessionStore,
   ) {}
 
   /** The schema has already checked that `acceptTerms` is true. */
@@ -33,7 +34,7 @@ export class AuthService {
         ? AuthErrors.emailTaken()
         : AuthErrors.usernameTaken();
     }
-    return this.issueToken(result.user);
+    return this.startSession(result.user);
   }
 
   async login(input: LoginInput): Promise<AuthResponse> {
@@ -45,7 +46,7 @@ export class AuthService {
       user?.passwordHash ?? DUMMY_HASH,
     );
     if (!user || !valid) throw AuthErrors.invalidCredentials();
-    return this.issueToken(user);
+    return this.startSession(user);
   }
 
   async me(userId: string): Promise<UserDto> {
@@ -54,8 +55,18 @@ export class AuthService {
     return toUserDto(user);
   }
 
-  private async issueToken(user: UserRow): Promise<AuthResponse> {
-    const accessToken = await this.tokens.sign({
+  /** Ends the session the request authenticated with. */
+  logout(user: AuthUser): Promise<void> {
+    return this.sessions.revoke(user);
+  }
+
+  /** Ends every session of the user, on every device. Returns their ids. */
+  logoutEverywhere(user: AuthUser): Promise<string[]> {
+    return this.sessions.revokeAll(user.userId);
+  }
+
+  private async startSession(user: UserRow): Promise<AuthResponse> {
+    const accessToken = await this.sessions.create({
       userId: user.id,
       username: user.username,
     });

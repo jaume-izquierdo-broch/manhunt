@@ -7,6 +7,8 @@ interface RequestOptions {
   body?: unknown;
   /** `false` for public routes (login, sign-up): no token is sent and a 401 doesn't sign the user out. */
   auth?: boolean;
+  /** Sends this token instead of the current one; a 401 then doesn't sign the user out. */
+  token?: string;
   timeoutMs?: number;
 }
 
@@ -45,10 +47,11 @@ async function request<T>(
   options: RequestOptions = {},
 ): Promise<T> {
   const { body, auth = true, timeoutMs = DEFAULT_TIMEOUT_MS } = options;
+  const explicitToken = options.token !== undefined;
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
 
-  const token = auth ? authHooks.getToken() : null;
+  const token = options.token ?? (auth ? authHooks.getToken() : null);
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const controller = new AbortController();
@@ -71,7 +74,9 @@ async function request<T>(
   const data = await readJson(response);
   if (response.ok) return data as T;
 
-  if (response.status === 401 && token) authHooks.onUnauthorized();
+  if (response.status === 401 && token && !explicitToken) {
+    authHooks.onUnauthorized();
+  }
   throw ApiError.fromBody(response.status, data);
 }
 

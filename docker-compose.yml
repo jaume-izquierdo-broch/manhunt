@@ -75,7 +75,6 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret}
-      JWT_SECRET: ${JWT_SECRET:-dev_only_change_me_please_32chars}
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
     ports:
       - "${API_PORT:-3000}:3000"

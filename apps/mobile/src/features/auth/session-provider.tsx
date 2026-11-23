@@ -31,6 +31,8 @@ const SessionContext = createContext<Session | null>(null);
  * - On startup it restores the stored session and signs in right away (works
  *   offline), then validates it in the background with GET /auth/me.
  * - It hands the token to the HTTP client and signs out whenever the API answers 401.
+ * - Signing out revokes the session on the server too (best effort: offline, it
+ *   simply expires there), without making the user wait for it.
  */
 export function SessionProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
@@ -38,7 +40,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const tokenRef = useRef<string | null>(null);
 
   const signOut = async () => {
+    const token = tokenRef.current;
     tokenRef.current = null;
+    if (token) void authApi.logout(token).catch(() => {});
     await sessionStorage.clear();
     queryClient.clear();
     setState({ status: 'signedOut' });

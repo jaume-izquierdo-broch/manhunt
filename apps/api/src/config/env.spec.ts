@@ -2,7 +2,6 @@ import { loadEnv, parseCorsOrigin } from './env.js';
 
 const base = {
   DATABASE_URL: 'postgresql://u:p@localhost:5432/db',
-  JWT_SECRET: 'a'.repeat(32),
 };
 
 describe('loadEnv', () => {
@@ -12,6 +11,7 @@ describe('loadEnv', () => {
     expect(env.REDIS_HOST).toBe('localhost');
     expect(env.RUN_MIGRATIONS).toBe(true);
     expect(env.CATCH_RADIUS_METERS).toBe(25);
+    expect(env.SESSION_TTL_SECONDS).toBe(30 * 24 * 60 * 60);
   });
 
   it('coerces numbers and booleans from strings', () => {
@@ -20,16 +20,14 @@ describe('loadEnv', () => {
     expect(env.RUN_MIGRATIONS).toBe(false);
   });
 
-  it('fails on a short JWT_SECRET', () => {
-    expect(() => loadEnv({ ...base, JWT_SECRET: 'short' })).toThrow(
-      /JWT_SECRET/,
+  it('fails on a non-positive SESSION_TTL_SECONDS', () => {
+    expect(() => loadEnv({ ...base, SESSION_TTL_SECONDS: '0' })).toThrow(
+      /SESSION_TTL_SECONDS/,
     );
   });
 
   it('fails without DATABASE_URL', () => {
-    expect(() => loadEnv({ JWT_SECRET: base.JWT_SECRET })).toThrow(
-      /DATABASE_URL/,
-    );
+    expect(() => loadEnv({})).toThrow(/DATABASE_URL/);
   });
 });
 

@@ -95,4 +95,18 @@ describe('api client', () => {
     ).rejects.toMatchObject({ code: 'INVALID_CREDENTIALS' });
     expect(onUnauthorized).not.toHaveBeenCalled();
   });
+
+  it('sends an explicit token and does not sign out on its 401', async () => {
+    const onUnauthorized = jest.fn();
+    configureApiAuth({ getToken: () => null, onUnauthorized });
+    fetchMock.mockResolvedValue(
+      jsonResponse(401, { code: 'UNAUTHORIZED', message: 'x' }),
+    );
+
+    await expect(
+      api.post('/auth/logout', undefined, { token: 'old' }),
+    ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer old');
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
 });

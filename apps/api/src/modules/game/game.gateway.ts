@@ -19,7 +19,7 @@ import {
 } from '@manhunt/types';
 import { parseOrThrow } from '../../common/validation/zod-validation.pipe.js';
 import { withAck } from '../../common/websocket/with-ack.js';
-import { TokenService } from '../auth/token.service.js';
+import { SessionStore } from '../auth/session.store.js';
 import { RealtimePublisher } from '../realtime/realtime.publisher.js';
 import type { GameNamespace, GameSocket } from '../realtime/realtime.types.js';
 import { Rooms } from '../realtime/rooms.js';
@@ -39,19 +39,25 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection {
   private readonly logger = new Logger(GameGateway.name);
 
   constructor(
-    private readonly tokens: TokenService,
+    private readonly sessions: SessionStore,
     private readonly realtime: RealtimePublisher,
     private readonly gameplay: GameplayService,
   ) {}
 
   afterInit(ns: GameNamespace) {
-    ns.use(createWsAuthMiddleware(this.tokens));
+    ns.use(createWsAuthMiddleware(this.sessions));
     this.realtime.attach(ns);
   }
 
-  /** A personal room lets the server reach a user on all their devices. */
+  /**
+   * Personal rooms: one to reach a user on all their devices, and one per
+   * session so a logout can close exactly that session's sockets.
+   */
   async handleConnection(socket: GameSocket) {
-    await socket.join(Rooms.user(socket.data.userId));
+    await socket.join([
+      Rooms.user(socket.data.userId),
+      Rooms.session(socket.data.sessionId),
+    ]);
   }
 
   /** Clients must subscribe again after every reconnection. */

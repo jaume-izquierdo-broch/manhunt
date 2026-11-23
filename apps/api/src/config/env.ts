@@ -20,12 +20,12 @@ export const envSchema = z.object({
   REDIS_PORT: z.coerce.number().int().positive().default(6379),
   REDIS_PASSWORD: z.string().optional(),
 
-  JWT_SECRET: z.string().min(16, 'JWT_SECRET must be at least 16 characters'),
-  JWT_EXPIRES_IN_SECONDS: z.coerce
+  /** A session expires after this long WITHOUT being used (every request extends it). */
+  SESSION_TTL_SECONDS: z.coerce
     .number()
     .int()
     .positive()
-    .default(60 * 60 * 24 * 7),
+    .default(60 * 60 * 24 * 30),
 
   /** Comma-separated list of allowed origins, or "*". Only affects browser clients. */
   CORS_ORIGIN: z.string().default('*'),

@@ -1,15 +1,15 @@
 import { ErrorCode } from '@manhunt/types';
-import type { TokenService } from '../auth/token.service.js';
+import type { SessionStore } from '../auth/session.store.js';
 import type { GameSocket } from './realtime.types.js';
 
 type Next = (err?: Error) => void;
 
 /**
- * Socket.IO handshake middleware: no valid JWT, no connection.
+ * Socket.IO handshake middleware: no valid session token, no connection.
  * Accepts `io(url, { auth: { token } })` or an `Authorization: Bearer` header.
  * Rejected clients get a `connect_error` whose message is `UNAUTHORIZED`.
  */
-export function createWsAuthMiddleware(tokens: TokenService) {
+export function createWsAuthMiddleware(sessions: SessionStore) {
   return (socket: GameSocket, next: Next) => {
     const auth = socket.handshake.auth as { token?: unknown } | undefined;
     const token =
@@ -21,12 +21,13 @@ export function createWsAuthMiddleware(tokens: TokenService) {
       return;
     }
 
-    tokens
+    sessions
       .verify(token)
       .then((user) => {
         if (!user) return next(new Error(ErrorCode.UNAUTHORIZED));
         socket.data.userId = user.userId;
         socket.data.username = user.username;
+        socket.data.sessionId = user.sessionId;
         next();
       })
       .catch(() => next(new Error(ErrorCode.UNAUTHORIZED)));

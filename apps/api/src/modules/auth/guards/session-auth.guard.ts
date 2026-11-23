@@ -7,7 +7,7 @@ import { Reflector } from '@nestjs/core';
 import { AuthErrors } from '../auth.errors.js';
 import type { AuthenticatedRequest } from '../decorators/current-user.decorator.js';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator.js';
-import { TokenService } from '../token.service.js';
+import { SessionStore } from '../session.store.js';
 
 /**
  * Global guard: every HTTP route requires `Authorization: Bearer <token>` unless
@@ -15,10 +15,10 @@ import { TokenService } from '../token.service.js';
  * (see `ws-auth.middleware.ts`).
  */
 @Injectable()
-export class JwtAuthGuard implements CanActivate {
+export class SessionAuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
-    private readonly tokens: TokenService,
+    private readonly sessions: SessionStore,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -34,7 +34,7 @@ export class JwtAuthGuard implements CanActivate {
     const [scheme, token] = (request.headers.authorization ?? '').split(' ');
     const user =
       scheme?.toLowerCase() === 'bearer' && token
-        ? await this.tokens.verify(token)
+        ? await this.sessions.verify(token)
         : null;
     if (!user) throw AuthErrors.unauthorized();
 

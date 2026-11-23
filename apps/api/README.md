@@ -26,7 +26,7 @@ src/
 └── modules/                   Features (one Nest module per folder)
     ├── health/                GET /health
     ├── users/                 Users repository
-    ├── auth/                  Sign-up, login, JWT, global guard
+    ├── auth/                  Sign-up, login, sessions in Redis, global guard
     ├── realtime/              Socket.IO rooms and RealtimePublisher (sending events)
     ├── matches/               Matches: repository, queries and the LOBBY (WAITING)
     └── game/                  LIVE matches: phases, timers, positions, catches, gateway
@@ -52,12 +52,26 @@ DTOs, validation schemas and WebSocket events are **not** defined here: they liv
 ### Module dependencies
 
 ```
-auth ──▶ users
+auth ──▶ users, realtime (closes sockets on logout)
 matches ──▶ realtime
-game ──▶ matches, realtime, auth (TokenService)
+game ──▶ matches, realtime, auth (SessionStore)
 ```
 
 `game` depends on `matches`, never the other way around: the lobby knows nothing about timers.
+
+## Sessions
+
+Login and sign-up return an opaque random token (not a JWT). `SessionStore` keeps the session in Redis:
+
+| Key | Value |
+|---|---|
+| `mh:session:<sha256(token)>` | `{ userId, username, createdAt }`, expires after `SESSION_TTL_SECONDS` (30 days) without use |
+| `mh:user:<userId>:sessions` | Set of that user's session ids, for `POST /auth/logout-all` |
+
+- **Only the token's hash is stored**, so a Redis dump can't be used to log in.
+- **Sliding expiration**: every authenticated request or socket connection extends the session (`GETEX`).
+- **Real logout**: `POST /auth/logout` deletes the key, so the token stops working at once, and closes the sockets opened with it (each socket joins a `session:<id>` room; the Redis adapter reaches every replica).
+- Redis runs with `appendonly yes`, so sessions survive a restart.
 
 ## The life of a match
 

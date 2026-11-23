@@ -2,10 +2,6 @@
 export interface AuthUser {
   userId: string;
   username: string;
-}
-
-/** JWT claims. */
-export interface JwtPayload {
-  sub: string;
-  username: string;
+  /** The session the request or socket authenticated with (see SessionStore). */
+  sessionId: string;
 }

@@ -65,13 +65,15 @@ A user can only be in one unfinished match at a time.
 
 ## REST API
 
-Every route requires `Authorization: Bearer <token>`, except those marked 🌐. Errors return `{ statusCode, code, message, details? }`, where `code` is one of `ErrorCode` in `@manhunt/types`.
+Every route requires `Authorization: Bearer <token>`, except those marked 🌐. The token is an opaque session token stored in Redis (details in [apps/api/README.md](apps/api/README.md#sessions)). Errors return `{ statusCode, code, message, details? }`, where `code` is one of `ErrorCode` in `@manhunt/types`.
 
 | Method | Route | Description |
 |---|---|---|
 | 🌐 POST | `/auth/register` | `{ username, email, password, acceptTerms: true }` → `{ accessToken, user }`. Records which policy version was accepted |
 | 🌐 POST | `/auth/login` | `{ identifier, password }` (username **or** email) → `{ accessToken, user }` |
 | GET | `/auth/me` | The current user |
+| POST | `/auth/logout` | Ends this session: the token stops working and its sockets are closed (204) |
+| POST | `/auth/logout-all` | Ends every session of the user, on every device (204) |
 | POST | `/matches` | Creates a match: `{ playArea: { lat, lng, radiusMeters }, hidingSeconds?, durationSeconds?, pingIntervalSeconds? }` |
 | POST | `/matches/join` | `{ joinCode }` → joins the lobby |
 | GET | `/matches/current` | `{ match }` with your unfinished match, or `null` |

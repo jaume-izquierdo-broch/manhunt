@@ -77,7 +77,6 @@ jobs:
       DATABASE_URL: postgresql://manhunt:manhunt_secret@localhost:5432/manhunt_test
       REDIS_HOST: localhost
       REDIS_PORT: 6379
-      JWT_SECRET: ci_only_secret_at_least_16_chars
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4

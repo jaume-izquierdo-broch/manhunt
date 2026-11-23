@@ -186,6 +186,26 @@ Authorization: Bearer {{hunterToken}}
 
 
 ### ---------------------------------------------------------------------
+### 4. Logging out (run last: log in again with section 1 afterwards)
+### ---------------------------------------------------------------------
+
+# 204: the hunter's token stops working and its sockets are closed
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{hunterToken}}
+
+###
+
+# 401 UNAUTHORIZED: the same token, after logging out
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{hunterToken}}
+
+###
+
+# 204: ends every session of the runner, on every device
+POST {{baseUrl}}/auth/logout-all
+Authorization: Bearer {{runnerToken}}
+
+### ---------------------------------------------------------------------
 ### The real-time part (positions, pings, catches) runs over WebSocket and
 ### can't be exercised from here. Use: pnpm --filter @manhunt/api simulate
 ### ---------------------------------------------------------------------
