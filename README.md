@@ -63,8 +63,8 @@ Todas las rutas requieren `Authorization: Bearer <token>`, salvo las marcadas �
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| 🌐 POST | `/auth/register` | `{ username, password }` → `{ accessToken, user }` |
-| 🌐 POST | `/auth/login` | `{ username, password }` → `{ accessToken, user }` |
+| 🌐 POST | `/auth/register` | `{ username, email, password, acceptTerms: true }` → `{ accessToken, user }`. Guarda qué versión de la política se aceptó |
+| 🌐 POST | `/auth/login` | `{ identifier, password }` (usuario **o** email) → `{ accessToken, user }` |
 | GET | `/auth/me` | Usuario actual |
 | POST | `/matches` | Crea partida: `{ playArea: { lat, lng, radiusMeters }, hidingSeconds?, durationSeconds?, pingIntervalSeconds? }` |
 | POST | `/matches/join` | `{ joinCode }` → entra en la sala |

@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import type {
-  AuthResponse,
-  LoginInput,
-  RegisterInput,
-  UserDto,
+import {
+  type AuthResponse,
+  type LoginInput,
+  type RegisterInput,
+  TERMS_VERSION,
+  type UserDto,
 } from '@manhunt/types';
 import type { UserRow } from '../../infrastructure/database/schema.js';
 import { toUserDto } from '../users/user.mapper.js';
@@ -19,15 +20,25 @@ export class AuthService {
     private readonly tokens: TokenService,
   ) {}
 
+  /** `acceptTerms` ya viene validado como `true` por el esquema. */
   async register(input: RegisterInput): Promise<AuthResponse> {
-    const passwordHash = await hashPassword(input.password);
-    const user = await this.users.create(input.username, passwordHash);
-    if (!user) throw AuthErrors.usernameTaken();
-    return this.issueToken(user);
+    const result = await this.users.create({
+      username: input.username,
+      email: input.email,
+      passwordHash: await hashPassword(input.password),
+      termsVersion: TERMS_VERSION,
+    });
+    if (!result.ok) {
+      throw result.conflict === 'email'
+        ? AuthErrors.emailTaken()
+        : AuthErrors.usernameTaken();
+    }
+    return this.issueToken(result.user);
   }
 
+  /** Login con nombre de usuario o email. */
   async login(input: LoginInput): Promise<AuthResponse> {
-    const user = await this.users.findByUsername(input.username);
+    const user = await this.users.findByIdentifier(input.identifier);
     // Se verifica siempre (aunque no exista) para no revelar usuarios por el tiempo de respuesta.
     const valid = await verifyPassword(
       input.password,

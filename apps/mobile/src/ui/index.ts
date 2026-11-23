@@ -9,6 +9,7 @@ export { Badge, type BadgeTone } from './badge';
 export { Banner, type BannerTone } from './banner';
 export { Button, type ButtonProps, type ButtonVariant } from './button';
 export { Card } from './card';
+export { Checkbox } from './checkbox';
 export { LoadingView } from './loading-view';
 export { OptionPicker, type Option } from './option-picker';
 export { Screen } from './screen';

@@ -27,6 +27,7 @@ src/
 ├── app/                  Rutas de Expo Router. Solo enlazan URL → pantalla, sin lógica
 │   ├── _layout.tsx       Proveedores + rutas protegidas (con o sin sesión)
 │   ├── (auth)/           login, register
+│   ├── privacy.tsx       Política de privacidad (accesible sin sesión)
 │   └── (app)/            index (inicio), create, join, match/[id]
 │
 ├── lib/                  Piezas técnicas sin lógica de juego
@@ -34,6 +35,7 @@ src/
 │   ├── http/             Cliente HTTP tipado + ApiError
 │   ├── location/         Permiso y GPS (expo-location)
 │   ├── forms.ts          Validación con los esquemas zod compartidos
+│   ├── use-form.ts       Hook de formularios (valores, errores por campo, envío)
 │   ├── format.ts         Formateo de distancias y duraciones
 │   └── haptics.ts        Vibraciones
 │
@@ -41,6 +43,7 @@ src/
 │
 ├── features/
 │   ├── auth/             Sesión (token en SecureStore), login/registro
+│   ├── legal/            Política de privacidad y condiciones
 │   ├── matches/          Inicio, crear partida, unirse (REST + React Query)
 │   └── game/             La partida en directo
 │       ├── socket/       Socket.IO tipado + emitWithAck
@@ -73,6 +76,15 @@ Cómo encajan las piezas:
 | `pnpm start` | Servidor de desarrollo (QR para Expo Go) |
 | `pnpm test` | Tests (jest-expo + Testing Library) |
 | `pnpm lint` / `pnpm check-types` | ESLint (config de Expo) y TypeScript |
+| `pnpm icons` | Regenera todos los iconos y el splash desde el logo vectorial (`scripts/generate-icons.mjs`) |
+
+## Logo e iconos
+
+El logo (pin de ubicación dentro de una mira) se dibuja en `scripts/generate-icons.mjs`: es la fuente de verdad. Para cambiar colores o formas, edítalo y ejecuta `pnpm icons`; genera `icon.png`, las capas del icono adaptativo de Android, `splash-icon.png`, `logo.png` (pantallas de acceso), `favicon.png` y `assets/logo.svg`.
+
+## Privacidad
+
+El texto está en `src/features/legal/privacy-policy.ts` y se ve en la ruta `/privacy`, con o sin sesión. Es un **borrador**: rellena `LEGAL_CONTACT` y revísalo antes de publicar. Si lo cambias de forma relevante, sube `TERMS_VERSION` en `packages/types/src/auth.ts`: la API guarda qué versión aceptó cada usuario.
 
 ## Limitaciones actuales
 

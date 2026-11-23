@@ -43,6 +43,15 @@ function RootNavigator() {
       <Stack.Protected guard={state.status === 'signedOut'} redirectTo="/">
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
+      {/* Siempre accesible: se enlaza desde el registro y debe poder leerse sin cuenta. */}
+      <Stack.Screen
+        name="privacy"
+        options={{
+          headerShown: true,
+          title: 'Privacidad y condiciones',
+          presentation: 'modal',
+        }}
+      />
     </Stack>
   );
 }

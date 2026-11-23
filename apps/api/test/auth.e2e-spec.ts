@@ -1,59 +1,112 @@
-import { PASSWORD, uniqueName, useTestApp } from './support/test-app.js';
+import {
+  PASSWORD,
+  registration,
+  uniqueName,
+  useTestApp,
+} from './support/test-app.js';
 
 describe('auth', () => {
   const t = useTestApp();
 
-  it('registro, login y /auth/me', async () => {
+  it('registro y /auth/me devuelven usuario y email, nunca la contraseña', async () => {
     const username = uniqueName('ana');
-    await t
+    const res = await t
       .anonymous()
-      .post('/auth/register', { username, password: PASSWORD })
+      .post('/auth/register', registration(username))
       .expect(201);
-
-    const login = await t
-      .anonymous()
-      .post('/auth/login', { username, password: PASSWORD })
-      .expect(200);
+    expect(res.body.user).toEqual({
+      id: expect.any(String),
+      username,
+      email: `${username}@test.manhunt`,
+      createdAt: expect.any(String),
+    });
 
     const me = await t
       .anonymous()
       .get('/auth/me')
-      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .set('Authorization', `Bearer ${res.body.accessToken}`)
       .expect(200);
-    expect(me.body).toMatchObject({ username });
-    expect(me.body).not.toHaveProperty('passwordHash');
+    expect(me.body).toEqual(res.body.user);
   });
 
-  it('el nombre de usuario no distingue mayúsculas', async () => {
+  it('el email se normaliza (espacios y mayúsculas)', async () => {
+    const username = uniqueName('eva');
+    const res = await t
+      .anonymous()
+      .post('/auth/register', {
+        ...registration(username),
+        email: `  ${username.toUpperCase()}@Test.Manhunt `,
+      })
+      .expect(201);
+    expect(res.body.user.email).toBe(`${username}@test.manhunt`);
+  });
+
+  it('login con usuario o con email (sin distinguir mayúsculas)', async () => {
+    const username = uniqueName('Leo');
+    await t
+      .anonymous()
+      .post('/auth/register', registration(username))
+      .expect(201);
+
+    for (const identifier of [
+      username,
+      username.toLowerCase(),
+      `${username}@test.manhunt`.toUpperCase(),
+    ]) {
+      await t
+        .anonymous()
+        .post('/auth/login', { identifier, password: PASSWORD })
+        .expect(200);
+    }
+  });
+
+  it('usuario o email repetidos -> 409 con su código', async () => {
     const username = uniqueName('Bea');
     await t
       .anonymous()
-      .post('/auth/register', { username, password: PASSWORD })
+      .post('/auth/register', registration(username))
       .expect(201);
 
-    const dup = await t
+    const sameName = await t
       .anonymous()
       .post('/auth/register', {
-        username: username.toUpperCase(),
-        password: PASSWORD,
+        ...registration(username.toUpperCase()),
+        email: `${uniqueName('otro')}@test.manhunt`,
       })
       .expect(409);
-    expect(dup.body.code).toBe('USERNAME_TAKEN');
+    expect(sameName.body.code).toBe('USERNAME_TAKEN');
 
-    await t
+    const sameEmail = await t
       .anonymous()
-      .post('/auth/login', {
-        username: username.toLowerCase(),
-        password: PASSWORD,
+      .post('/auth/register', {
+        ...registration(uniqueName('otra')),
+        email: `${username}@test.manhunt`,
       })
-      .expect(200);
+      .expect(409);
+    expect(sameEmail.body.code).toBe('EMAIL_TAKEN');
   });
 
-  it('rechaza credenciales incorrectas', async () => {
+  it('sin aceptar la política de privacidad no hay registro', async () => {
+    const res = await t
+      .anonymous()
+      .post('/auth/register', {
+        ...registration(uniqueName('sin')),
+        acceptTerms: false,
+      })
+      .expect(400);
+    expect(res.body.code).toBe('VALIDATION_ERROR');
+    expect(res.body.details).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ path: 'acceptTerms' }),
+      ]),
+    );
+  });
+
+  it('rechaza credenciales incorrectas sin decir cuál falla', async () => {
     const res = await t
       .anonymous()
       .post('/auth/login', {
-        username: uniqueName('nadie'),
+        identifier: uniqueName('nadie'),
         password: PASSWORD,
       })
       .expect(401);
@@ -63,11 +116,17 @@ describe('auth', () => {
   it('valida el cuerpo con los esquemas compartidos', async () => {
     const res = await t
       .anonymous()
-      .post('/auth/register', { username: 'a', password: '1' })
+      .post('/auth/register', {
+        username: 'a',
+        email: 'no-es-email',
+        password: '1',
+        acceptTerms: true,
+      })
       .expect(400);
     expect(res.body.code).toBe('VALIDATION_ERROR');
-    expect(res.body.details).toEqual(
-      expect.arrayContaining([expect.objectContaining({ path: 'username' })]),
+    const paths = (res.body.details as { path: string }[]).map((d) => d.path);
+    expect(paths).toEqual(
+      expect.arrayContaining(['username', 'email', 'password']),
     );
   });
 

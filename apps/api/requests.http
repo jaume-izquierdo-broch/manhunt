@@ -27,14 +27,24 @@ GET {{baseUrl}}/health
 POST {{baseUrl}}/auth/register
 Content-Type: application/json
 
-{ "username": "cazador_demo", "password": "{{password}}" }
+{
+  "username": "cazador_demo",
+  "email": "cazador_demo@demo.manhunt",
+  "password": "{{password}}",
+  "acceptTerms": true
+}
 
 ###
 
 POST {{baseUrl}}/auth/register
 Content-Type: application/json
 
-{ "username": "escapador_demo", "password": "{{password}}" }
+{
+  "username": "escapador_demo",
+  "email": "escapador_demo@demo.manhunt",
+  "password": "{{password}}",
+  "acceptTerms": true
+}
 
 ###
 
@@ -42,7 +52,7 @@ Content-Type: application/json
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
-{ "username": "cazador_demo", "password": "{{password}}" }
+{ "identifier": "cazador_demo", "password": "{{password}}" }
 
 ###
 
@@ -50,7 +60,8 @@ Content-Type: application/json
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
-{ "username": "escapador_demo", "password": "{{password}}" }
+# También vale con el email: "escapador_demo@demo.manhunt"
+{ "identifier": "escapador_demo", "password": "{{password}}" }
 
 ###
 
@@ -142,7 +153,7 @@ GET {{baseUrl}}/matches/current
 POST {{baseUrl}}/auth/register
 Content-Type: application/json
 
-{ "username": "a", "password": "1" }
+{ "username": "a", "email": "no-es-email", "password": "1", "acceptTerms": false }
 
 ###
 
@@ -150,7 +161,7 @@ Content-Type: application/json
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
-{ "username": "cazador_demo", "password": "incorrecta" }
+{ "identifier": "cazador_demo", "password": "incorrecta" }
 
 ###
 

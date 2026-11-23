@@ -69,7 +69,12 @@ async function newUser(prefix: string) {
     'POST',
     '/auth/register',
     undefined,
-    { username, password: 'contraseña-segura' },
+    {
+      username,
+      email: `${username}@simulacion.manhunt`,
+      password: 'contraseña-segura',
+      acceptTerms: true,
+    },
   );
   log('api', `registrado ${username}`);
   return { token: res.accessToken, id: res.user.id, username };

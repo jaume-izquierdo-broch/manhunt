@@ -15,6 +15,14 @@ export const PLAZA = { lat: 41.387, lng: 2.17 };
 export const uniqueName = (prefix: string) =>
   `${prefix}_${randomBytes(5).toString('hex')}`;
 
+/** Cuerpo válido de POST /auth/register para un nombre dado. */
+export const registration = (username: string) => ({
+  username,
+  email: `${username}@test.manhunt`,
+  password: PASSWORD,
+  acceptTerms: true,
+});
+
 /** Cliente HTTP autenticado. */
 export type ApiClient = ReturnType<typeof apiClient>;
 
@@ -79,10 +87,7 @@ export function useTestApp() {
     /** Registra un usuario nuevo y devuelve su token, su cliente HTTP y un conector WS. */
     async register(prefix = 'user'): Promise<TestPlayer> {
       const res = await apiClient(app)
-        .post('/auth/register', {
-          username: uniqueName(prefix),
-          password: PASSWORD,
-        })
+        .post('/auth/register', registration(uniqueName(prefix)))
         .expect(201);
       const auth = res.body as AuthResponse;
       return {

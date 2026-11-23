@@ -25,10 +25,19 @@ export const users = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     username: varchar('username', { length: 50 }).notNull(),
+    // Nullable solo por las cuentas creadas antes de pedir email; el registro lo exige.
+    // Se guarda ya en minúsculas (lo normaliza el esquema de validación).
+    email: varchar('email', { length: 254 }),
     passwordHash: text('password_hash').notNull(),
+    // Consentimiento: cuándo y qué versión de la política de privacidad aceptó.
+    termsAcceptedAt: timestamptz('terms_accepted_at'),
+    termsVersion: varchar('terms_version', { length: 20 }),
     createdAt: timestamptz('created_at').notNull().defaultNow(),
   },
-  (t) => [uniqueIndex('users_username_lower_uq').on(sql`lower(${t.username})`)],
+  (t) => [
+    uniqueIndex('users_username_lower_uq').on(sql`lower(${t.username})`),
+    uniqueIndex('users_email_lower_uq').on(sql`lower(${t.email})`),
+  ],
 );
 
 export const matches = pgTable(

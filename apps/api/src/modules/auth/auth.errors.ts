@@ -10,10 +10,17 @@ export const AuthErrors = {
       HttpStatus.CONFLICT,
     ),
 
+  emailTaken: () =>
+    new AppError(
+      ErrorCode.EMAIL_TAKEN,
+      'Ya existe una cuenta con ese email',
+      HttpStatus.CONFLICT,
+    ),
+
   invalidCredentials: () =>
     new AppError(
       ErrorCode.INVALID_CREDENTIALS,
-      'Usuario o contraseña incorrectos',
+      'Usuario/email o contraseña incorrectos',
       HttpStatus.UNAUTHORIZED,
     ),
 
