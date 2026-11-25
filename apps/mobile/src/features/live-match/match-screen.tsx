@@ -4,10 +4,12 @@ import { useEffect, useEffectEvent } from 'react';
 import { Alert } from 'react-native';
 import { useInvalidateCurrentMatch } from '@/features/matches/matches.queries';
 import { Banner, Button, LoadingView, Screen } from '@/ui';
-import { useGameSession } from '../session/game-session';
-import { LobbyView } from './lobby-view';
-import { PlayView } from './play-view';
-import { ResultsView } from './results-view';
+import { useLiveMatch } from './live-match.store';
+import { LobbyPhase } from './phases/lobby-phase';
+import { PlayPhase } from './phases/play-phase';
+import { ResultsPhase } from './phases/results-phase';
+import { useLocationTracking } from './use-location-tracking';
+import { useMatchConnection } from './use-match-connection';
 
 const TITLES: Record<MatchStatus, string> = {
   WAITING: 'Lobby',
@@ -16,9 +18,17 @@ const TITLES: Record<MatchStatus, string> = {
   FINISHED: 'Results',
 };
 
-/** A match screen: shows the lobby, the game or the results depending on the status. */
-export function MatchScreen() {
-  const { state } = useGameSession();
+/**
+ * The screen of one match. While it's open it stays connected to the match and
+ * tracks the GPS; it shows the lobby, the game or the results based on the status.
+ */
+export function MatchScreen({ matchId }: { matchId: string }) {
+  useMatchConnection(matchId);
+  useLocationTracking();
+
+  const status = useLiveMatch((s) => s.match?.status);
+  const error = useLiveMatch((s) => s.error);
+  const closed = useLiveMatch((s) => s.closed);
   const router = useRouter();
   const invalidateCurrentMatch = useInvalidateCurrentMatch();
 
@@ -31,32 +41,31 @@ export function MatchScreen() {
     );
   });
   useEffect(() => {
-    if (state.closed) onClosed();
-  }, [state.closed]);
+    if (closed) onClosed();
+  }, [closed]);
 
-  if (!state.match) {
-    return state.error ? (
+  if (!status) {
+    return error ? (
       <Screen
         footer={
           <Button title="Back to home" onPress={() => router.replace('/')} />
         }
       >
-        <Banner tone="danger" message={state.error} />
+        <Banner tone="danger" message={error} />
       </Screen>
     ) : (
       <LoadingView message="Connecting to the match…" />
     );
   }
 
-  const status = state.match.status;
   return (
     <>
       <Stack.Screen options={{ title: TITLES[status] }} />
-      {status === MatchStatus.WAITING ? <LobbyView /> : null}
+      {status === MatchStatus.WAITING ? <LobbyPhase /> : null}
       {status === MatchStatus.HIDING || status === MatchStatus.ACTIVE ? (
-        <PlayView />
+        <PlayPhase />
       ) : null}
-      {status === MatchStatus.FINISHED ? <ResultsView /> : null}
+      {status === MatchStatus.FINISHED ? <ResultsPhase /> : null}
     </>
   );
 }

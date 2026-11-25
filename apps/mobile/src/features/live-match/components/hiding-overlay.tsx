@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 import { AppText, spacing, useThemeColors } from '@/ui';
-import { formatCountdown } from '../domain/time';
+import { formatCountdown } from '../rules/time';
 
 /** Shown to hunters during the hiding phase: covers the map until the hunt begins. */
 export function HidingOverlay({ remainingMs }: { remainingMs: number | null }) {

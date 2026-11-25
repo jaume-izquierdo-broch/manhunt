@@ -1,47 +1,60 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
-import { SessionProvider, useSession } from '@/features/auth/session-provider';
-import { createQueryClient } from '@/lib/query-client';
-import { useColorSchemeName } from '@/ui';
+import { useEffect } from 'react';
+import { useSession } from '@/features/auth/session.store';
+import { queryClient } from '@/lib/query-client';
+import { colors } from '@/ui';
 
 void SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
-  const [queryClient] = useState(createQueryClient);
-  const scheme = useColorSchemeName();
+/** Headers and screen backgrounds in the app's colors. */
+const navigationTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    primary: colors.primary,
+    background: colors.background,
+    card: colors.background,
+    text: colors.text,
+    border: colors.border,
+    notification: colors.primary,
+  },
+};
 
+export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
-      <SessionProvider>
-        <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <StatusBar style="auto" />
-          <RootNavigator />
-        </ThemeProvider>
-      </SessionProvider>
+      <ThemeProvider value={navigationTheme}>
+        <StatusBar style="light" />
+        <RootNavigator />
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
 
 /** Protected routes: signed out, only (auth) exists; signed in, only (app). */
 function RootNavigator() {
-  const { state } = useSession();
+  const status = useSession((s) => s.status);
 
   useEffect(() => {
-    if (state.status !== 'loading') void SplashScreen.hideAsync();
-  }, [state.status]);
+    void useSession.getState().restore();
+  }, []);
+
+  useEffect(() => {
+    if (status !== 'loading') void SplashScreen.hideAsync();
+  }, [status]);
 
   // Keep showing the splash screen while the stored session loads.
-  if (state.status === 'loading') return null;
+  if (status === 'loading') return null;
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={state.status === 'signedIn'} redirectTo="/login">
+      <Stack.Protected guard={status === 'signedIn'} redirectTo="/login">
         <Stack.Screen name="(app)" />
       </Stack.Protected>
-      <Stack.Protected guard={state.status === 'signedOut'} redirectTo="/">
+      <Stack.Protected guard={status === 'signedOut'} redirectTo="/">
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
       {/* Always reachable: linked from sign-up, so it must be readable without an account. */}

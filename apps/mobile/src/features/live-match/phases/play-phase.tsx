@@ -1,18 +1,21 @@
 import { type MatchDto, MatchStatus, PlayerStatus, Team } from '@manhunt/types';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import type { DevicePosition } from '@/lib/location/device-location';
 import { Banner, type BannerTone, Button, spacing, useThemeColors } from '@/ui';
 import { CatchPanel } from '../components/catch-panel';
 import { GameHud } from '../components/game-hud';
 import { GameMap } from '../components/game-map';
 import type { MapMarkerData } from '../components/game-map.types';
 import { HidingOverlay } from '../components/hiding-overlay';
-import { isInsideArea } from '../domain/geo';
-import { msUntil } from '../domain/time';
-import { useServerNow } from '../hooks/use-server-now';
-import { useGameSession, useLoadedMatch } from '../session/game-session';
-import { type GameState, playerName } from '../state/game-state';
+import {
+  type LiveMatchState,
+  useLiveMatch,
+  useLoadedMatch,
+} from '../live-match.store';
+import { isInsideArea } from '../rules/geo';
+import { playerName } from '../rules/players';
+import { msUntil } from '../rules/time';
+import { useServerNow } from '../use-server-clock';
 
 /** How long one-off notices (a ping, a catch) stay on screen. */
 const NOTICE_DURATION_MS = 8_000;
@@ -24,9 +27,9 @@ interface Notice {
 }
 
 /** The match being played (HIDING / ACTIVE): map, countdown, notices and catches. */
-export function PlayView() {
-  const session = useGameSession();
-  const { state, position } = session;
+export function PlayPhase() {
+  // The whole state: this screen shows most of it, and redraws every second anyway.
+  const state = useLiveMatch();
   const match = useLoadedMatch();
   const now = useServerNow(state.clockOffsetMs);
   const c = useThemeColors();
@@ -53,14 +56,14 @@ export function PlayView() {
       >
         <View style={styles.top} pointerEvents="box-none">
           <GameHud match={match} myTeam={me.team} now={now} />
-          {buildNotices(state, match, position, now).map((notice) => (
+          {buildNotices(state, match, now).map((notice) => (
             <Banner
               key={notice.key}
               tone={notice.tone}
               message={notice.message}
             />
           ))}
-          {session.locationPermission === 'denied' ? (
+          {state.locationPermission === 'denied' ? (
             <>
               <Banner
                 tone="danger"
@@ -70,7 +73,7 @@ export function PlayView() {
                 title="Allow location"
                 variant="secondary"
                 compact
-                onPress={session.requestLocationPermission}
+                onPress={state.requestLocationPermission}
               />
             </>
           ) : null}
@@ -84,8 +87,8 @@ export function PlayView() {
             <CatchPanel
               match={match}
               lastPing={state.lastPing}
-              myPosition={position}
-              onCatch={session.attemptCatch}
+              myPosition={state.myPosition}
+              onCatch={state.catchRunner}
             />
           </ScrollView>
         ) : null}
@@ -100,7 +103,7 @@ export function PlayView() {
 
 /** Teammates for everyone, plus the latest ping for hunters. */
 function buildMarkers(
-  state: GameState,
+  state: LiveMatchState,
   match: MatchDto,
   isHunter: boolean,
 ): MapMarkerData[] {
@@ -126,13 +129,13 @@ function buildMarkers(
   return [...teammates, ...pinged];
 }
 
+/** One-off and ongoing warnings shown under the HUD. */
 function buildNotices(
-  state: GameState,
+  state: LiveMatchState,
   match: MatchDto,
-  position: DevicePosition | null,
   now: number,
 ): Notice[] {
-  const me = state.me;
+  const { me, myPosition: position } = state;
   if (!me) return [];
   const caught = me.status === PlayerStatus.CAUGHT;
   const isRecent = (iso: string | null | undefined) =>
@@ -153,7 +156,7 @@ function buildNotices(
       message: "You've been caught. You're now a spectator.",
     });
   }
-  if (me.team === Team.RUNNER && !caught && isRecent(state.lastNoticeAt)) {
+  if (me.team === Team.RUNNER && !caught && isRecent(state.lastSpottedAt)) {
     notices.push({
       key: 'ping',
       tone: 'warning',

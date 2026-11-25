@@ -15,7 +15,7 @@ export function Banner({
 }) {
   const c = useThemeColors();
   const color = {
-    info: c.primary,
+    info: c.textMuted,
     warning: c.warning,
     danger: c.danger,
     success: c.runner,

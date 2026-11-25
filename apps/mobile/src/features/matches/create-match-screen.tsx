@@ -6,7 +6,7 @@ import {
   getCurrentPosition,
 } from '@/lib/location/device-location';
 import { AppText, Banner, Button, Card, OptionPicker, Screen } from '@/ui';
-import { goToMatch, handleMatchEntryError } from '../match-navigation';
+import { goToMatch, handleMatchEntryError } from './match-navigation';
 import {
   DEFAULT_MATCH_SETTINGS,
   DURATION_OPTIONS,
@@ -14,8 +14,8 @@ import {
   type MatchSettings,
   PING_OPTIONS,
   RADIUS_OPTIONS,
-} from '../match-options';
-import { useCreateMatch } from '../matches.queries';
+} from './match-options';
+import { useCreateMatch } from './matches.queries';
 
 type AreaCenter =
   | { status: 'locating' }

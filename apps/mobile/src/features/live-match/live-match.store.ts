@@ -1,6 +1,5 @@
-// Client-side match state. A PURE reducer: every socket event is an action, so
-// all the "what changes when X happens" logic is testable without a network.
 import {
+  type CatchResult,
   type MatchDto,
   type MatchFinishedPayload,
   type MatchSnapshot,
@@ -8,79 +7,114 @@ import {
   type PingNoticePayload,
   type PingRevealPayload,
   type PlayerCaughtPayload,
-  type PlayerDto,
   PlayerStatus,
   type PositionDto,
-  Team,
 } from '@manhunt/types';
-import { clockOffsetMs } from '../domain/time';
+import { create } from 'zustand';
+import { haptics } from '@/lib/haptics';
+import {
+  type DevicePosition,
+  type LocationPermission,
+  requestLocationPermission,
+} from '@/lib/location/device-location';
+import { clockOffsetMs } from './rules/time';
+import { emitWithAck, type GameSocket } from './socket';
 
-export type ConnectionStatus = 'connecting' | 'connected' | 'reconnecting';
-
-export interface GameState {
-  connection: ConnectionStatus;
+/**
+ * Everything about the match on screen, from the lobby to the results.
+ *
+ * - `useMatchConnection` fills it: every server event calls one action below.
+ * - `useLocationTracking` adds the phone's position.
+ * - The phases (lobby, play, results) read it with selectors:
+ *     const match = useLiveMatch((s) => s.match);
+ */
+export interface LiveMatchState {
+  connection: 'connecting' | 'connected' | 'reconnecting';
   /** Latest connection or subscription error, to display. */
   error: string | null;
   match: MatchDto | null;
+  /** My team and status. */
   me: MatchSnapshot['me'] | null;
   /** Latest position of each teammate, by userId. */
   teammates: Record<string, PositionDto>;
   /** Latest ping (hunters only). */
   lastPing: PingRevealPayload | null;
-  /** When the hunters last saw you (runners only). */
-  lastNoticeAt: string | null;
+  /** When the hunters last saw me (runners only). */
+  lastSpottedAt: string | null;
   lastCatch: PlayerCaughtPayload | null;
-  /** The lobby was closed, or you were kicked. */
+  /** The host closed the lobby, or kicked me. */
   closed: boolean;
-  /** Server clock minus local clock (ms). */
+  /** Server clock minus local clock (ms), for countdowns. */
   clockOffsetMs: number;
+
+  /** My position, while GPS tracking is on. */
+  myPosition: DevicePosition | null;
+  locationPermission: LocationPermission;
+
+  /** The open socket, used by the actions that talk to the server. */
+  socket: GameSocket | null;
 }
 
-export type GameAction =
-  | { type: 'connecting' }
-  | { type: 'connected' }
-  | { type: 'disconnected' }
-  | { type: 'failed'; message: string }
-  | { type: 'snapshot'; snapshot: MatchSnapshot; receivedAt: number }
-  | { type: 'matchUpdated'; match: MatchDto }
-  | { type: 'position'; position: PositionDto }
-  | { type: 'pingReveal'; ping: PingRevealPayload }
-  | { type: 'pingNotice'; notice: PingNoticePayload }
-  | { type: 'playerCaught'; caught: PlayerCaughtPayload }
-  | { type: 'matchFinished'; finished: MatchFinishedPayload }
-  | { type: 'matchClosed' };
+export interface LiveMatchActions {
+  // --- Connection (useMatchConnection) ---
+  reset: () => void;
+  setSocket: (socket: GameSocket | null) => void;
+  connecting: () => void;
+  connected: () => void;
+  disconnected: () => void;
+  failed: (message: string) => void;
 
-export const initialGameState: GameState = {
+  // --- Server events ---
+  loadSnapshot: (snapshot: MatchSnapshot, receivedAt: number) => void;
+  /** A new version of the match (from the socket or a REST response). */
+  updateMatch: (match: MatchDto) => void;
+  teammateMoved: (position: PositionDto) => void;
+  pingRevealed: (ping: PingRevealPayload) => void;
+  spottedByHunters: (notice: PingNoticePayload) => void;
+  playerCaught: (caught: PlayerCaughtPayload) => void;
+  matchFinished: (finished: MatchFinishedPayload) => void;
+  matchClosed: () => void;
+
+  // --- Device (useLocationTracking) ---
+  setMyPosition: (position: DevicePosition | null) => void;
+  setLocationPermission: (permission: LocationPermission) => void;
+
+  // --- What the player can do ---
+  catchRunner: (runnerId: string) => Promise<CatchResult>;
+  requestLocationPermission: () => Promise<void>;
+}
+
+const initialState: LiveMatchState = {
   connection: 'connecting',
   error: null,
   match: null,
   me: null,
   teammates: {},
   lastPing: null,
-  lastNoticeAt: null,
+  lastSpottedAt: null,
   lastCatch: null,
   closed: false,
   clockOffsetMs: 0,
+  myPosition: null,
+  locationPermission: 'unknown',
+  socket: null,
 };
 
-export function gameReducer(state: GameState, action: GameAction): GameState {
-  switch (action.type) {
-    case 'connecting':
-      return { ...state, connection: 'connecting' };
+export const useLiveMatch = create<LiveMatchState & LiveMatchActions>()(
+  (set, get) => ({
+    ...initialState,
 
-    case 'connected':
-      return { ...state, connection: 'connected', error: null };
+    // --- Connection ---------------------------------------------------------
+    reset: () => set(initialState),
+    setSocket: (socket) => set({ socket }),
+    connecting: () => set({ connection: 'connecting' }),
+    connected: () => set({ connection: 'connected', error: null }),
+    disconnected: () => set({ connection: 'reconnecting' }),
+    failed: (message) => set({ error: message }),
 
-    case 'disconnected':
-      return { ...state, connection: 'reconnecting' };
-
-    case 'failed':
-      return { ...state, error: action.message };
-
-    case 'snapshot': {
-      const { snapshot } = action;
-      return {
-        ...state,
+    // --- Server events ------------------------------------------------------
+    loadSnapshot: (snapshot, receivedAt) =>
+      set({
         error: null,
         match: snapshot.match,
         me: snapshot.me,
@@ -88,103 +122,112 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           snapshot.teammates.map((p) => [p.userId, p]),
         ),
         lastPing: snapshot.lastPing,
-        clockOffsetMs: clockOffsetMs(snapshot.serverTime, action.receivedAt),
-      };
-    }
+        clockOffsetMs: clockOffsetMs(snapshot.serverTime, receivedAt),
+      }),
 
-    case 'matchUpdated':
-      if (state.match && action.match.id !== state.match.id) return state;
-      return withMatch(state, action.match);
+    updateMatch: (match) => {
+      const current = get().match;
+      if (current && current.id !== match.id) return; // a late event from another match
+      set(withMatch(get(), match));
+    },
 
-    case 'position':
-      if (action.position.userId === state.me?.userId) return state;
-      return {
-        ...state,
-        teammates: {
-          ...state.teammates,
-          [action.position.userId]: action.position,
-        },
-      };
+    teammateMoved: (position) => {
+      if (position.userId === get().me?.userId) return;
+      set((s) => ({
+        teammates: { ...s.teammates, [position.userId]: position },
+      }));
+    },
 
-    case 'pingReveal':
-      return { ...state, lastPing: action.ping };
+    pingRevealed: (ping) => set({ lastPing: ping }),
 
-    case 'pingNotice':
-      return { ...state, lastNoticeAt: action.notice.at };
+    spottedByHunters: (notice) => {
+      haptics.warning();
+      set({ lastSpottedAt: notice.at });
+    },
 
-    case 'playerCaught': {
-      const { caught } = action;
-      const { [caught.runnerId]: _removed, ...teammates } = state.teammates;
-      const next = state.match
-        ? withMatch(state, {
-            ...state.match,
-            players: state.match.players.map((p) =>
-              p.userId === caught.runnerId
-                ? {
-                    ...p,
-                    status: PlayerStatus.CAUGHT,
-                    caughtBy: caught.hunterId,
-                    caughtAt: caught.at,
-                  }
-                : p,
-            ),
-          })
-        : state;
-      return { ...next, teammates, lastCatch: caught };
-    }
+    playerCaught: (caught) => {
+      const state = get();
+      if (caught.runnerId === state.me?.userId) haptics.error();
 
-    case 'matchFinished':
-      if (!state.match) return state;
-      return withMatch(state, {
+      // A caught runner is no longer on the map.
+      const { [caught.runnerId]: _caught, ...teammates } = state.teammates;
+      const match = state.match && {
         ...state.match,
-        status: MatchStatus.FINISHED,
-        winnerTeam: action.finished.winnerTeam,
-        endedAt: action.finished.endedAt,
+        players: state.match.players.map((p) =>
+          p.userId === caught.runnerId
+            ? {
+                ...p,
+                status: PlayerStatus.CAUGHT,
+                caughtBy: caught.hunterId,
+                caughtAt: caught.at,
+              }
+            : p,
+        ),
+      };
+      set({
+        ...(match ? withMatch(state, match) : {}),
+        teammates,
+        lastCatch: caught,
       });
+    },
 
-    case 'matchClosed':
-      return { ...state, closed: true };
-  }
+    matchFinished: (finished) => {
+      const { match } = get();
+      if (!match) return;
+      set(
+        withMatch(get(), {
+          ...match,
+          status: MatchStatus.FINISHED,
+          winnerTeam: finished.winnerTeam,
+          endedAt: finished.endedAt,
+        }),
+      );
+    },
+
+    matchClosed: () => set({ closed: true }),
+
+    // --- Device -------------------------------------------------------------
+    setMyPosition: (position) => set({ myPosition: position }),
+    setLocationPermission: (permission) =>
+      set({ locationPermission: permission }),
+
+    // --- What the player can do ---------------------------------------------
+    catchRunner: async (runnerId) => {
+      const { socket } = get();
+      if (!socket?.connected) throw new Error('Not connected to the server');
+      const result = await emitWithAck(socket, 'catch:attempt', { runnerId });
+      haptics.success();
+      return result;
+    },
+
+    requestLocationPermission: async () =>
+      set({ locationPermission: await requestLocationPermission() }),
+  }),
+);
+
+/** The loaded match. Only for the phases, which render once it exists. */
+export function useLoadedMatch(): MatchDto {
+  const match = useLiveMatch((s) => s.match);
+  if (!match) throw new Error('The match has not loaded yet');
+  return match;
 }
 
-/** Applies a new version of the match and recomputes my team and status from it. */
-function withMatch(state: GameState, match: MatchDto): GameState {
-  if (!state.me) return { ...state, match };
+/**
+ * Applies a new version of the match and recomputes my team and status from it.
+ * If I'm no longer among the players, I was kicked: the match counts as closed.
+ */
+function withMatch(
+  state: LiveMatchState,
+  match: MatchDto,
+): Partial<LiveMatchState> {
+  if (!state.me) return { match };
   const mine = match.players.find((p) => p.userId === state.me?.userId);
-  if (!mine) return { ...state, match, closed: true }; // I'm no longer in the match
+  if (!mine) return { match, closed: true };
   const teamChanged = mine.team !== state.me.team;
   return {
-    ...state,
     match,
     me: { userId: mine.userId, team: mine.team, status: mine.status },
+    // Teammates' positions belong to the old team.
     teammates: teamChanged ? {} : state.teammates,
   };
-}
-
-// ---------------------------------------------------------------------------
-// Selectors
-// ---------------------------------------------------------------------------
-
-export const isLive = (status: MatchStatus | undefined) =>
-  status === MatchStatus.HIDING || status === MatchStatus.ACTIVE;
-
-export function playersOfTeam(match: MatchDto, team: Team): PlayerDto[] {
-  return match.players.filter((p) => p.team === team);
-}
-
-export function aliveRunners(match: MatchDto): PlayerDto[] {
-  return match.players.filter(
-    (p) => p.team === Team.RUNNER && p.status === PlayerStatus.ALIVE,
-  );
-}
-
-export function playerName(match: MatchDto | null, userId: string): string {
-  return match?.players.find((p) => p.userId === userId)?.username ?? 'Someone';
-}
-
-export function hasBalancedTeams(match: MatchDto): boolean {
-  return (
-    playersOfTeam(match, Team.HUNTER).length > 0 &&
-    playersOfTeam(match, Team.RUNNER).length > 0
-  );
 }

@@ -1,7 +1,8 @@
 import { StyleSheet } from 'react-native';
 import MapView, { Circle, Marker } from 'react-native-maps';
 import { useThemeColors } from '@/ui';
-import { regionForArea } from '../domain/geo';
+import { regionForArea } from '../rules/geo';
+import { DARK_MAP_STYLE } from './dark-map-style';
 import type { GameMapProps } from './game-map.types';
 
 /** The match map: play area, teammates and, for hunters, the latest ping. */
@@ -15,6 +16,9 @@ export function GameMap({ area, markers, accentColor }: GameMapProps) {
       showsMyLocationButton
       showsCompass={false}
       toolbarEnabled={false}
+      // Dark map: iOS has a built-in one; Android (Google Maps) needs a style.
+      userInterfaceStyle="dark"
+      customMapStyle={DARK_MAP_STYLE}
       accessibilityLabel="Match map"
     >
       <Circle
@@ -30,7 +34,8 @@ export function GameMap({ area, markers, accentColor }: GameMapProps) {
           coordinate={{ latitude: m.lat, longitude: m.lng }}
           title={m.title}
           description={m.description}
-          pinColor={m.kind === 'ping' ? c.hunter : c.primary}
+          // Pinged players are runners; teammates share my team's color.
+          pinColor={m.kind === 'ping' ? c.runner : accentColor}
         />
       ))}
     </MapView>

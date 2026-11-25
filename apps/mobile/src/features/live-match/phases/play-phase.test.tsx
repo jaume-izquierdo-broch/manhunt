@@ -1,8 +1,12 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react-native';
-import type { GameState } from '@/features/game/state/game-state';
-import { loadedState, makeMatch, player } from '@/test-utils/fixtures';
-import { renderWithSession } from '@/test-utils/render-with-session';
-import { PlayView } from './play-view';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react-native';
+import { makeMatch, player } from '@/test-utils/fixtures';
+import { showLiveMatch } from '@/test-utils/stores';
+import { PlayPhase } from './play-phase';
 
 const fromNow = (ms: number) => new Date(Date.now() + ms).toISOString();
 
@@ -21,19 +25,16 @@ const liveMatch = (
     ],
   });
 
-const renderAs = (
+function renderAs(
   userId: string,
   match: ReturnType<typeof liveMatch>,
-  state: Partial<GameState> = {},
-  extra = {},
-) =>
-  renderWithSession(<PlayView />, {
-    state: loadedState(match, userId, state),
-    userId,
-    ...extra,
-  });
+  extra: Parameters<typeof showLiveMatch>[2] = {},
+) {
+  showLiveMatch(match, userId, extra);
+  return render(<PlayPhase />);
+}
 
-describe('PlayView', () => {
+describe('PlayPhase', () => {
   it('hides the map from hunters during the hiding phase', async () => {
     await renderAs('host', liveMatch('HIDING'));
 
@@ -50,12 +51,12 @@ describe('PlayView', () => {
   });
 
   it('lets hunters catch during the hunt', async () => {
-    const attemptCatch = jest.fn().mockResolvedValue({});
-    await renderAs('host', liveMatch('ACTIVE'), {}, { attemptCatch });
+    const catchRunner = jest.fn().mockResolvedValue({});
+    await renderAs('host', liveMatch('ACTIVE'), { catchRunner });
 
     expect(screen.getByText('Not located yet')).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('button', { name: 'Catch' }));
-    await waitFor(() => expect(attemptCatch).toHaveBeenCalledWith('ana'));
+    await waitFor(() => expect(catchRunner).toHaveBeenCalledWith('ana'));
   });
 
   it('turns a caught runner into a spectator', async () => {
@@ -68,7 +69,7 @@ describe('PlayView', () => {
 
   it('warns runners right after a ping', async () => {
     await renderAs('ana', liveMatch('ACTIVE'), {
-      lastNoticeAt: new Date().toISOString(),
+      lastSpottedAt: new Date().toISOString(),
     });
 
     expect(

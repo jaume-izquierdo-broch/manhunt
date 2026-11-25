@@ -1,8 +1,9 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { matchesApi } from '@/features/matches/matches.api';
-import { loadedState, makeMatch, player } from '@/test-utils/fixtures';
-import { renderWithSession } from '@/test-utils/render-with-session';
-import { LobbyView } from './lobby-view';
+import { makeMatch, player } from '@/test-utils/fixtures';
+import { renderWithQueryClient, showLiveMatch } from '@/test-utils/stores';
+import { useLiveMatch } from '../live-match.store';
+import { LobbyPhase } from './lobby-phase';
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ replace: jest.fn(), push: jest.fn() }),
@@ -14,14 +15,16 @@ const balanced = makeMatch({
   players: [player('host', 'HUNTER'), player('ana', 'RUNNER')],
 });
 
-const renderAs = (userId: string, match = balanced, extra = {}) =>
-  renderWithSession(<LobbyView />, {
-    state: loadedState(match, userId),
-    userId,
-    ...extra,
-  });
+function renderAs(
+  userId: string,
+  match = balanced,
+  extra: Parameters<typeof showLiveMatch>[2] = {},
+) {
+  showLiveMatch(match, userId, extra);
+  return renderWithQueryClient(<LobbyPhase />);
+}
 
-describe('LobbyView', () => {
+describe('LobbyPhase', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('shows the code, the rules and both teams', async () => {
@@ -42,15 +45,15 @@ describe('LobbyView', () => {
     ).toBeOnTheScreen();
   });
 
-  it('the host starts the match and the returned match is applied', async () => {
+  it('the host starts the match and the returned match is shown at once', async () => {
     const started = { ...balanced, status: 'HIDING' as const };
     api.start.mockResolvedValue(started);
-    const { session } = await renderAs('host');
+    await renderAs('host');
 
     await fireEvent.press(screen.getByRole('button', { name: 'Start match' }));
 
     await waitFor(() =>
-      expect(session.applyMatch).toHaveBeenCalledWith(started),
+      expect(useLiveMatch.getState().match?.status).toBe('HIDING'),
     );
     expect(api.start).toHaveBeenCalledWith('m1');
   });
@@ -80,13 +83,15 @@ describe('LobbyView', () => {
   });
 
   it('asks for location permission when missing', async () => {
-    const { session } = await renderAs('ana', balanced, {
+    const requestLocationPermission = jest.fn();
+    await renderAs('ana', balanced, {
       locationPermission: 'unknown',
+      requestLocationPermission,
     });
 
     await fireEvent.press(
       screen.getByRole('button', { name: 'Allow location' }),
     );
-    expect(session.requestLocationPermission).toHaveBeenCalled();
+    expect(requestLocationPermission).toHaveBeenCalled();
   });
 });

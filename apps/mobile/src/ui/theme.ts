@@ -1,44 +1,33 @@
 // Design tokens. Components in src/ui use them; screens never hard-code colors.
 import { Platform } from 'react-native';
 
-const brand = {
-  hunter: '#E5484D',
-  runner: '#30A46C',
-  accent: '#3E63DD',
-  warning: '#F5A524',
-};
-
+/**
+ * The app is always dark, like its icon: near-black with a crimson accent.
+ *
+ * Crimson is the brand color (buttons, links, selection). The teams use their
+ * own colors so they never look like a button or an error: hunters orange,
+ * runners green.
+ */
 export const colors = {
-  light: {
-    ...brand,
-    background: '#F7F7F8',
-    surface: '#FFFFFF',
-    surfaceAlt: '#EEEEF0',
-    border: '#DCDCE0',
-    text: '#111113',
-    textMuted: '#62636C',
-    primary: brand.accent,
-    onPrimary: '#FFFFFF',
-    danger: '#CE2C31',
-    overlay: 'rgba(17, 17, 19, 0.72)',
-  },
-  dark: {
-    ...brand,
-    background: '#0F0F11',
-    surface: '#18181B',
-    surfaceAlt: '#232326',
-    border: '#34343A',
-    text: '#EDEDEF',
-    textMuted: '#A0A0A8',
-    primary: '#5472E4',
-    onPrimary: '#FFFFFF',
-    danger: '#FF6369',
-    overlay: 'rgba(0, 0, 0, 0.78)',
-  },
+  background: '#0B0A0C',
+  surface: '#161417',
+  surfaceAlt: '#221F23',
+  border: '#332F34',
+  text: '#EFEBEC',
+  textMuted: '#A59FA4',
+
+  primary: '#DC2F45',
+  onPrimary: '#FFFFFF',
+
+  hunter: '#F76B15',
+  runner: '#30A46C',
+  warning: '#FFC53D',
+  danger: '#FF6369',
+
+  overlay: 'rgba(0, 0, 0, 0.8)',
 } as const;
 
-export type ColorScheme = keyof typeof colors;
-export type ThemeColors = { [K in keyof (typeof colors)['light']]: string };
+export type ThemeColors = { [K in keyof typeof colors]: string };
 
 export const spacing = {
   xs: 4,

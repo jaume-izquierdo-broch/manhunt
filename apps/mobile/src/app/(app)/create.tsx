@@ -1,4 +1,4 @@
-import { CreateMatchScreen } from '@/features/matches/screens/create-match-screen';
+import { CreateMatchScreen } from '@/features/matches/create-match-screen';
 
 export default function CreateMatchRoute() {
   return <CreateMatchScreen />;

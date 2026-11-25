@@ -5,8 +5,8 @@ import { formatDistance } from '@/lib/format';
 import { errorMessage } from '@/lib/http/api-error';
 import type { DevicePosition } from '@/lib/location/device-location';
 import { AppText, Button, Card } from '@/ui';
-import { distanceMeters } from '../domain/geo';
-import { aliveRunners } from '../state/game-state';
+import { aliveRunners } from '../rules/players';
+import { distanceMeters } from '../rules/geo';
 import { PlayerRow } from './player-row';
 
 export interface CatchPanelProps {

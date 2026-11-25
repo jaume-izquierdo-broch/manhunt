@@ -1,5 +1,5 @@
+// The phone's location (expo-location), behind a few small functions.
 import * as Location from 'expo-location';
-import { useEffect, useState } from 'react';
 
 export type LocationPermission = 'unknown' | 'granted' | 'denied';
 
@@ -20,11 +20,16 @@ function toDevicePosition(location: Location.LocationObject): DevicePosition {
   };
 }
 
-const toPermission = (
-  status: Location.PermissionStatus | string,
-): LocationPermission =>
+const toPermission = (status: string): LocationPermission =>
   status === 'granted' ? 'granted' : status === 'denied' ? 'denied' : 'unknown';
 
+/** The current permission, without asking the user. */
+export async function getLocationPermission(): Promise<LocationPermission> {
+  const { status } = await Location.getForegroundPermissionsAsync();
+  return toPermission(status);
+}
+
+/** Asks the user for permission (only shows a prompt if it wasn't answered yet). */
 export async function requestLocationPermission(): Promise<LocationPermission> {
   const { status } = await Location.requestForegroundPermissionsAsync();
   return toPermission(status);
@@ -42,54 +47,17 @@ export async function getCurrentPosition(): Promise<DevicePosition> {
   );
 }
 
-/**
- * Foreground location permission and position.
- * While `watch` is on, it asks for permission if needed and tracks the position live.
- */
-export function useDeviceLocation({ watch }: { watch: boolean }) {
-  const [permission, setPermission] = useState<LocationPermission>('unknown');
-  const [position, setPosition] = useState<DevicePosition | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    Location.getForegroundPermissionsAsync()
-      .then(({ status }) => !cancelled && setPermission(toPermission(status)))
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!watch) return;
-    let subscription: Location.LocationSubscription | null = null;
-    let cancelled = false;
-
-    (async () => {
-      const granted = (await requestLocationPermission()) === 'granted';
-      if (cancelled) return;
-      setPermission(granted ? 'granted' : 'denied');
-      if (!granted) return;
-
-      subscription = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.High,
-          timeInterval: 2_000,
-          distanceInterval: 2,
-        },
-        (location) => setPosition(toDevicePosition(location)),
-      );
-      if (cancelled) subscription.remove();
-    })().catch(() => !cancelled && setPermission('denied'));
-
-    return () => {
-      cancelled = true;
-      subscription?.remove();
-    };
-  }, [watch]);
-
-  const requestPermission = async () =>
-    setPermission(await requestLocationPermission());
-
-  return { permission, position, requestPermission };
+/** Calls `onChange` with every new reading. Returns a function that stops watching. */
+export async function watchPosition(
+  onChange: (position: DevicePosition) => void,
+): Promise<() => void> {
+  const subscription = await Location.watchPositionAsync(
+    {
+      accuracy: Location.Accuracy.High,
+      timeInterval: 2_000,
+      distanceInterval: 2,
+    },
+    (location) => onChange(toDevicePosition(location)),
+  );
+  return () => subscription.remove();
 }

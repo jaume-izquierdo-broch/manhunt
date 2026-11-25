@@ -1,12 +1,5 @@
 import type { MatchDto, MatchSnapshot, PlayerDto } from '@manhunt/types';
-import {
-  aliveRunners,
-  gameReducer,
-  type GameState,
-  hasBalancedTeams,
-  initialGameState,
-  playerName,
-} from './game-state';
+import { useLiveMatch } from './live-match.store';
 
 const player = (
   userId: string,
@@ -62,32 +55,39 @@ const snapshot = (overrides: Partial<MatchSnapshot> = {}): MatchSnapshot => ({
   ...overrides,
 });
 
-function loaded(overrides?: Partial<MatchSnapshot>): GameState {
-  return gameReducer(initialGameState, {
-    type: 'snapshot',
-    snapshot: snapshot(overrides),
-    receivedAt: Date.parse('2026-01-01T10:01:28.000Z'),
-  });
+/** The store after receiving the snapshot (seen by runner1). */
+function loaded(overrides?: Partial<MatchSnapshot>) {
+  const store = useLiveMatch.getState();
+  store.reset();
+  store.loadSnapshot(
+    snapshot(overrides),
+    Date.parse('2026-01-01T10:01:28.000Z'),
+  );
+  return useLiveMatch.getState();
 }
 
-describe('gameReducer', () => {
-  it('snapshot: loads the match, teammates and clock offset', () => {
-    const state = loaded();
-    expect(state.match?.id).toBe('m1');
-    expect(state.me?.team).toBe('RUNNER');
-    expect(Object.keys(state.teammates)).toEqual(['runner2']);
-    expect(state.clockOffsetMs).toBe(2000);
+const state = () => useLiveMatch.getState();
+
+describe('live match store', () => {
+  it('loadSnapshot: loads the match, teammates and clock offset', () => {
+    loaded();
+    expect(state().match?.id).toBe('m1');
+    expect(state().me?.team).toBe('RUNNER');
+    expect(Object.keys(state().teammates)).toEqual(['runner2']);
+    expect(state().clockOffsetMs).toBe(2000);
   });
 
   it('connection: reconnecting, then connected again, clears the error', () => {
-    let state = gameReducer(loaded(), { type: 'disconnected' });
-    expect(state.connection).toBe('reconnecting');
-    state = gameReducer(state, { type: 'failed', message: 'offline' });
-    state = gameReducer(state, { type: 'connected' });
-    expect(state).toMatchObject({ connection: 'connected', error: null });
+    const store = loaded();
+    store.disconnected();
+    expect(state().connection).toBe('reconnecting');
+    store.failed('offline');
+    store.connected();
+    expect(state()).toMatchObject({ connection: 'connected', error: null });
   });
 
-  it('position: stores teammates but ignores my own position', () => {
+  it('teammateMoved: stores teammates but ignores my own position', () => {
+    const store = loaded();
     const position = {
       userId: 'runner2',
       lat: 5,
@@ -95,47 +95,35 @@ describe('gameReducer', () => {
       accuracy: 3,
       at: 'x',
     };
-    let state = gameReducer(loaded(), { type: 'position', position });
-    expect(state.teammates.runner2).toEqual(position);
+    store.teammateMoved(position);
+    expect(state().teammates.runner2).toEqual(position);
 
-    const before = state;
-    state = gameReducer(state, {
-      type: 'position',
-      position: { ...position, userId: 'runner1' },
-    });
-    expect(state).toBe(before);
+    store.teammateMoved({ ...position, userId: 'runner1' });
+    expect(state().teammates.runner1).toBeUndefined();
   });
 
-  it('matchUpdated: recomputes my team and clears teammates when it changes', () => {
-    const match = {
+  it('updateMatch: recomputes my team and clears teammates when it changes', () => {
+    loaded().updateMatch({
       ...baseMatch,
       players: baseMatch.players.map((p) =>
         p.userId === 'runner1' ? { ...p, team: 'HUNTER' as const } : p,
       ),
-    };
-    const state = gameReducer(loaded(), { type: 'matchUpdated', match });
-    expect(state.me?.team).toBe('HUNTER');
-    expect(state.teammates).toEqual({});
+    });
+    expect(state().me?.team).toBe('HUNTER');
+    expect(state().teammates).toEqual({});
   });
 
-  it('matchUpdated: marks the match closed when I am no longer in it', () => {
-    const match = {
+  it('updateMatch: marks the match closed when I am no longer in it', () => {
+    loaded().updateMatch({
       ...baseMatch,
       players: baseMatch.players.filter((p) => p.userId !== 'runner1'),
-    };
-    expect(gameReducer(loaded(), { type: 'matchUpdated', match }).closed).toBe(
-      true,
-    );
+    });
+    expect(state().closed).toBe(true);
   });
 
-  it('matchUpdated for another match is ignored', () => {
-    const state = loaded();
-    expect(
-      gameReducer(state, {
-        type: 'matchUpdated',
-        match: { ...baseMatch, id: 'another' },
-      }),
-    ).toBe(state);
+  it('updateMatch for another match is ignored', () => {
+    loaded().updateMatch({ ...baseMatch, id: 'another' });
+    expect(state().match?.id).toBe('m1');
   });
 
   it('playerCaught: marks the runner, and me if I am the one caught', () => {
@@ -146,48 +134,43 @@ describe('gameReducer', () => {
       at: 'T',
       runnersRemaining: 1,
     };
-    const state = gameReducer(loaded(), { type: 'playerCaught', caught });
-    expect(state.me?.status).toBe('CAUGHT');
+    loaded().playerCaught(caught);
+    expect(state().me?.status).toBe('CAUGHT');
     expect(
-      state.match?.players.find((p) => p.userId === 'runner1'),
-    ).toMatchObject({
-      status: 'CAUGHT',
-      caughtBy: 'hunter',
-    });
-    expect(state.lastCatch).toEqual(caught);
+      state().match?.players.find((p) => p.userId === 'runner1'),
+    ).toMatchObject({ status: 'CAUGHT', caughtBy: 'hunter' });
+    expect(state().lastCatch).toEqual(caught);
   });
 
   it('playerCaught of a teammate removes their position', () => {
-    const caught = {
+    loaded().playerCaught({
       matchId: 'm1',
       runnerId: 'runner2',
       hunterId: 'hunter',
       at: 'T',
       runnersRemaining: 1,
-    };
-    const state = gameReducer(loaded(), { type: 'playerCaught', caught });
-    expect(state.teammates.runner2).toBeUndefined();
-    expect(state.me?.status).toBe('ALIVE');
+    });
+    expect(state().teammates.runner2).toBeUndefined();
+    expect(state().me?.status).toBe('ALIVE');
   });
 
-  it('pings: hunters keep the latest ping; runners, when they were seen', () => {
+  it('pings: hunters keep the latest ping; runners, when they were spotted', () => {
+    const store = loaded();
     const ping = { matchId: 'm1', at: 'T1', runners: [], nextPingAt: 'T2' };
-    let state = gameReducer(loaded(), { type: 'pingReveal', ping });
-    expect(state.lastPing).toEqual(ping);
+    store.pingRevealed(ping);
+    expect(state().lastPing).toEqual(ping);
 
-    state = gameReducer(state, {
-      type: 'pingNotice',
-      notice: { matchId: 'm1', at: 'T3', nextPingAt: 'T4' },
-    });
-    expect(state.lastNoticeAt).toBe('T3');
+    store.spottedByHunters({ matchId: 'm1', at: 'T3', nextPingAt: 'T4' });
+    expect(state().lastSpottedAt).toBe('T3');
   });
 
   it('matchFinished: ends the match with the winner', () => {
-    const state = gameReducer(loaded(), {
-      type: 'matchFinished',
-      finished: { matchId: 'm1', winnerTeam: 'HUNTER', endedAt: 'T' },
+    loaded().matchFinished({
+      matchId: 'm1',
+      winnerTeam: 'HUNTER',
+      endedAt: 'T',
     });
-    expect(state.match).toMatchObject({
+    expect(state().match).toMatchObject({
       status: 'FINISHED',
       winnerTeam: 'HUNTER',
       endedAt: 'T',
@@ -195,24 +178,12 @@ describe('gameReducer', () => {
   });
 
   it('matchClosed', () => {
-    expect(gameReducer(loaded(), { type: 'matchClosed' }).closed).toBe(true);
+    loaded().matchClosed();
+    expect(state().closed).toBe(true);
   });
-});
 
-describe('selectors', () => {
-  it('aliveRunners, hasBalancedTeams and playerName', () => {
-    const match = {
-      ...baseMatch,
-      players: baseMatch.players.map((p) =>
-        p.userId === 'runner2' ? { ...p, status: 'CAUGHT' as const } : p,
-      ),
-    };
-    expect(aliveRunners(match).map((p) => p.userId)).toEqual(['runner1']);
-    expect(hasBalancedTeams(match)).toBe(true);
-    expect(
-      hasBalancedTeams({ ...match, players: [player('hunter', 'HUNTER')] }),
-    ).toBe(false);
-    expect(playerName(match, 'runner1')).toBe('runner1');
-    expect(playerName(match, 'nobody')).toBe('Someone');
+  it('reset empties everything', () => {
+    loaded().reset();
+    expect(state()).toMatchObject({ match: null, me: null, teammates: {} });
   });
 });

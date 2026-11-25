@@ -3,8 +3,8 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { validateForm } from '@/lib/forms';
 import { AppText, Banner, Button, Screen, TextField } from '@/ui';
-import { goToMatch, handleMatchEntryError } from '../match-navigation';
-import { useJoinMatch } from '../matches.queries';
+import { goToMatch, handleMatchEntryError } from './match-navigation';
+import { useJoinMatch } from './matches.queries';
 
 export function JoinMatchScreen() {
   const router = useRouter();

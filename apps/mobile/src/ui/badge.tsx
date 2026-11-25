@@ -25,7 +25,8 @@ export function Badge({
       <AppText
         variant="caption"
         tone={tone === 'neutral' ? 'muted' : 'onPrimary'}
-        style={styles.text}
+        // Yellow is too light for white text.
+        style={[styles.text, tone === 'warning' && { color: c.background }]}
       >
         {label}
       </AppText>

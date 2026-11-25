@@ -8,14 +8,16 @@ function isRetryable(error: unknown): boolean {
   );
 }
 
-export function createQueryClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: (failureCount, error) => failureCount < 2 && isRetryable(error),
-        staleTime: 10_000,
-      },
-      mutations: { retry: false },
+/**
+ * The cache of everything fetched from the REST API (React Query).
+ * A single instance, so signing out can clear it from the session store.
+ */
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: (failureCount, error) => failureCount < 2 && isRetryable(error),
+      staleTime: 10_000,
     },
-  });
-}
+    mutations: { retry: false },
+  },
+});

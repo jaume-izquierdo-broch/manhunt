@@ -1,8 +1,8 @@
 import { type MatchDto, MatchStatus, Team } from '@manhunt/types';
 import { StyleSheet, View } from 'react-native';
 import { AppText, Badge, Card, spacing } from '@/ui';
-import { formatCountdown, msUntil, nextPingTime } from '../domain/time';
-import { aliveRunners, playersOfTeam } from '../state/game-state';
+import { aliveRunners, playersOfTeam } from '../rules/players';
+import { formatCountdown, msUntil, nextPingTime } from '../rules/time';
 
 export interface GameHudProps {
   match: MatchDto;

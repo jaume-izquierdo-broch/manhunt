@@ -1,10 +1,10 @@
 import { Link } from 'expo-router';
 import { Image, StyleSheet, View } from 'react-native';
 import { AppText, Screen, spacing } from '@/ui';
-import { authApi } from '../auth.api';
-import { LoginForm } from '../components/login-form';
-import { RegisterForm } from '../components/register-form';
-import { useSession } from '../session-provider';
+import { authApi } from './auth.api';
+import { LoginForm } from './components/login-form';
+import { RegisterForm } from './components/register-form';
+import { useSession } from './session.store';
 
 export type AuthMode = 'login' | 'register';
 
@@ -23,7 +23,7 @@ const COPY = {
 
 /** Login and sign-up share the header with the logo; each has its own form. */
 export function AuthScreen({ mode }: { mode: AuthMode }) {
-  const { signIn } = useSession();
+  const signIn = useSession((s) => s.signIn);
 
   return (
     <Screen scroll edges={['top', 'bottom']}>

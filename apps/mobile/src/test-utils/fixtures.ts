@@ -1,8 +1,4 @@
 import type { MatchDto, PlayerDto } from '@manhunt/types';
-import {
-  type GameState,
-  initialGameState,
-} from '@/features/game/state/game-state';
 
 export const player = (
   userId: string,
@@ -36,19 +32,3 @@ export const makeMatch = (overrides: Partial<MatchDto> = {}): MatchDto => ({
   players: [player('host', 'HUNTER')],
   ...overrides,
 });
-
-/** A loaded game state, seen by `userId`. */
-export function loadedState(
-  match: MatchDto,
-  userId: string,
-  extra: Partial<GameState> = {},
-): GameState {
-  const mine = match.players.find((p) => p.userId === userId)!;
-  return {
-    ...initialGameState,
-    connection: 'connected',
-    match,
-    me: { userId, team: mine.team, status: mine.status },
-    ...extra,
-  };
-}

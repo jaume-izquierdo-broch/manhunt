@@ -1,6 +1,7 @@
 import { type MatchDto, Team } from '@manhunt/types';
 import { useRouter } from 'expo-router';
 import { Alert, Share, StyleSheet, View } from 'react-native';
+import { useCurrentUser } from '@/features/auth/session.store';
 import {
   useCloseMatch,
   useKickPlayer,
@@ -20,17 +21,21 @@ import {
   typography,
 } from '@/ui';
 import { TeamSection } from '../components/team-section';
-import { useGameSession, useLoadedMatch } from '../session/game-session';
-import { hasBalancedTeams, playersOfTeam } from '../state/game-state';
+import { useLiveMatch, useLoadedMatch } from '../live-match.store';
+import { hasBalancedTeams, playersOfTeam } from '../rules/players';
 
 const otherTeam = (team: Team) =>
   team === Team.HUNTER ? Team.RUNNER : Team.HUNTER;
 
 /** The lobby: a code to invite players, the teams and the host's controls. */
-export function LobbyView() {
-  const { userId, applyMatch, locationPermission, requestLocationPermission } =
-    useGameSession();
+export function LobbyPhase() {
+  const userId = useCurrentUser().user.id;
   const match = useLoadedMatch();
+  const updateMatch = useLiveMatch((s) => s.updateMatch);
+  const locationPermission = useLiveMatch((s) => s.locationPermission);
+  const requestLocationPermission = useLiveMatch(
+    (s) => s.requestLocationPermission,
+  );
   const router = useRouter();
   const isHost = match.hostId === userId;
   const balanced = hasBalancedTeams(match);
@@ -41,13 +46,13 @@ export function LobbyView() {
   const leave = useLeaveMatch(match.id);
   const close = useCloseMatch(match.id);
 
-  /** Runs a host action and applies the match it returns. */
+  /** Runs a host action and shows the match it returns right away (the socket confirms it later). */
   const runHostAction = async (
     failureTitle: string,
     action: () => Promise<MatchDto>,
   ) => {
     try {
-      applyMatch(await action());
+      updateMatch(await action());
     } catch (error) {
       Alert.alert(failureTitle, errorMessage(error));
     }

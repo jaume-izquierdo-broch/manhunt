@@ -1,11 +1,9 @@
-import { useColorScheme } from 'react-native';
-import { colors, type ColorScheme, type ThemeColors } from './theme';
+import { colors, type ThemeColors } from './theme';
 
-export function useColorSchemeName(): ColorScheme {
-  return useColorScheme() === 'dark' ? 'dark' : 'light';
-}
-
-/** Colors of the current theme (light or dark, following the system setting). */
+/**
+ * The theme colors. The app has a single dark theme; components still read
+ * colors through this hook so a theme switch could be added in one place.
+ */
 export function useThemeColors(): ThemeColors {
-  return colors[useColorSchemeName()];
+  return colors;
 }

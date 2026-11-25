@@ -1,23 +1,65 @@
+import { JOIN_CODE_LENGTH } from '@manhunt/types';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback } from 'react';
-import { RefreshControl, ScrollView, StyleSheet } from 'react-native';
-import { useCurrentUser, useSession } from '@/features/auth/session-provider';
+import {
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { errorMessage } from '@/lib/http/api-error';
-import { AppText, Banner, Button, Card, spacing, useThemeColors } from '@/ui';
-import { CurrentMatchCard } from '../components/current-match-card';
-import { goToMatch } from '../match-navigation';
-import { useCurrentMatch } from '../matches.queries';
+import {
+  ActionCard,
+  AppText,
+  Banner,
+  Card,
+  Icon,
+  IconBadge,
+  type IconName,
+  SectionTitle,
+  spacing,
+  type ThemeColors,
+  useThemeColors,
+} from '@/ui';
+import { CurrentMatchCard } from './components/current-match-card';
+import { goToMatch } from '@/features/matches/match-navigation';
+import { useCurrentMatch } from '@/features/matches/matches.queries';
 
-const HOW_TO_PLAY = [
-  '🏃 Runners get a few minutes to hide inside the play area.',
-  '📡 Every so often, the hunters get a “ping” with the runners’ positions.',
-  '🫳 To catch a runner, a hunter must be within a few meters and tap “Catch”.',
-  '🏁 Hunters win if they catch everyone; otherwise the runners win.',
+const HOW_TO_PLAY: {
+  icon: IconName;
+  color: keyof ThemeColors;
+  title: string;
+  text: string;
+}[] = [
+  {
+    icon: 'footsteps-outline',
+    color: 'runner',
+    title: 'Hide',
+    text: 'Runners get a head start to hide inside the play area.',
+  },
+  {
+    icon: 'radio-outline',
+    color: 'primary',
+    title: 'Ping',
+    text: 'Every few minutes, the hunters see where the runners are.',
+  },
+  {
+    icon: 'hand-left-outline',
+    color: 'hunter',
+    title: 'Catch',
+    text: 'Get within a few meters of a runner and tap “Catch”.',
+  },
+  {
+    icon: 'trophy-outline',
+    color: 'warning',
+    title: 'Win',
+    text: 'Hunters win by catching everyone; runners win if time runs out.',
+  },
 ];
 
+/** Home: the current match or the ways to start one, plus the rules. */
 export function HomeScreen() {
-  const { user } = useCurrentUser();
-  const { signOut } = useSession();
   const router = useRouter();
   const c = useThemeColors();
   const current = useCurrentMatch();
@@ -36,12 +78,14 @@ export function HomeScreen() {
       <Stack.Screen
         options={{
           headerRight: () => (
-            <Button
-              title="Log out"
-              variant="ghost"
-              compact
-              onPress={() => void signOut()}
-            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Settings"
+              hitSlop={12}
+              onPress={() => router.push('/settings')}
+            >
+              <Icon name="settings-outline" size={24} />
+            </Pressable>
           ),
         }}
       />
@@ -55,45 +99,64 @@ export function HomeScreen() {
           />
         }
       >
-        <AppText variant="title">Hi, {user.username}</AppText>
-
         {current.isError ? (
           <Banner tone="danger" message={errorMessage(current.error)} />
         ) : null}
 
-        {openMatch ? (
-          <CurrentMatchCard
-            match={openMatch}
-            onOpen={() => goToMatch(router, openMatch.id)}
-          />
-        ) : (
-          <Card>
-            <AppText variant="subtitle">Ready to play?</AppText>
-            <Button
-              title="Create match"
-              onPress={() => router.push('/create')}
-            />
-            <Button
-              title="Join with a code"
-              variant="secondary"
-              onPress={() => router.push('/join')}
-            />
-          </Card>
-        )}
+        <View style={styles.section}>
+          {openMatch ? (
+            <>
+              <SectionTitle>Your match</SectionTitle>
+              <CurrentMatchCard
+                match={openMatch}
+                onOpen={() => goToMatch(router, openMatch.id)}
+              />
+            </>
+          ) : (
+            <>
+              <SectionTitle>Play</SectionTitle>
+              <ActionCard
+                prominent
+                icon="add"
+                title="Create a match"
+                description="Pick the play area and invite your friends"
+                onPress={() => router.push('/create')}
+              />
+              <ActionCard
+                icon="keypad-outline"
+                title="Join a match"
+                description={`Enter the ${JOIN_CODE_LENGTH}-character code from the host`}
+                onPress={() => router.push('/join')}
+              />
+            </>
+          )}
+        </View>
 
-        <Card>
-          <AppText variant="label">How to play</AppText>
-          {HOW_TO_PLAY.map((rule) => (
-            <AppText key={rule} variant="caption">
-              {rule}
-            </AppText>
-          ))}
-        </Card>
+        <View style={styles.section}>
+          <SectionTitle>How to play</SectionTitle>
+          <Card style={styles.rules}>
+            {HOW_TO_PLAY.map((step) => (
+              <View key={step.title} style={styles.step}>
+                <IconBadge name={step.icon} color={step.color} size={40} />
+                <View style={styles.stepText}>
+                  <AppText variant="label">{step.title}</AppText>
+                  <AppText variant="caption" tone="muted">
+                    {step.text}
+                  </AppText>
+                </View>
+              </View>
+            ))}
+          </Card>
+        </View>
       </ScrollView>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: spacing.lg, gap: spacing.lg },
+  content: { padding: spacing.lg, gap: spacing.xl },
+  section: { gap: spacing.sm },
+  rules: { gap: spacing.lg },
+  step: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  stepText: { flex: 1, gap: 2 },
 });

@@ -1,20 +1,22 @@
 import { type MatchDto, type PlayerDto, Team } from '@manhunt/types';
 import { useRouter } from 'expo-router';
+import { useCurrentUser } from '@/features/auth/session.store';
 import { useInvalidateCurrentMatch } from '@/features/matches/matches.queries';
 import { AppText, Button, Card, Screen } from '@/ui';
 import { PlayerRow } from '../components/player-row';
-import { useGameSession, useLoadedMatch } from '../session/game-session';
-import { playerName, playersOfTeam } from '../state/game-state';
+import { useLiveMatch, useLoadedMatch } from '../live-match.store';
+import { playerName, playersOfTeam } from '../rules/players';
 
 /** End of the match: who won, and what happened to each runner. */
-export function ResultsView() {
-  const { userId, state } = useGameSession();
+export function ResultsPhase() {
+  const userId = useCurrentUser().user.id;
+  const myTeam = useLiveMatch((s) => s.me?.team);
   const match = useLoadedMatch();
   const router = useRouter();
   const invalidateCurrentMatch = useInvalidateCurrentMatch();
 
   const winner = match.winnerTeam;
-  const myTeamWon = !!winner && state.me?.team === winner;
+  const myTeamWon = !!winner && myTeam === winner;
 
   const goHome = () => {
     void invalidateCurrentMatch();
