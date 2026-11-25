@@ -21,5 +21,9 @@ describe('parseStoredSession', () => {
     expect(
       parseStoredSession(JSON.stringify({ accessToken: 'token' })),
     ).toBeNull();
+    const { email: _email, ...withoutEmail } = valid.user;
+    expect(
+      parseStoredSession(JSON.stringify({ ...valid, user: withoutEmail })),
+    ).toBeNull();
   });
 });

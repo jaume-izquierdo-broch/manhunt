@@ -11,7 +11,6 @@ export const usernameSchema = z
   .trim()
   .min(3, 'At least 3 characters')
   .max(30, 'At most 30 characters')
-  // No "@" allowed, so a login identifier is never ambiguous between username and email.
   .regex(/^[a-zA-Z0-9_]+$/, 'Only letters, numbers and _');
 
 export const emailSchema = z
@@ -63,8 +62,7 @@ export type LoginInput = z.infer<typeof loginSchema>;
 export interface UserDto {
   id: string;
   username: string;
-  /** Only null for legacy accounts created before email was required. */
-  email: string | null;
+  email: string;
   createdAt: string;
 }
 

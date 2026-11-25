@@ -25,13 +25,12 @@ export const users = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     username: varchar('username', { length: 50 }).notNull(),
-    // Nullable only for legacy accounts; sign-up requires it.
     // Stored lowercase (the validation schema normalizes it).
-    email: varchar('email', { length: 254 }),
+    email: varchar('email', { length: 254 }).notNull(),
     passwordHash: text('password_hash').notNull(),
     // Consent record: when the user accepted the privacy policy, and which version.
-    termsAcceptedAt: timestamptz('terms_accepted_at'),
-    termsVersion: varchar('terms_version', { length: 20 }),
+    termsAcceptedAt: timestamptz('terms_accepted_at').notNull().defaultNow(),
+    termsVersion: varchar('terms_version', { length: 20 }).notNull(),
     createdAt: timestamptz('created_at').notNull().defaultNow(),
   },
   (t) => [

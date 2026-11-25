@@ -1,5 +1,5 @@
 {
-  "id": "88b90ad7-a42f-4034-be55-ab7e0eb8246a",
+  "id": "8b44ae51-948a-49bc-a7e1-ee60251a3a90",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -317,9 +317,28 @@
           "primaryKey": false,
           "notNull": true
         },
+        "email": {
+          "name": "email",
+          "type": "varchar(254)",
+          "primaryKey": false,
+          "notNull": true
+        },
         "password_hash": {
           "name": "password_hash",
           "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "terms_accepted_at": {
+          "name": "terms_accepted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "terms_version": {
+          "name": "terms_version",
+          "type": "varchar(20)",
           "primaryKey": false,
           "notNull": true
         },
@@ -337,6 +356,21 @@
           "columns": [
             {
               "expression": "lower(\"username\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "users_email_lower_uq": {
+          "name": "users_email_lower_uq",
+          "columns": [
+            {
+              "expression": "lower(\"email\")",
               "asc": true,
               "isExpression": true,
               "nulls": "last"

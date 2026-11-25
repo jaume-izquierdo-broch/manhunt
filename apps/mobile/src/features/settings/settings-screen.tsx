@@ -38,16 +38,12 @@ export function SettingsScreen() {
       <View style={styles.profile}>
         <Avatar name={user.username} size={72} />
         <AppText variant="subtitle">{user.username}</AppText>
-        {user.email ? <AppText tone="muted">{user.email}</AppText> : null}
+        <AppText tone="muted">{user.email}</AppText>
       </View>
 
       <ListSection title="Account">
         <ListRow label="Username" value={user.username} icon="person-outline" />
-        <ListRow
-          label="Email"
-          value={user.email ?? 'Not set'}
-          icon="mail-outline"
-        />
+        <ListRow label="Email" value={user.email} icon="mail-outline" />
         <ListRow
           label="Member since"
           value={memberSince(user.createdAt)}

@@ -42,10 +42,7 @@ export class UsersRepository {
   /** Creates the user, or reports which unique field (username or email) is taken. */
   async create(input: NewUser): Promise<CreateUserResult> {
     try {
-      const [user] = await this.db
-        .insert(users)
-        .values({ ...input, termsAcceptedAt: new Date() })
-        .returning();
+      const [user] = await this.db.insert(users).values(input).returning();
       return { ok: true, user: user! };
     } catch (error) {
       if (isUniqueViolation(error, 'users_username_lower_uq')) {

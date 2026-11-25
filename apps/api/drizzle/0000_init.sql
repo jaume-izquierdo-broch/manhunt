@@ -35,7 +35,10 @@ CREATE TABLE "matches" (
 CREATE TABLE "users" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"username" varchar(50) NOT NULL,
+	"email" varchar(254) NOT NULL,
 	"password_hash" text NOT NULL,
+	"terms_accepted_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"terms_version" varchar(20) NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -46,4 +49,5 @@ ALTER TABLE "matches" ADD CONSTRAINT "matches_host_id_users_id_fk" FOREIGN KEY (
 CREATE INDEX "match_players_user_idx" ON "match_players" USING btree ("user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "matches_join_code_uq" ON "matches" USING btree ("join_code");--> statement-breakpoint
 CREATE INDEX "matches_status_idx" ON "matches" USING btree ("status");--> statement-breakpoint
-CREATE UNIQUE INDEX "users_username_lower_uq" ON "users" USING btree (lower("username"));
+CREATE UNIQUE INDEX "users_username_lower_uq" ON "users" USING btree (lower("username"));--> statement-breakpoint
+CREATE UNIQUE INDEX "users_email_lower_uq" ON "users" USING btree (lower("email"));
