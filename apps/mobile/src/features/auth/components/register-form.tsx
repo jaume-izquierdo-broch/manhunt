@@ -8,9 +8,6 @@ import { View } from 'react-native';
 import { useForm } from '@/lib/use-form';
 import { AppText, Banner, Button, Checkbox, spacing, TextField } from '@/ui';
 
-export const TERMS_LABEL =
-  'I have read and accept the privacy policy and the terms of use';
-
 export interface RegisterFormProps {
   /** Receives the API body (without the password confirmation). */
   onSubmit: (values: RegisterInput) => Promise<void>;
@@ -84,22 +81,25 @@ export function RegisterForm({ onSubmit }: RegisterFormProps) {
         textContentType="newPassword"
       />
 
-      <View style={{ gap: spacing.sm }}>
-        <Checkbox
-          label={TERMS_LABEL}
-          checked={form.values.acceptTerms}
-          onChange={form.setField('acceptTerms')}
-          error={form.errors.acceptTerms}
-        />
-        <AppText
-          variant="label"
-          tone="primary"
-          accessibilityRole="link"
-          onPress={() => router.push('/privacy')}
-        >
-          Read the privacy policy and terms of use
-        </AppText>
-      </View>
+      <Checkbox
+        label={
+          <>
+            I accept the{' '}
+            <AppText
+              variant="caption"
+              tone="primary"
+              accessibilityRole="link"
+              onPress={() => router.push('/privacy')}
+            >
+              privacy policy and terms of use
+            </AppText>
+          </>
+        }
+        accessibilityLabel="I accept the privacy policy and terms of use"
+        checked={form.values.acceptTerms}
+        onChange={form.setField('acceptTerms')}
+        error={form.errors.acceptTerms}
+      />
 
       {form.formError ? (
         <Banner tone="danger" message={form.formError} />

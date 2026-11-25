@@ -1,28 +1,46 @@
+import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText } from './app-text';
 import { radius, spacing } from './theme';
 import { useThemeColors } from './use-theme';
 
-export interface CheckboxProps {
-  label: string;
+/**
+ * The label is usually plain text. It may also contain inline links (a nested
+ * `<AppText variant="caption" onPress>`), and then screen readers need
+ * `accessibilityLabel`.
+ */
+type LabelProps =
+  | { label: string; accessibilityLabel?: string }
+  | { label: ReactNode; accessibilityLabel: string };
+
+export type CheckboxProps = LabelProps & {
   checked: boolean;
   onChange: (checked: boolean) => void;
   error?: string;
-}
+};
 
-export function Checkbox({ label, checked, onChange, error }: CheckboxProps) {
+export function Checkbox({
+  label,
+  accessibilityLabel,
+  checked,
+  onChange,
+  error,
+}: CheckboxProps) {
   const c = useThemeColors();
+  const toggle = () => onChange(!checked);
+
   return (
     <View style={styles.container}>
-      <Pressable
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked }}
-        accessibilityLabel={label}
-        onPress={() => onChange(!checked)}
-        hitSlop={8}
-        style={styles.row}
-      >
-        <View
+      <View style={styles.row}>
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked }}
+          accessibilityLabel={
+            accessibilityLabel ??
+            (typeof label === 'string' ? label : undefined)
+          }
+          onPress={toggle}
+          hitSlop={8}
           style={[
             styles.box,
             {
@@ -36,9 +54,13 @@ export function Checkbox({ label, checked, onChange, error }: CheckboxProps) {
               ✓
             </AppText>
           ) : null}
-        </View>
-        <AppText style={styles.label}>{label}</AppText>
-      </Pressable>
+        </Pressable>
+        {/* Tapping the text toggles too; a link nested inside handles its own tap.
+            Caption size: these labels are usually consent sentences. */}
+        <AppText variant="caption" style={styles.label} onPress={toggle}>
+          {label}
+        </AppText>
+      </View>
       {error ? (
         <AppText variant="caption" tone="danger">
           {error}

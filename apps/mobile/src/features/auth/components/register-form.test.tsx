@@ -5,7 +5,7 @@ import {
   waitFor,
 } from '@testing-library/react-native';
 import { ApiError } from '@/lib/http/api-error';
-import { RegisterForm, TERMS_LABEL } from './register-form';
+import { RegisterForm } from './register-form';
 
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
@@ -31,7 +31,10 @@ async function fill(values: {
   }
 }
 
-const termsCheckbox = () => screen.getByRole('checkbox', { name: TERMS_LABEL });
+const termsCheckbox = () =>
+  screen.getByRole('checkbox', {
+    name: 'I accept the privacy policy and terms of use',
+  });
 const submit = () =>
   fireEvent.press(screen.getByRole('button', { name: 'Create account' }));
 
@@ -106,9 +109,20 @@ describe('RegisterForm', () => {
     await render(<RegisterForm onSubmit={jest.fn()} />);
     await fireEvent.press(
       screen.getByRole('link', {
-        name: 'Read the privacy policy and terms of use',
+        name: 'privacy policy and terms of use',
       }),
     );
     expect(mockPush).toHaveBeenCalledWith('/privacy');
+    // Opening the policy doesn't accept it.
+    expect(termsCheckbox()).not.toBeChecked();
+  });
+
+  it('tapping the sentence also ticks the box', async () => {
+    await render(<RegisterForm onSubmit={jest.fn()} />);
+    await fireEvent.press(
+      screen.getByText('I accept the privacy policy and terms of use'),
+    );
+    expect(termsCheckbox()).toBeChecked();
+    expect(mockPush).not.toHaveBeenCalled();
   });
 });
