@@ -17,7 +17,6 @@ services:
       POSTGRES_DB: ${DB_NAME:-manhunt_db}
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      # Change DB_PORT if another Postgres already uses 5432 (e.g. inside WSL).
       - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -33,7 +32,6 @@ services:
     image: redis:8-alpine
     container_name: manhunt_redis
     restart: unless-stopped
-    # noeviction: BullMQ needs Redis to never drop keys under memory pressure.
     command: >
       redis-server
       --appendonly yes
