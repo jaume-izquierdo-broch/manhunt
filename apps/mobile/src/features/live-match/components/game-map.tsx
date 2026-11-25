@@ -1,9 +1,25 @@
+import type { PlayArea } from '@manhunt/types';
 import { StyleSheet } from 'react-native';
 import MapView, { Circle, Marker } from 'react-native-maps';
 import { useThemeColors } from '@/ui';
 import { regionForArea } from '../rules/geo';
 import { DARK_MAP_STYLE } from './dark-map-style';
-import type { GameMapProps } from './game-map.types';
+
+export interface MapMarkerData {
+  id: string;
+  lat: number;
+  lng: number;
+  title: string;
+  description?: string;
+  kind: 'teammate' | 'ping';
+}
+
+export interface GameMapProps {
+  area: PlayArea;
+  markers: MapMarkerData[];
+  /** Color of the play area's border (my team's). */
+  accentColor: string;
+}
 
 /** The match map: play area, teammates and, for hunters, the latest ping. */
 export function GameMap({ area, markers, accentColor }: GameMapProps) {

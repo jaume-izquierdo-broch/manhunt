@@ -4,8 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Banner, type BannerTone, Button, spacing, useThemeColors } from '@/ui';
 import { CatchPanel } from '../components/catch-panel';
 import { GameHud } from '../components/game-hud';
-import { GameMap } from '../components/game-map';
-import type { MapMarkerData } from '../components/game-map.types';
+import { GameMap, type MapMarkerData } from '../components/game-map';
 import { HidingOverlay } from '../components/hiding-overlay';
 import {
   type LiveMatchState,

@@ -15,10 +15,6 @@ export const authApi = {
 
   me: () => api.get<UserDto>('/auth/me'),
 
-  /**
-   * Revokes a session on the server. Takes the token explicitly because the app
-   * forgets it locally at the same time, and a 401 here must not sign out again.
-   */
   logout: (token: string) =>
     api.post<void>('/auth/logout', undefined, { token, timeoutMs: 5_000 }),
 };

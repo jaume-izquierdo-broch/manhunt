@@ -1,6 +1,6 @@
 # @manhunt/mobile
 
-The Manhunt app, built with Expo (React Native). It runs on iOS and Android with **Expo Go**. The web build also works, but without a map: it's only meant for testing.
+The Manhunt app, built with Expo (React Native), for iOS and Android only. Develop on a real phone with **Expo Go** or on an Android Studio emulator.
 
 ## Getting started
 
@@ -48,7 +48,7 @@ src/
 │   │   ├── auth.api.ts        register, login, me, logout
 │   │   ├── auth-screen.tsx    Login and sign-up screen
 │   │   ├── components/        The two forms
-│   │   └── session-storage*   Where the token is saved (SecureStore / localStorage)
+│   │   └── session-storage.ts Where the token is saved (SecureStore, encrypted)
 │   │
 │   ├── home/                  Home: your match, create / join, how to play
 │   ├── matches/               Create and join a match (REST)
@@ -148,7 +148,7 @@ The source of truth is **`assets/brand/manhunt-icon.svg`** (a hooded figure insi
 | `images/android-icon-background.png` + `-foreground.png` | Android adaptive icon. The figure sits in the central 66% that every launcher mask keeps |
 | `images/android-icon-monochrome.png`                     | Android 13+ themed icons (single color, tinted by the system)                            |
 | `images/splash-icon.png`                                 | Splash screen, over the `#030303` set in `app.json`                                      |
-| `images/logo.png` / `images/favicon.png`                 | In-app logo (login and sign-up) and web favicon, with rounded corners                    |
+| `images/logo.png`                                        | In-app logo (login and sign-up), with rounded corners                                    |
 | `store/play-store-512.png`                               | Google Play listing. Uploaded by hand, not used by the app                               |
 
 There are no per-density sizes (Android `mipmap-*`, the iOS `AppIcon` set) or desktop formats (`.ico`, `.icns`) in the repo: `expo prebuild` and EAS generate the native sizes from these files, and the app has no desktop build.
@@ -160,4 +160,3 @@ The text lives in `src/features/legal/privacy-policy.ts` and is shown at `/priva
 ## Current limitations
 
 - **Foreground location only.** With the app in the background, the position isn't sent. Background tracking needs a _development build_ (not Expo Go) and `expo-task-manager`.
-- **No map on the web:** `react-native-maps` doesn't support it, so a list of positions is shown instead.

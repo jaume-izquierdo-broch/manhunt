@@ -103,9 +103,8 @@ const outputs = [
        <mask id="fade"><rect width="${VIEWBOX}" height="${VIEWBOX}" fill="url(#fade-ramp)"/></mask>`,
     ),
   },
-  // In-app logo (login and sign-up screens) and the web favicon: rounded corners.
+  // In-app logo (login and sign-up screens): rounded corners.
   { file: 'images/logo.png', size: 512, svg: svg(rounded(full)) },
-  { file: 'images/favicon.png', size: 48, svg: svg(rounded(full)) },
   // Google Play listing (uploaded by hand to the Play Console, not used by the app).
   { file: 'store/play-store-512.png', size: 512, svg: svg(full) },
 ];

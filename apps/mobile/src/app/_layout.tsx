@@ -34,7 +34,6 @@ export default function RootLayout() {
   );
 }
 
-/** Protected routes: signed out, only (auth) exists; signed in, only (app). */
 function RootNavigator() {
   const status = useSession((s) => s.status);
 
@@ -46,7 +45,6 @@ function RootNavigator() {
     if (status !== 'loading') void SplashScreen.hideAsync();
   }, [status]);
 
-  // Keep showing the splash screen while the stored session loads.
   if (status === 'loading') return null;
 
   return (
@@ -57,7 +55,6 @@ function RootNavigator() {
       <Stack.Protected guard={status === 'signedOut'} redirectTo="/">
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
-      {/* Always reachable: linked from sign-up, so it must be readable without an account. */}
       <Stack.Screen
         name="privacy"
         options={{

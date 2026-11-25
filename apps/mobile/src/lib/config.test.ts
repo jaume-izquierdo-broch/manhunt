@@ -32,11 +32,11 @@ describe('resolveApiUrl', () => {
     ).toBe('http://localhost:3000');
   });
 
-  it('without Metro: 10.0.2.2 on Android, localhost elsewhere', () => {
+  it('without Metro: 10.0.2.2 on Android, localhost on iOS', () => {
     expect(resolveApiUrl({ port: 3000, platform: 'android' })).toBe(
       'http://10.0.2.2:3000',
     );
-    expect(resolveApiUrl({ port: 3000, platform: 'web' })).toBe(
+    expect(resolveApiUrl({ port: 3000, platform: 'ios' })).toBe(
       'http://localhost:3000',
     );
   });

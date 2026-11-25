@@ -1,4 +1,4 @@
-import { parseStoredSession } from './stored-session';
+import { parseStoredSession } from './session-storage';
 
 const valid = {
   accessToken: 'token',
