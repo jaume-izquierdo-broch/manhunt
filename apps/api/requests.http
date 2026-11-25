@@ -201,9 +201,12 @@ Authorization: Bearer {{hunterToken}}
 
 ###
 
-# 204: ends every session of the runner, on every device
-POST {{baseUrl}}/auth/logout-all
-Authorization: Bearer {{runnerToken}}
+# Logging in again ends the previous session: after this, {{runnerToken}}
+# (from section 1) answers 401. One device at a time.
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "identifier": "demo_runner", "password": "{{password}}" }
 
 ### ---------------------------------------------------------------------
 ### The real-time part (positions, pings, catches) runs over WebSocket and

@@ -70,10 +70,9 @@ Every route requires `Authorization: Bearer <token>`, except those marked 🌐. 
 | Method | Route | Description |
 |---|---|---|
 | 🌐 POST | `/auth/register` | `{ username, email, password, acceptTerms: true }` → `{ accessToken, user }`. Records which policy version was accepted |
-| 🌐 POST | `/auth/login` | `{ identifier, password }` (username **or** email) → `{ accessToken, user }` |
+| 🌐 POST | `/auth/login` | `{ identifier, password }` (username **or** email) → `{ accessToken, user }`. One device at a time: it ends the user's previous session |
 | GET | `/auth/me` | The current user |
 | POST | `/auth/logout` | Ends this session: the token stops working and its sockets are closed (204) |
-| POST | `/auth/logout-all` | Ends every session of the user, on every device (204) |
 | POST | `/matches` | Creates a match: `{ playArea: { lat, lng, radiusMeters }, hidingSeconds?, durationSeconds?, pingIntervalSeconds? }` |
 | POST | `/matches/join` | `{ joinCode }` → joins the lobby |
 | GET | `/matches/current` | `{ match }` with your unfinished match, or `null` |

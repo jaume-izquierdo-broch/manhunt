@@ -61,17 +61,20 @@ game ──▶ matches, realtime, auth (SessionStore)
 
 ## Sessions
 
-Login and sign-up return an opaque random token (not a JWT). `SessionStore` keeps the session in Redis:
+Login and sign-up return an opaque random token (not a JWT). `SessionStore` keeps the session in Redis, **one per user**:
 
 | Key | Value |
 |---|---|
 | `mh:session:<sha256(token)>` | `{ userId, username, createdAt }`, expires after `SESSION_TTL_SECONDS` (30 days) without use |
-| `mh:user:<userId>:sessions` | Set of that user's session ids, for `POST /auth/logout-all` |
+| `mh:user:<userId>:session` | The id of the user's current session |
 
 - **Only the token's hash is stored**, so a Redis dump can't be used to log in.
 - **Sliding expiration**: every authenticated request or socket connection extends the session (`GETEX`).
 - **Real logout**: `POST /auth/logout` deletes the key, so the token stops working at once, and closes the sockets opened with it (each socket joins a `session:<id>` room; the Redis adapter reaches every replica).
+- **One device at a time**: logging in again ends the previous session and disconnects it from any match. Otherwise a player signed in on two phones would report two different positions in the same match.
 - Redis runs with `appendonly yes`, so sessions survive a restart.
+
+To look at them: `SCAN 0 MATCH mh:session:*` in `redis-cli`, or Redis Insight (they're in Redis, not in Postgres, so Drizzle Studio doesn't show them).
 
 ## The life of a match
 

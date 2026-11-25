@@ -70,10 +70,9 @@ export class RealtimePublisher {
     this.ns?.in(Rooms.user(userId)).socketsJoin(Rooms.team(matchId, team));
   }
 
-  /** Disconnects the sockets opened with these sessions (after a logout), on every replica. */
-  disconnectSessions(sessionIds: string[]) {
-    if (sessionIds.length === 0) return;
-    this.ns?.in(sessionIds.map(Rooms.session)).disconnectSockets(true);
+  /** Disconnects the sockets opened with a session that just ended, on every replica. */
+  disconnectSession(sessionId: string) {
+    this.ns?.in(Rooms.session(sessionId)).disconnectSockets(true);
   }
 
   /** Removes a user's sockets from every room of a match. */

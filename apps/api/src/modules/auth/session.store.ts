@@ -14,17 +14,19 @@ interface StoredSession {
 
 const keys = {
   session: (sessionId: string) => `mh:session:${sessionId}`,
-  /** Set of a user's session ids, for "log out everywhere". */
-  userSessions: (userId: string) => `mh:user:${userId}:sessions`,
+  /** The id of the user's current session: one device at a time. */
+  userSession: (userId: string) => `mh:user:${userId}:session`,
 };
 
 /**
- * Server-side sessions in Redis.
+ * Server-side sessions in Redis, one per user.
  *
- * The client gets a random opaque token; Redis stores the session under the
- * token's SHA-256 (the session id), so a Redis dump can't be used to log in.
- * Every use extends the expiry (sliding expiration), and deleting the key
- * revokes the session immediately.
+ * - The client gets a random opaque token; Redis stores the session under the
+ *   token's SHA-256 (the session id), so a Redis dump can't be used to log in.
+ * - Every use extends the expiry (sliding expiration).
+ * - Deleting the key revokes the session immediately.
+ * - Logging in again (on any device) ends the previous session, so a player
+ *   can't be in a match from two phones at once.
  */
 @Injectable()
 export class SessionStore {
@@ -37,8 +39,13 @@ export class SessionStore {
     this.ttlSeconds = env.SESSION_TTL_SECONDS;
   }
 
-  /** Starts a session and returns the token to hand to the client. */
-  async create(user: Omit<AuthUser, 'sessionId'>): Promise<string> {
+  /**
+   * Starts a session and ends the user's previous one, if any.
+   * Returns the token for the client and the id of the session it replaced.
+   */
+  async create(
+    user: Omit<AuthUser, 'sessionId'>,
+  ): Promise<{ token: string; replacedSessionId: string | null }> {
     const token = randomBytes(32).toString('base64url');
     const sessionId = sessionIdOf(token);
     const session: StoredSession = {
@@ -46,18 +53,23 @@ export class SessionStore {
       username: user.username,
       createdAt: new Date().toISOString(),
     };
-    await this.redis
-      .multi()
+
+    const replacedSessionId = await this.redis.get(
+      keys.userSession(user.userId),
+    );
+    const tx = this.redis.multi();
+    if (replacedSessionId) tx.del(keys.session(replacedSessionId));
+    await tx
       .set(
         keys.session(sessionId),
         JSON.stringify(session),
         'EX',
         this.ttlSeconds,
       )
-      .sadd(keys.userSessions(user.userId), sessionId)
-      .expire(keys.userSessions(user.userId), this.ttlSeconds)
+      .set(keys.userSession(user.userId), sessionId, 'EX', this.ttlSeconds)
       .exec();
-    return token;
+
+    return { token, replacedSessionId };
   }
 
   /** The user behind a token, or `null` if it's unknown, expired or revoked. Extends the expiry. */
@@ -71,27 +83,19 @@ export class SessionStore {
     if (!raw) return null;
 
     const session = JSON.parse(raw) as StoredSession;
-    // Keep the index alive for as long as its newest session.
-    await this.redis.expire(keys.userSessions(session.userId), this.ttlSeconds);
+    await this.redis.expire(keys.userSession(session.userId), this.ttlSeconds);
     return { userId: session.userId, username: session.username, sessionId };
   }
 
+  /** Ends a session (logout). */
   async revoke(user: AuthUser): Promise<void> {
-    await this.redis
-      .multi()
-      .del(keys.session(user.sessionId))
-      .srem(keys.userSessions(user.userId), user.sessionId)
-      .exec();
-  }
-
-  /** Revokes every session of a user and returns their ids. */
-  async revokeAll(userId: string): Promise<string[]> {
-    const sessionIds = await this.redis.smembers(keys.userSessions(userId));
-    await this.redis.del(
-      keys.userSessions(userId),
-      ...sessionIds.map(keys.session),
-    );
-    return sessionIds;
+    await this.redis.del(keys.session(user.sessionId));
+    // Only clear the pointer if it still points to this session.
+    if (
+      (await this.redis.get(keys.userSession(user.userId))) === user.sessionId
+    ) {
+      await this.redis.del(keys.userSession(user.userId));
+    }
   }
 }
 

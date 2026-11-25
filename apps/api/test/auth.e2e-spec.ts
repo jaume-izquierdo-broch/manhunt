@@ -145,7 +145,7 @@ describe('auth', () => {
   });
 
   describe('sessions', () => {
-    /** A second login of the same user: another device, another session. */
+    /** The same user logs in again, as if from another device. */
     async function loginAgain(username: string): Promise<string> {
       const res = await t
         .anonymous()
@@ -157,43 +157,41 @@ describe('auth', () => {
     const me = (token: string) =>
       t.anonymous().get('/auth/me').set('Authorization', `Bearer ${token}`);
 
-    it('logout revokes only that session and closes its sockets', async () => {
-      const phone = await t.register('dev');
-      const tabletToken = await loginAgain(phone.user.username);
-      expect(tabletToken).not.toBe(phone.accessToken);
+    it('logout revokes the token and closes its sockets', async () => {
+      const player = await t.register('out');
+      const socket = await player.connect();
+      const closed = serverDisconnect(socket);
 
-      const phoneSocket = await phone.connect();
-      const tabletSocket = await t.connect(tabletToken);
-      const closed = serverDisconnect(phoneSocket);
-
-      await phone.api.post('/auth/logout').expect(204);
+      await player.api.post('/auth/logout').expect(204);
 
       await expect(closed).resolves.toBe('io server disconnect');
-      expect(tabletSocket.connected).toBe(true);
-      const revoked = await me(phone.accessToken).expect(401);
+      const revoked = await me(player.accessToken).expect(401);
       expect(revoked.body.code).toBe('UNAUTHORIZED');
-      await me(tabletToken).expect(200);
-      await expect(t.connect(phone.accessToken)).rejects.toThrow(
+      await expect(t.connect(player.accessToken)).rejects.toThrow(
         'UNAUTHORIZED',
       );
     });
 
-    it('logout-all revokes every session of the user', async () => {
-      const player = await t.register('all');
-      const otherToken = await loginAgain(player.user.username);
-      const otherSocket = await t.connect(otherToken);
-      const closed = serverDisconnect(otherSocket);
+    it('one device at a time: logging in elsewhere ends the old session', async () => {
+      const phone = await t.register('dev');
+      const phoneSocket = await phone.connect();
+      const closed = serverDisconnect(phoneSocket);
 
-      await player.api.post('/auth/logout-all').expect(204);
+      const tabletToken = await loginAgain(phone.user.username);
 
+      // The phone is kicked out of any match and its token stops working.
       await expect(closed).resolves.toBe('io server disconnect');
-      await me(player.accessToken).expect(401);
-      await me(otherToken).expect(401);
+      await me(phone.accessToken).expect(401);
+      // The tablet works normally.
+      await me(tabletToken).expect(200);
+      const tabletSocket = await t.connect(tabletToken);
+      expect(tabletSocket.connected).toBe(true);
     });
 
     it('does not touch other users', async () => {
       const [a, b] = await Promise.all([t.register('a'), t.register('b')]);
-      await a.api.post('/auth/logout-all').expect(204);
+      await loginAgain(a.user.username);
+      await a.api.post('/auth/logout').expect(401);
       await me(b.accessToken).expect(200);
     });
 

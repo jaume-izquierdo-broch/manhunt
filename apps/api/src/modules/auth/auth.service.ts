@@ -7,6 +7,7 @@ import {
   type UserDto,
 } from '@manhunt/types';
 import type { UserRow } from '../../infrastructure/database/schema.js';
+import { RealtimePublisher } from '../realtime/realtime.publisher.js';
 import { toUserDto } from '../users/user.mapper.js';
 import { UsersRepository } from '../users/users.repository.js';
 import { AuthErrors } from './auth.errors.js';
@@ -19,6 +20,7 @@ export class AuthService {
   constructor(
     private readonly users: UsersRepository,
     private readonly sessions: SessionStore,
+    private readonly realtime: RealtimePublisher,
   ) {}
 
   /** The schema has already checked that `acceptTerms` is true. */
@@ -55,21 +57,22 @@ export class AuthService {
     return toUserDto(user);
   }
 
-  /** Ends the session the request authenticated with. */
-  logout(user: AuthUser): Promise<void> {
-    return this.sessions.revoke(user);
+  /** Ends the session the request authenticated with, and closes its sockets. */
+  async logout(user: AuthUser): Promise<void> {
+    await this.sessions.revoke(user);
+    this.realtime.disconnectSession(user.sessionId);
   }
 
-  /** Ends every session of the user, on every device. Returns their ids. */
-  logoutEverywhere(user: AuthUser): Promise<string[]> {
-    return this.sessions.revokeAll(user.userId);
-  }
-
+  /**
+   * One session per user: logging in on another device ends the previous
+   * session and disconnects it from any match.
+   */
   private async startSession(user: UserRow): Promise<AuthResponse> {
-    const accessToken = await this.sessions.create({
+    const { token, replacedSessionId } = await this.sessions.create({
       userId: user.id,
       username: user.username,
     });
-    return { accessToken, user: toUserDto(user) };
+    if (replacedSessionId) this.realtime.disconnectSession(replacedSessionId);
+    return { accessToken: token, user: toUserDto(user) };
   }
 }
