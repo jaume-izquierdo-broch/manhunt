@@ -12,14 +12,12 @@ export class HealthController {
     @InjectRedis() private readonly redis: Redis,
   ) {}
 
-  /** Liveness: the process is up. */
   @Public()
   @Get('live')
   live() {
     return { status: 'ok' };
   }
 
-  /** Readiness: Postgres and Redis respond. Used by Docker and load balancers. */
   @Public()
   @Get()
   async ready() {

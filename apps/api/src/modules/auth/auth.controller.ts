@@ -17,7 +17,6 @@ import { Public } from './decorators/public.decorator.js';
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
-  /** Signs up and starts a session. */
   @Public()
   @Post('register')
   register(
@@ -26,7 +25,6 @@ export class AuthController {
     return this.auth.register(body);
   }
 
-  /** Starts a session, ending the user's session on any other device. */
   @Public()
   @Post('login')
   @HttpCode(200)
@@ -41,7 +39,6 @@ export class AuthController {
     return this.auth.me(user.userId);
   }
 
-  /** Ends this session: the token stops working and its sockets are closed. */
   @Post('logout')
   @HttpCode(204)
   logout(@CurrentUser() user: AuthUser): Promise<void> {

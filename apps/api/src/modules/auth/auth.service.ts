@@ -23,7 +23,6 @@ export class AuthService {
     private readonly realtime: RealtimePublisher,
   ) {}
 
-  /** The schema has already checked that `acceptTerms` is true. */
   async register(input: RegisterInput): Promise<AuthResponse> {
     const result = await this.users.create({
       username: input.username,
@@ -41,8 +40,6 @@ export class AuthService {
 
   async login(input: LoginInput): Promise<AuthResponse> {
     const user = await this.users.findByIdentifier(input.identifier);
-    // Always run the hash check, even for unknown users, so response time
-    // doesn't reveal which accounts exist.
     const valid = await verifyPassword(
       input.password,
       user?.passwordHash ?? DUMMY_HASH,
@@ -57,16 +54,11 @@ export class AuthService {
     return toUserDto(user);
   }
 
-  /** Ends the session the request authenticated with, and closes its sockets. */
   async logout(user: AuthUser): Promise<void> {
     await this.sessions.revoke(user);
     this.realtime.disconnectSession(user.sessionId);
   }
 
-  /**
-   * One session per user: logging in on another device ends the previous
-   * session and disconnects it from any match.
-   */
   private async startSession(user: UserRow): Promise<AuthResponse> {
     const { token, replacedSessionId } = await this.sessions.create({
       userId: user.id,

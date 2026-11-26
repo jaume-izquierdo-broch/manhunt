@@ -6,7 +6,6 @@ import { AuthService } from './auth.service.js';
 import { SessionAuthGuard } from './guards/session-auth.guard.js';
 import { SessionStore } from './session.store.js';
 
-/** Global so the WebSocket gateway can use SessionStore without importing this module. */
 @Global()
 @Module({
   imports: [UsersModule],
