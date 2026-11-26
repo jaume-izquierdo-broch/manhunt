@@ -1,4 +1,9 @@
-import type { AuthResponse, UserDto } from '@manhunt/types';
+import type {
+  AuthResponse,
+  LoginInput,
+  RegisterInput,
+  UserDto,
+} from '@manhunt/types';
 import { Alert } from 'react-native';
 import { create } from 'zustand';
 import { configureApiAuth } from '@/lib/http/api-client';
@@ -6,37 +11,25 @@ import { queryClient } from '@/lib/query-client';
 import { authApi } from './auth.api';
 import { sessionStorage } from './session-storage';
 
-/**
- * Who is signed in. Read it from any component with a selector:
- *
- *   const user = useSession((s) => s.user);
- *
- * and call its actions from anywhere, even outside React:
- *
- *   useSession.getState().signOut();
- */
 interface SessionStore {
-  /** `loading` only while the stored session is read at startup. */
   status: 'loading' | 'signedIn' | 'signedOut';
   token: string | null;
   user: UserDto | null;
 
-  /** Restores the saved session. Call once when the app starts. */
   restore: () => Promise<void>;
-  /** After a successful login or sign-up. */
-  signIn: (auth: AuthResponse) => Promise<void>;
-  /** The user logs out: the session is also revoked on the server. */
-  signOut: () => Promise<void>;
-  /**
-   * The server rejected the token: it expired, or the user logged in on another
-   * device (one session per user). Forget it here and say why.
-   */
+  logIn: (values: LoginInput) => Promise<void>;
+  register: (values: RegisterInput) => Promise<void>;
+  logOut: () => Promise<void>;
   expire: () => Promise<void>;
 }
 
 export const useSession = create<SessionStore>()((set, get) => {
-  /** Forgets the session on this device. */
-  const clearLocally = async () => {
+  const start = async (auth: AuthResponse) => {
+    await sessionStorage.save(auth);
+    set({ status: 'signedIn', token: auth.accessToken, user: auth.user });
+  };
+
+  const clear = async () => {
     set({ status: 'signedOut', token: null, user: null });
     queryClient.clear();
     await sessionStorage.clear();
@@ -48,47 +41,40 @@ export const useSession = create<SessionStore>()((set, get) => {
     user: null,
 
     restore: async () => {
-      // The HTTP client asks this store for the token and reports 401s back to it.
-      configureApiAuth({
-        getToken: () => get().token,
-        onUnauthorized: () => void get().expire(),
-      });
-
       const stored = await sessionStorage.load();
       if (!stored) {
         set({ status: 'signedOut' });
         return;
       }
-
-      // Sign in right away, even offline; then check the token in the background.
-      // A 401 there calls `expire` through the HTTP client.
       set({ status: 'signedIn', token: stored.accessToken, user: stored.user });
       const user = await authApi.me().catch(() => null);
       if (user && get().token === stored.accessToken) set({ user });
     },
 
-    signIn: async (auth) => {
-      await sessionStorage.save(auth);
-      set({ status: 'signedIn', token: auth.accessToken, user: auth.user });
-    },
+    logIn: async (values) => start(await authApi.login(values)),
 
-    signOut: async () => {
+    register: async (values) => start(await authApi.register(values)),
+
+    logOut: async () => {
       const { token } = get();
-      // Revoke it on the server without making the user wait. If that fails
-      // (offline), the session simply expires there.
       if (token) void authApi.logout(token).catch(() => {});
-      await clearLocally();
+      await clear();
     },
 
     expire: async () => {
       if (get().status !== 'signedIn') return;
-      await clearLocally();
+      await clear();
       Alert.alert(
         'Session ended',
         'You logged in on another device, or your session expired. Log in again to keep playing.',
       );
     },
   };
+});
+
+configureApiAuth({
+  getToken: () => useSession.getState().token,
+  onUnauthorized: () => void useSession.getState().expire(),
 });
 
 /** The signed-in user and token. Only for screens inside the `(app)` routes. */

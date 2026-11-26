@@ -1,7 +1,6 @@
 import { Link } from 'expo-router';
 import { Image, StyleSheet, View } from 'react-native';
 import { AppText, Screen, spacing } from '@/ui';
-import { authApi } from './auth.api';
 import { LoginForm } from './components/login-form';
 import { RegisterForm } from './components/register-form';
 import { useSession } from './session.store';
@@ -23,7 +22,8 @@ const COPY = {
 
 /** Login and sign-up share the header with the logo; each has its own form. */
 export function AuthScreen({ mode }: { mode: AuthMode }) {
-  const signIn = useSession((s) => s.signIn);
+  const logIn = useSession((s) => s.logIn);
+  const register = useSession((s) => s.register);
 
   return (
     <Screen scroll edges={['top', 'bottom']}>
@@ -42,13 +42,9 @@ export function AuthScreen({ mode }: { mode: AuthMode }) {
       </View>
 
       {mode === 'login' ? (
-        <LoginForm
-          onSubmit={async (values) => signIn(await authApi.login(values))}
-        />
+        <LoginForm onSubmit={logIn} />
       ) : (
-        <RegisterForm
-          onSubmit={async (values) => signIn(await authApi.register(values))}
-        />
+        <RegisterForm onSubmit={register} />
       )}
 
       <Link href={COPY[mode].switchHref} replace style={styles.link}>

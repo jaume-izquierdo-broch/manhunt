@@ -4,14 +4,14 @@ import { signInAs } from '@/test-utils/stores';
 import { SettingsScreen } from './settings-screen';
 
 const mockPush = jest.fn();
-const mockSignOut = jest.fn().mockResolvedValue(undefined);
+const mockLogOut = jest.fn().mockResolvedValue(undefined);
 
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 describe('SettingsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     signInAs('ana');
-    useSession.setState({ signOut: mockSignOut });
+    useSession.setState({ logOut: mockLogOut });
   });
 
   it('shows the profile and account details', async () => {
@@ -25,7 +25,7 @@ describe('SettingsScreen', () => {
   it('logs out', async () => {
     await render(<SettingsScreen />);
     await fireEvent.press(screen.getByRole('button', { name: 'Log out' }));
-    expect(mockSignOut).toHaveBeenCalledTimes(1);
+    expect(mockLogOut).toHaveBeenCalledTimes(1);
   });
 
   it('opens the privacy policy', async () => {

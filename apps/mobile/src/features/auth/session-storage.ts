@@ -3,10 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 
 const SESSION_KEY = 'manhunt.session';
 
-/**
- * Where the session is saved between app launches: the iOS Keychain or the
- * Android Keystore, encrypted, through expo-secure-store.
- */
+/** The session saved on the phone, encrypted (Keychain / Keystore). */
 export const sessionStorage = {
   load: async (): Promise<AuthResponse | null> =>
     parseStoredSession(await SecureStore.getItemAsync(SESSION_KEY)),

@@ -14,14 +14,12 @@ import {
 
 const APP_VERSION = Constants.expoConfig?.version ?? '—';
 
-/** "2026-11-23T…" -> "November 2026". */
 const memberSince = (iso: string) =>
   new Date(iso).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-/** The user's account: profile, legal info and signing out. */
 export function SettingsScreen() {
   const { user } = useCurrentUser();
-  const signOut = useSession((s) => s.signOut);
+  const logOut = useSession((s) => s.logOut);
   const router = useRouter();
 
   return (
@@ -31,14 +29,13 @@ export function SettingsScreen() {
         <Button
           title="Log out"
           variant="danger"
-          onPress={() => void signOut()}
+          onPress={() => void logOut()}
         />
       }
     >
       <View style={styles.profile}>
         <Avatar name={user.username} size={72} />
         <AppText variant="subtitle">{user.username}</AppText>
-        <AppText tone="muted">{user.email}</AppText>
       </View>
 
       <ListSection title="Account">
