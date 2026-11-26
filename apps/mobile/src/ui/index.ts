@@ -17,13 +17,10 @@ export { IconBadge } from './icon-badge';
 export { IconButton, type IconButtonProps } from './icon-button';
 export { ListRow, type ListRowProps, ListSection } from './list';
 export { LoadingView } from './loading-view';
-export {
-  type Option,
-  OptionSheet,
-  type OptionSheetProps,
-} from './option-sheet';
 export { Screen } from './screen';
 export { SectionTitle } from './section-title';
+export { Sheet, type SheetProps } from './sheet';
+export { StepSlider, type StepSliderProps } from './step-slider';
 export { TextField } from './text-field';
 export { colors, radius, spacing, type ThemeColors, typography } from './theme';
 export { useThemeColors } from './use-theme';

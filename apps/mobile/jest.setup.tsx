@@ -16,6 +16,7 @@ jest.mock('expo-secure-store', () => {
 jest.mock('expo-haptics', () => ({
   notificationAsync: jest.fn(async () => undefined),
   impactAsync: jest.fn(async () => undefined),
+  selectionAsync: jest.fn(async () => undefined),
   NotificationFeedbackType: {
     Success: 'success',
     Warning: 'warning',

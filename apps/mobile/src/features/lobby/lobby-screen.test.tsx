@@ -113,24 +113,28 @@ describe('LobbyScreen', () => {
   });
 
   it('the host changes the rules', async () => {
-    lobby.updateSettings.mockResolvedValue({ ...balanced, radiusMeters: 1000 });
+    lobby.updateSettings.mockResolvedValue({ ...balanced, radiusMeters: 500 });
     await renderAs('host');
 
     await fireEvent.press(
       screen.getByRole('button', { name: 'Area radius: 400 m' }),
     );
-    await fireEvent.press(screen.getByRole('radio', { name: '1 km' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'More' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'More' }));
+    expect(screen.getByText('About 13 min to walk across.')).toBeOnTheScreen();
+    expect(lobby.updateSettings).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByRole('button', { name: 'Done' }));
 
     await waitFor(() =>
       expect(lobby.updateSettings).toHaveBeenCalledWith('m1', {
-        radiusMeters: 1000,
+        radiusMeters: 500,
         hidingSeconds: 120,
         durationSeconds: 1800,
         pingIntervalSeconds: 120,
       }),
     );
     await waitFor(() =>
-      expect(useMatch.getState().match?.radiusMeters).toBe(1000),
+      expect(useMatch.getState().match?.radiusMeters).toBe(500),
     );
   });
 

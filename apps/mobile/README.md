@@ -70,6 +70,7 @@ src/
 │   │   ├── join-lobby-screen.tsx  Join with a code
 │   │   ├── lobby.api.ts       /lobbies endpoints, and their hooks in lobby.queries.ts
 │   │   ├── readiness.ts       Who can start from where they are
+│   │   ├── match-settings.ts  Rule ranges, how they fit together, what they mean
 │   │   └── components/        Invite code, teams, rules grid
 │   │
 │   ├── realtime/              The socket to the server, open for the whole session
@@ -155,6 +156,7 @@ leaving the screen →  match:unsubscribe, store emptied (the socket stays open)
 | How location access is asked or fixed    | `location/location-access.store.ts`           |
 | How often the position is sent           | `match/rules/location-reporting.ts`           |
 | The lobby                                | `lobby/lobby-screen.tsx`                      |
+| Which rule values the host can pick      | `lobby/match-settings.ts`                     |
 | The play / results screens               | `match/play-screen.tsx`, `results-screen.tsx` |
 | Login, logout, what happens on a 401     | `auth/session.store.ts`                       |
 | A REST call                              | `*/…api.ts`, and its hook in `*.queries.ts`   |

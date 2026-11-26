@@ -10,6 +10,7 @@ export interface IconButtonProps {
   onPress: () => void;
   color?: keyof ThemeColors;
   size?: number;
+  disabled?: boolean;
 }
 
 /** A round button with only an icon, for secondary actions in lists. */
@@ -19,12 +20,15 @@ export function IconButton({
   onPress,
   color = 'textMuted',
   size = 36,
+  disabled = false,
 }: IconButtonProps) {
   const c = useThemeColors();
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       hitSlop={6}
       onPress={onPress}
       style={({ pressed }) => [
@@ -33,7 +37,7 @@ export function IconButton({
           width: size,
           height: size,
           backgroundColor: c.surfaceAlt,
-          opacity: pressed ? 0.7 : 1,
+          opacity: disabled ? 0.4 : pressed ? 0.7 : 1,
         },
       ]}
     >

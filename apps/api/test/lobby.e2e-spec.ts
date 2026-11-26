@@ -181,6 +181,37 @@ describe('lobby (LOBBY)', () => {
     await updated;
   });
 
+  it('refuses a hunt too short for three pings', async () => {
+    const host = await t.register('host');
+    const match = await createMatch(host);
+
+    const res = await host.api
+      .patch(`/lobbies/${match.id}/settings`, {
+        radiusMeters: 600,
+        hidingSeconds: 180,
+        durationSeconds: 1200,
+        pingIntervalSeconds: 600,
+      })
+      .expect(400);
+    expect(res.body.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('accepts a town-sized match', async () => {
+    const host = await t.register('host');
+    const match = await createMatch(host);
+
+    const settings = {
+      radiusMeters: 10_000,
+      hidingSeconds: 3600,
+      durationSeconds: 3 * 3600,
+      pingIntervalSeconds: 900,
+    };
+    const res = await host.api
+      .patch(`/lobbies/${match.id}/settings`, settings)
+      .expect(200);
+    expect(res.body).toMatchObject(settings);
+  });
+
   describe('starting where the host is', () => {
     async function lobbyWithGuest() {
       const host = await t.register('host');

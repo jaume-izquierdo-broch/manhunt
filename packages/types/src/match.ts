@@ -12,30 +12,51 @@ export interface PlayArea {
 }
 
 /**
- * The defaults are one coherent match: what depends on crossing the area
- * (time to hide, time between pings) grows with the radius, and the hunt is
- * long enough for about 20 pings.
+ * What the server accepts. The app offers a realistic part of these ranges;
+ * the rest is for tests and the simulator, which need matches of seconds.
+ *
+ * The defaults are one coherent match on foot: a 600 m radius, 3 min to hide,
+ * and a 1 h hunt with a ping every 3 min.
  */
 export const MATCH_LIMITS = {
   maxPlayers: 30,
-  radiusMeters: { min: 50, max: 5000, default: 600 },
-  hidingSeconds: { min: 0, max: 1800, default: 180 },
+  radiusMeters: { min: 50, max: 10_000, default: 600 },
+  hidingSeconds: { min: 0, max: 3600, default: 180 },
   durationSeconds: { min: 60, max: 4 * 3600, default: 3600 },
   pingIntervalSeconds: { min: 15, max: 1800, default: 180 },
+  /** Fewer pings and the hunters have nothing to go on. */
+  minPings: 3,
 } as const;
+
+/** How many pings fire during the hunt: one every interval, none at the very end. */
+export function pingsDuringHunt(
+  durationSeconds: number,
+  pingIntervalSeconds: number,
+): number {
+  return Math.ceil(durationSeconds / pingIntervalSeconds) - 1;
+}
 
 const bounded = (limits: { min: number; max: number; default: number }) =>
   z.number().int().min(limits.min).max(limits.max).default(limits.default);
 
 /** What the host can change in the lobby. Missing fields take the defaults. */
-export const matchSettingsSchema = z.object({
-  radiusMeters: bounded(MATCH_LIMITS.radiusMeters),
-  hidingSeconds: bounded(MATCH_LIMITS.hidingSeconds),
-  durationSeconds: bounded(MATCH_LIMITS.durationSeconds),
-  pingIntervalSeconds: bounded(MATCH_LIMITS.pingIntervalSeconds),
-});
+export const matchSettingsSchema = z
+  .object({
+    radiusMeters: bounded(MATCH_LIMITS.radiusMeters),
+    hidingSeconds: bounded(MATCH_LIMITS.hidingSeconds),
+    durationSeconds: bounded(MATCH_LIMITS.durationSeconds),
+    pingIntervalSeconds: bounded(MATCH_LIMITS.pingIntervalSeconds),
+  })
+  .refine(
+    (s) =>
+      pingsDuringHunt(s.durationSeconds, s.pingIntervalSeconds) >=
+      MATCH_LIMITS.minPings,
+    {
+      path: ['pingIntervalSeconds'],
+      message: `The hunt needs at least ${MATCH_LIMITS.minPings} pings`,
+    },
+  );
 export type MatchSettings = z.output<typeof matchSettingsSchema>;
-export type MatchSettingsInput = z.input<typeof matchSettingsSchema>;
 
 /** The host's position when starting: it becomes the center of the play area. */
 export const startMatchSchema = z.object({

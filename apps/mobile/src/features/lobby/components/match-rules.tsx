@@ -1,12 +1,8 @@
 import type { MatchDto, MatchSettings } from '@manhunt/types';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import {
-  DURATION_OPTIONS,
-  HIDING_OPTIONS,
-  PING_OPTIONS,
-  RADIUS_OPTIONS,
-} from '../lobby-options';
+import type { SettingKey } from '../match-settings';
+import { RuleSheet } from './rule-sheet';
 import { formatDistance, formatDuration } from '@/lib/format';
 import {
   AppText,
@@ -14,20 +10,17 @@ import {
   Icon,
   IconBadge,
   type IconName,
-  type Option,
-  OptionSheet,
   spacing,
   type ThemeColors,
 } from '@/ui';
 
 interface Rule {
-  key: keyof MatchSettings;
+  key: SettingKey;
   icon: IconName;
   color: keyof ThemeColors;
   label: string;
   /** Title of the sheet to change it. */
   question: string;
-  options: readonly Option<number>[];
   format: (value: number) => string;
 }
 
@@ -38,7 +31,6 @@ const RULES: Rule[] = [
     color: 'primary',
     label: 'Area radius',
     question: 'Play area radius',
-    options: RADIUS_OPTIONS,
     format: formatDistance,
   },
   {
@@ -47,7 +39,6 @@ const RULES: Rule[] = [
     color: 'runner',
     label: 'To hide',
     question: 'Time to hide',
-    options: HIDING_OPTIONS,
     format: formatDuration,
   },
   {
@@ -56,7 +47,6 @@ const RULES: Rule[] = [
     color: 'hunter',
     label: 'Hunt',
     question: 'Hunt duration',
-    options: DURATION_OPTIONS,
     format: formatDuration,
   },
   {
@@ -65,14 +55,13 @@ const RULES: Rule[] = [
     color: 'warning',
     label: 'Ping every',
     question: 'Ping the hunters every',
-    options: PING_OPTIONS,
     format: formatDuration,
   },
 ];
 
 /**
  * The match settings as a 2×2 grid. With `onChange` (the host), each rule
- * opens a sheet to pick another value.
+ * opens a sheet to change it.
  */
 export function MatchRules({
   match,
@@ -133,12 +122,12 @@ export function MatchRules({
       })}
 
       {onChange && picking ? (
-        <OptionSheet
-          visible
+        <RuleSheet
           title={picking.question}
-          options={picking.options}
-          value={settings[picking.key]}
-          onSelect={(value) => onChange({ ...settings, [picking.key]: value })}
+          setting={picking.key}
+          format={picking.format}
+          settings={settings}
+          onChange={onChange}
           onClose={() => setPicking(null)}
         />
       ) : null}
