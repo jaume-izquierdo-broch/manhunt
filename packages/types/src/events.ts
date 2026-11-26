@@ -15,6 +15,10 @@ export const matchSubscribeSchema = z.object({
 });
 export type MatchSubscribePayload = z.infer<typeof matchSubscribeSchema>;
 
+/** Stop receiving a match's events (leaving its screen) without closing the socket. */
+export const matchUnsubscribeSchema = matchSubscribeSchema;
+export type MatchUnsubscribePayload = MatchSubscribePayload;
+
 export const locationUpdateSchema = z.object({
   lat: latSchema,
   lng: lngSchema,
@@ -115,6 +119,10 @@ export interface ClientToServerEvents {
   'match:subscribe': (
     payload: MatchSubscribePayload,
     ack: (res: Ack<MatchSnapshot>) => void,
+  ) => void;
+  'match:unsubscribe': (
+    payload: MatchUnsubscribePayload,
+    ack: (res: Ack<null>) => void,
   ) => void;
   'location:update': (
     payload: LocationUpdatePayload,

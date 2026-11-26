@@ -24,18 +24,22 @@ jest.mock('expo-haptics', () => ({
   ImpactFeedbackStyle: { Light: 'light', Medium: 'medium', Heavy: 'heavy' },
 }));
 
-jest.mock('expo-location', () => ({
-  Accuracy: { High: 4, Balanced: 3 },
-  requestForegroundPermissionsAsync: jest.fn(async () => ({
-    status: 'granted',
-  })),
-  getForegroundPermissionsAsync: jest.fn(async () => ({ status: 'granted' })),
-  getCurrentPositionAsync: jest.fn(async () => ({
-    coords: { latitude: 41.387, longitude: 2.17, accuracy: 5 },
-    timestamp: Date.now(),
-  })),
-  watchPositionAsync: jest.fn(async () => ({ remove: jest.fn() })),
-}));
+jest.mock('expo-location', () => {
+  const granted = { status: 'granted', canAskAgain: true };
+  return {
+    Accuracy: { High: 4, Balanced: 3 },
+    requestForegroundPermissionsAsync: jest.fn(async () => granted),
+    getForegroundPermissionsAsync: jest.fn(async () => granted),
+    hasServicesEnabledAsync: jest.fn(async () => true),
+    enableNetworkProviderAsync: jest.fn(async () => undefined),
+    getLastKnownPositionAsync: jest.fn(async () => null),
+    getCurrentPositionAsync: jest.fn(async () => ({
+      coords: { latitude: 41.387, longitude: 2.17, accuracy: 5 },
+      timestamp: Date.now(),
+    })),
+    watchPositionAsync: jest.fn(async () => ({ remove: jest.fn() })),
+  };
+});
 
 jest.mock(
   'react-native-safe-area-context',

@@ -2,6 +2,7 @@ import { type MatchDto, Team } from '@manhunt/types';
 import { useRouter } from 'expo-router';
 import { Alert, Share, StyleSheet, View } from 'react-native';
 import { useCurrentUser } from '@/features/auth/session.store';
+import { LocationAccessNotice } from '@/features/location/location-access-notice';
 import {
   useCloseMatch,
   useKickPlayer,
@@ -11,15 +12,7 @@ import {
 } from '@/features/matches/matches.queries';
 import { formatDistance, formatDuration } from '@/lib/format';
 import { errorMessage } from '@/lib/http/api-error';
-import {
-  AppText,
-  Banner,
-  Button,
-  Card,
-  Screen,
-  spacing,
-  typography,
-} from '@/ui';
+import { AppText, Button, Card, Screen, spacing, typography } from '@/ui';
 import { TeamSection } from '../components/team-section';
 import { useLiveMatch, useLoadedMatch } from '../live-match.store';
 import { hasBalancedTeams, playersOfTeam } from '../rules/players';
@@ -32,10 +25,6 @@ export function LobbyPhase() {
   const userId = useCurrentUser().user.id;
   const match = useLoadedMatch();
   const updateMatch = useLiveMatch((s) => s.updateMatch);
-  const locationPermission = useLiveMatch((s) => s.locationPermission);
-  const requestLocationPermission = useLiveMatch(
-    (s) => s.requestLocationPermission,
-  );
   const router = useRouter();
   const isHost = match.hostId === userId;
   const balanced = hasBalancedTeams(match);
@@ -168,20 +157,7 @@ export function LobbyPhase() {
         </View>
       </Card>
 
-      {locationPermission !== 'granted' ? (
-        <View style={styles.permission}>
-          <Banner
-            tone="warning"
-            message="You'll need location access to play. Grant it now so you don't lose time when the match starts."
-          />
-          <Button
-            title="Allow location"
-            variant="secondary"
-            compact
-            onPress={requestLocationPermission}
-          />
-        </View>
-      ) : null}
+      <LocationAccessNotice askMessage="You'll need location access to play. Allow it now so you don't lose time when the match starts." />
 
       {[Team.HUNTER, Team.RUNNER].map((team) => (
         <TeamSection
@@ -218,5 +194,4 @@ export function LobbyPhase() {
 const styles = StyleSheet.create({
   codeCard: { alignItems: 'center' },
   rules: { gap: spacing.xs },
-  permission: { gap: spacing.sm },
 });

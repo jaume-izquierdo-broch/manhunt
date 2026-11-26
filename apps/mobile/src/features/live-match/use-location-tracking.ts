@@ -1,16 +1,19 @@
 import { PlayerStatus } from '@manhunt/types';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import {
-  getLocationPermission,
-  watchPosition,
-} from '@/lib/location/device-location';
+  canLocate,
+  useLocationAccess,
+  useLocationAccessStore,
+} from '@/features/location/location-access.store';
+import { useRealtime } from '@/features/realtime/realtime.store';
+import { emitWithAck } from '@/features/realtime/socket';
+import { watchPosition } from '@/lib/location/device-location';
 import { useLiveMatch } from './live-match.store';
 import { isLive } from './rules/players';
 import {
   type ReportedPosition,
   shouldReport,
 } from './rules/location-reporting';
-import { emitWithAck } from './socket';
 
 const CHECK_EVERY_MS = 1_000;
 
@@ -26,26 +29,23 @@ export function useLocationTracking() {
   const tracking = useLiveMatch(
     (s) => isLive(s.match?.status) && s.me?.status === PlayerStatus.ALIVE,
   );
-  const granted = useLiveMatch((s) => s.locationPermission === 'granted');
-  const connected = useLiveMatch((s) => s.connection === 'connected');
+  const access = useLocationAccess();
+  const located = canLocate(access);
+  const connected = useRealtime((s) => s.status === 'connected');
 
-  // Know the permission from the start: the lobby offers to grant it in advance.
+  // When the match starts without permission, show the system dialog once.
+  // If it's refused, the play screen shows how to allow it.
+  const asked = useRef(false);
   useEffect(() => {
-    getLocationPermission()
-      .then(useLiveMatch.getState().setLocationPermission)
-      .catch(() => undefined);
-  }, []);
+    if (!tracking || access !== 'askable' || asked.current) return;
+    asked.current = true;
+    void useLocationAccessStore.getState().fix();
+  }, [tracking, access]);
 
-  // 1. Watch the GPS (asking for permission first if needed).
+  // 1. Watch the GPS.
   useEffect(() => {
-    if (!tracking) return;
-    const { setMyPosition, requestLocationPermission } =
-      useLiveMatch.getState();
-    if (!granted) {
-      void requestLocationPermission();
-      return;
-    }
-
+    if (!tracking || !located) return;
+    const { setMyPosition } = useLiveMatch.getState();
     let stop: (() => void) | null = null;
     let cancelled = false;
     watchPosition(setMyPosition)
@@ -54,8 +54,9 @@ export function useLocationTracking() {
     return () => {
       cancelled = true;
       stop?.();
+      setMyPosition(null); // don't keep reporting a position that's no longer watched
     };
-  }, [tracking, granted]);
+  }, [tracking, located]);
 
   // 2. Report the position to the server.
   useEffect(() => {
@@ -63,7 +64,8 @@ export function useLocationTracking() {
     let lastReported: ReportedPosition | null = null;
 
     const tick = () => {
-      const { myPosition: position, socket } = useLiveMatch.getState();
+      const position = useLiveMatch.getState().myPosition;
+      const { socket } = useRealtime.getState();
       const now = Date.now();
       if (!position || !socket || !shouldReport(now, position, lastReported)) {
         return;

@@ -12,13 +12,10 @@ import {
 } from '@manhunt/types';
 import { create } from 'zustand';
 import { haptics } from '@/lib/haptics';
-import {
-  type DevicePosition,
-  type LocationPermission,
-  requestLocationPermission,
-} from '@/lib/location/device-location';
+import type { DevicePosition } from '@/lib/location/device-location';
+import { useRealtime } from '@/features/realtime/realtime.store';
+import { emitWithAck } from '@/features/realtime/socket';
 import { clockOffsetMs } from './rules/time';
-import { emitWithAck, type GameSocket } from './socket';
 
 /**
  * Everything about the match on screen, from the lobby to the results.
@@ -29,8 +26,7 @@ import { emitWithAck, type GameSocket } from './socket';
  *     const match = useLiveMatch((s) => s.match);
  */
 export interface LiveMatchState {
-  connection: 'connecting' | 'connected' | 'reconnecting';
-  /** Latest connection or subscription error, to display. */
+  /** Latest subscription error, to display. */
   error: string | null;
   match: MatchDto | null;
   /** My team and status. */
@@ -49,19 +45,11 @@ export interface LiveMatchState {
 
   /** My position, while GPS tracking is on. */
   myPosition: DevicePosition | null;
-  locationPermission: LocationPermission;
-
-  /** The open socket, used by the actions that talk to the server. */
-  socket: GameSocket | null;
 }
 
 export interface LiveMatchActions {
-  // --- Connection (useMatchConnection) ---
+  // --- Subscription (useMatchConnection) ---
   reset: () => void;
-  setSocket: (socket: GameSocket | null) => void;
-  connecting: () => void;
-  connected: () => void;
-  disconnected: () => void;
   failed: (message: string) => void;
 
   // --- Server events ---
@@ -77,15 +65,12 @@ export interface LiveMatchActions {
 
   // --- Device (useLocationTracking) ---
   setMyPosition: (position: DevicePosition | null) => void;
-  setLocationPermission: (permission: LocationPermission) => void;
 
   // --- What the player can do ---
   catchRunner: (runnerId: string) => Promise<CatchResult>;
-  requestLocationPermission: () => Promise<void>;
 }
 
 const initialState: LiveMatchState = {
-  connection: 'connecting',
   error: null,
   match: null,
   me: null,
@@ -96,20 +81,14 @@ const initialState: LiveMatchState = {
   closed: false,
   clockOffsetMs: 0,
   myPosition: null,
-  locationPermission: 'unknown',
-  socket: null,
 };
 
 export const useLiveMatch = create<LiveMatchState & LiveMatchActions>()(
   (set, get) => ({
     ...initialState,
 
-    // --- Connection ---------------------------------------------------------
+    // --- Subscription -------------------------------------------------------
     reset: () => set(initialState),
-    setSocket: (socket) => set({ socket }),
-    connecting: () => set({ connection: 'connecting' }),
-    connected: () => set({ connection: 'connected', error: null }),
-    disconnected: () => set({ connection: 'reconnecting' }),
     failed: (message) => set({ error: message }),
 
     // --- Server events ------------------------------------------------------
@@ -188,20 +167,15 @@ export const useLiveMatch = create<LiveMatchState & LiveMatchActions>()(
 
     // --- Device -------------------------------------------------------------
     setMyPosition: (position) => set({ myPosition: position }),
-    setLocationPermission: (permission) =>
-      set({ locationPermission: permission }),
 
     // --- What the player can do ---------------------------------------------
     catchRunner: async (runnerId) => {
-      const { socket } = get();
+      const { socket } = useRealtime.getState();
       if (!socket?.connected) throw new Error('Not connected to the server');
       const result = await emitWithAck(socket, 'catch:attempt', { runnerId });
       haptics.success();
       return result;
     },
-
-    requestLocationPermission: async () =>
-      set({ locationPermission: await requestLocationPermission() }),
   }),
 );
 

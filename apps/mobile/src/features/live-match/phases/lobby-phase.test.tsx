@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import * as Location from 'expo-location';
 import { matchesApi } from '@/features/matches/matches.api';
 import { makeMatch, player } from '@/test-utils/fixtures';
 import { renderWithQueryClient, showLiveMatch } from '@/test-utils/stores';
@@ -83,15 +84,15 @@ describe('LobbyPhase', () => {
   });
 
   it('asks for location permission when missing', async () => {
-    const requestLocationPermission = jest.fn();
-    await renderAs('ana', balanced, {
-      locationPermission: 'unknown',
-      requestLocationPermission,
-    });
+    const notAsked = { status: 'undetermined', canAskAgain: true };
+    jest
+      .mocked(Location.getForegroundPermissionsAsync)
+      .mockResolvedValue(notAsked as never);
+    await renderAs('ana');
 
     await fireEvent.press(
-      screen.getByRole('button', { name: 'Allow location' }),
+      await screen.findByRole('button', { name: 'Allow location' }),
     );
-    expect(requestLocationPermission).toHaveBeenCalled();
+    expect(Location.requestForegroundPermissionsAsync).toHaveBeenCalled();
   });
 });

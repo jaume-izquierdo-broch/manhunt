@@ -3,6 +3,7 @@ import { Stack, useRouter } from 'expo-router';
 import { useEffect, useEffectEvent } from 'react';
 import { Alert } from 'react-native';
 import { useInvalidateCurrentMatch } from '@/features/matches/matches.queries';
+import { useRealtime } from '@/features/realtime/realtime.store';
 import { Banner, Button, LoadingView, Screen } from '@/ui';
 import { useLiveMatch } from './live-match.store';
 import { LobbyPhase } from './phases/lobby-phase';
@@ -29,6 +30,7 @@ export function MatchScreen({ matchId }: { matchId: string }) {
   const status = useLiveMatch((s) => s.match?.status);
   const error = useLiveMatch((s) => s.error);
   const closed = useLiveMatch((s) => s.closed);
+  const connected = useRealtime((s) => s.status === 'connected');
   const router = useRouter();
   const invalidateCurrentMatch = useInvalidateCurrentMatch();
 
@@ -54,7 +56,9 @@ export function MatchScreen({ matchId }: { matchId: string }) {
         <Banner tone="danger" message={error} />
       </Screen>
     ) : (
-      <LoadingView message="Connecting to the match…" />
+      <LoadingView
+        message={connected ? 'Loading the match…' : 'Connecting to the server…'}
+      />
     );
   }
 

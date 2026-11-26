@@ -4,6 +4,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react-native';
+import { useRealtime } from '@/features/realtime/realtime.store';
 import { makeMatch, player } from '@/test-utils/fixtures';
 import { showLiveMatch } from '@/test-utils/stores';
 import { PlayPhase } from './play-phase';
@@ -78,7 +79,9 @@ describe('PlayPhase', () => {
   });
 
   it('warns when the connection drops', async () => {
-    await renderAs('ana', liveMatch('ACTIVE'), { connection: 'reconnecting' });
+    showLiveMatch(liveMatch('ACTIVE'), 'ana');
+    useRealtime.setState({ status: 'reconnecting' });
+    await render(<PlayPhase />);
 
     expect(
       screen.getByText('Connection lost. Reconnecting…'),

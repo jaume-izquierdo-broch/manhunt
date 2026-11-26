@@ -77,13 +77,12 @@ describe('live match store', () => {
     expect(state().clockOffsetMs).toBe(2000);
   });
 
-  it('connection: reconnecting, then connected again, clears the error', () => {
+  it('a new snapshot clears the previous error', () => {
     const store = loaded();
-    store.disconnected();
-    expect(state().connection).toBe('reconnecting');
-    store.failed('offline');
-    store.connected();
-    expect(state()).toMatchObject({ connection: 'connected', error: null });
+    store.failed('Match not found');
+    expect(state().error).toBe('Match not found');
+    loaded();
+    expect(state().error).toBeNull();
   });
 
   it('teammateMoved: stores teammates but ignores my own position', () => {

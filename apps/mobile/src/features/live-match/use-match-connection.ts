@@ -1,29 +1,20 @@
 import { useEffect } from 'react';
-import { authApi } from '@/features/auth/auth.api';
-import { useCurrentUser, useSession } from '@/features/auth/session.store';
+import { useRealtime } from '@/features/realtime/realtime.store';
+import { emitWithAck } from '@/features/realtime/socket';
 import { useLiveMatch } from './live-match.store';
-import {
-  createGameSocket,
-  emitWithAck,
-  isUnauthorizedConnectError,
-} from './socket';
 
 /**
- * The live connection to one match, for as long as the match screen is open:
- *
- * - Opens the socket and subscribes to the match (again after every reconnection,
- *   which brings a full snapshot).
- * - Sends every server event to the matching action of the live-match store.
- * - On leaving the screen, closes the socket and empties the store.
+ * Follows one match over the app's socket while its screen is open: subscribes
+ * (again after every reconnection, which brings a full snapshot), sends each
+ * match event to the store, and unsubscribes when leaving.
  */
 export function useMatchConnection(matchId: string) {
-  const { token } = useCurrentUser();
+  const socket = useRealtime((s) => s.socket);
 
   useEffect(() => {
+    if (!socket) return;
     const store = useLiveMatch.getState();
-    const socket = createGameSocket(token);
     store.reset();
-    store.setSocket(socket);
 
     const subscribe = async () => {
       try {
@@ -36,33 +27,7 @@ export function useMatchConnection(matchId: string) {
       }
     };
 
-    // Connection
-    socket.on('connect', () => {
-      store.connected();
-      void subscribe();
-    });
-    socket.on('disconnect', (reason) => {
-      store.disconnected();
-      // The server closed the socket on purpose: usually because this session
-      // ended (logged in on another device). Socket.IO won't reconnect by
-      // itself in that case. Check the session: a 401 signs out through the
-      // HTTP client; if it's still valid, reconnect.
-      if (reason === 'io server disconnect') {
-        authApi
-          .me()
-          .then(() => socket.connect())
-          .catch(() => undefined);
-      }
-    });
-    socket.on('connect_error', (error) => {
-      if (isUnauthorizedConnectError(error)) {
-        void useSession.getState().expire();
-        return;
-      }
-      store.failed("Can't reach the server. Retrying…");
-    });
-
-    // Match events
+    socket.on('connect', subscribe);
     socket.on('match:updated', store.updateMatch);
     socket.on('match:closed', store.matchClosed);
     socket.on('player:position', store.teammateMoved);
@@ -70,14 +35,23 @@ export function useMatchConnection(matchId: string) {
     socket.on('ping:notice', store.spottedByHunters);
     socket.on('player:caught', store.playerCaught);
     socket.on('match:finished', store.matchFinished);
-
-    store.connecting();
-    socket.connect();
+    if (socket.connected) void subscribe();
 
     return () => {
-      socket.removeAllListeners();
-      socket.disconnect();
+      socket.off('connect', subscribe);
+      socket.off('match:updated', store.updateMatch);
+      socket.off('match:closed', store.matchClosed);
+      socket.off('player:position', store.teammateMoved);
+      socket.off('ping:reveal', store.pingRevealed);
+      socket.off('ping:notice', store.spottedByHunters);
+      socket.off('player:caught', store.playerCaught);
+      socket.off('match:finished', store.matchFinished);
+      if (socket.connected) {
+        emitWithAck(socket, 'match:unsubscribe', { matchId }).catch(
+          () => undefined,
+        );
+      }
       useLiveMatch.getState().reset();
     };
-  }, [matchId, token]);
+  }, [socket, matchId]);
 }

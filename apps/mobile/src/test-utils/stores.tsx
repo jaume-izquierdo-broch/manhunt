@@ -9,6 +9,8 @@ import {
   type LiveMatchState,
   useLiveMatch,
 } from '@/features/live-match/live-match.store';
+import { useLocationAccessStore } from '@/features/location/location-access.store';
+import { useRealtime } from '@/features/realtime/realtime.store';
 
 /** Signs in a fake user whose id and username are `userId`. */
 export function signInAs(userId: string) {
@@ -35,12 +37,12 @@ export function showLiveMatch(
 ) {
   signInAs(userId);
   const mine = match.players.find((p) => p.userId === userId)!;
+  useRealtime.setState({ status: 'connected' });
+  useLocationAccessStore.setState({ access: 'granted' });
   useLiveMatch.getState().reset();
   useLiveMatch.setState({
-    connection: 'connected',
     match,
     me: { userId, team: mine.team, status: mine.status },
-    locationPermission: 'granted',
     ...extra,
   });
 }

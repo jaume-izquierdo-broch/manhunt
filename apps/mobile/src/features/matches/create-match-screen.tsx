@@ -1,5 +1,11 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { LocationAccessNotice } from '@/features/location/location-access-notice';
+import {
+  canLocate,
+  useLocationAccess,
+  useLocationAccessStore,
+} from '@/features/location/location-access.store';
 import { formatDistance } from '@/lib/format';
 import {
   type DevicePosition,
@@ -29,10 +35,21 @@ export function CreateMatchScreen() {
   const [settings, setSettings] = useState(DEFAULT_MATCH_SETTINGS);
   const [center, setCenter] = useState<AreaCenter>({ status: 'locating' });
   const [error, setError] = useState<string | null>(null);
+  const access = useLocationAccess();
+  const located = canLocate(access);
 
-  // Locate once on mount; "Try again" bumps `attempt` to locate again.
+  // Creating a match is the moment to ask: show the system dialog once, if possible.
+  const asked = useRef(false);
+  useEffect(() => {
+    if (access !== 'askable' || asked.current) return;
+    asked.current = true;
+    void useLocationAccessStore.getState().fix();
+  }, [access]);
+
+  // Locate as soon as it's allowed; "Try again" bumps `attempt` to locate again.
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
+    if (!located) return;
     let cancelled = false;
     getCurrentPosition()
       .then(
@@ -45,12 +62,13 @@ export function CreateMatchScreen() {
     return () => {
       cancelled = true;
     };
-  }, [attempt]);
+  }, [located, attempt]);
 
   const retryLocation = () => {
     setCenter({ status: 'locating' });
     setAttempt((n) => n + 1);
   };
+  const ready = located && center.status === 'ready';
 
   const setSetting =
     <K extends keyof MatchSettings>(key: K) =>
@@ -58,7 +76,7 @@ export function CreateMatchScreen() {
       setSettings((s) => ({ ...s, [key]: value }));
 
   const submit = async () => {
-    if (center.status !== 'ready') return;
+    if (!ready || center.status !== 'ready') return;
     setError(null);
     try {
       const match = await create.mutateAsync({
@@ -85,16 +103,17 @@ export function CreateMatchScreen() {
           title="Create lobby"
           onPress={submit}
           loading={create.isPending}
-          disabled={center.status !== 'ready'}
+          disabled={!ready}
         />
       }
     >
       <Card>
         <AppText variant="label">Center of the play area</AppText>
-        {center.status === 'locating' ? (
+        <LocationAccessNotice askMessage="Your location is needed to place the play area around you." />
+        {(access === null || located) && center.status === 'locating' ? (
           <AppText tone="muted">Finding your location…</AppText>
         ) : null}
-        {center.status === 'ready' ? (
+        {located && center.status === 'ready' ? (
           <AppText tone="muted">
             Your current location
             {center.position.accuracy !== null
@@ -102,7 +121,7 @@ export function CreateMatchScreen() {
               : ''}
           </AppText>
         ) : null}
-        {center.status === 'error' ? (
+        {located && center.status === 'error' ? (
           <>
             <Banner tone="danger" message={center.message} />
             <Button

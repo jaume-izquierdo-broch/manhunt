@@ -1,6 +1,9 @@
 import { Stack } from 'expo-router';
+import { useRealtimeConnection } from '@/features/realtime/use-realtime-connection';
 
 export default function AppLayout() {
+  useRealtimeConnection();
+
   return (
     <Stack screenOptions={{ headerBackButtonDisplayMode: 'minimal' }}>
       <Stack.Screen name="index" options={{ title: 'Manhunt' }} />

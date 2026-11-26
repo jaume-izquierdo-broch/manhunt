@@ -44,11 +44,11 @@ src/
 │
 ├── features/
 │   ├── auth/                  Who is signed in
-│   │   ├── session.store.ts   ★ The session: user, token, signIn / signOut
+│   │   ├── session.store.ts   ★ The session in memory: logIn, register, logOut, expire
+│   │   ├── session-storage.ts The session saved on the phone (SecureStore, encrypted)
 │   │   ├── auth.api.ts        register, login, me, logout
 │   │   ├── auth-screen.tsx    Login and sign-up screen
-│   │   ├── components/        The two forms
-│   │   └── session-storage.ts Where the token is saved (SecureStore, encrypted)
+│   │   └── components/        The two forms
 │   │
 │   ├── home/                  Home: your match, create / join, how to play
 │   ├── matches/               Create and join a match (REST)
@@ -56,15 +56,23 @@ src/
 │   │   ├── matches.queries.ts React Query hooks (useCurrentMatch, useCreateMatch…)
 │   │   └── *-screen.tsx       Create match, join with a code
 │   │
-│   ├── live-match/            The match being played (WebSocket)
-│   │   ├── match-screen.tsx   ★ Entry point: connects and picks the phase
+│   ├── realtime/              The socket to the server, open for the whole session
+│   │   ├── use-realtime-connection.ts ★ Opens/closes it, background, session ended
+│   │   ├── realtime.store.ts  The socket and its status (connected, reconnecting…)
+│   │   └── socket.ts          Typed Socket.IO client
+│   │
+│   ├── live-match/            The match being played (over the realtime socket)
+│   │   ├── match-screen.tsx   ★ Entry point: follows the match and picks the phase
 │   │   ├── live-match.store.ts★ Everything about the match on screen + its actions
-│   │   ├── use-match-connection.ts  Socket → store (one action per server event)
+│   │   ├── use-match-connection.ts  Subscribes; server event → store action
 │   │   ├── use-location-tracking.ts GPS → store, and position → server
-│   │   ├── socket.ts          Typed Socket.IO client
 │   │   ├── phases/            Lobby, play (hiding + hunt), results
 │   │   ├── components/        Map, HUD, catch panel, team list…
 │   │   └── rules/             Pure game logic: distances, timers, players
+│   │
+│   ├── location/              Location access: allowed, blocked, GPS off, approximate…
+│   │   ├── location-access.store.ts  Read on use and on returning to the app; `fix()`
+│   │   └── location-access-notice.tsx The message + the one button that fixes it
 │   │
 │   ├── settings/              Profile, privacy, log out
 │   └── legal/                 Privacy policy text and screen
@@ -89,27 +97,40 @@ There are three kinds of state, each in one place:
 | **Server data** (REST) | Your current match          | React Query (`*.queries.ts`)  | `const { data } = useCurrentMatch()`     |
 | **Shared app state**   | The session, the live match | Zustand stores (`*.store.ts`) | `const user = useSession((s) => s.user)` |
 | **One screen's state** | Form fields, a loading flag | `useState` in that component  | —                                        |
+| **Saved on the phone** | The session                 | `auth/session-storage.ts`     | Only through the session store           |
 
 A store is a plain object with data and functions. Components read only the part they need (so they redraw only when that part changes), and any code can call its actions, even outside React:
 
 ```ts
-useSession.getState().signOut(); // e.g. from the HTTP client on a 401
+useSession.getState().expire(); // e.g. from the HTTP client on a 401
 useLiveMatch.getState().updateMatch(m); // e.g. from a socket event
 ```
+
+### The socket
+
+One Socket.IO connection per session, opened by `useRealtimeConnection` in the `(app)` layout:
+
+- **Signed in, app in the foreground** → connected. The server can reach the phone at any time.
+- **App in the background** → disconnected (saves battery); it reconnects on return.
+- **Session ended elsewhere** (logout, or a login on another device) → the server closes the
+  socket, the app checks `/auth/me`, gets a 401 and shows the login with "Session ended".
+- **Logged out** → the `(app)` layout unmounts and the socket closes.
+
+Coming back to the app also refetches stale REST data (`focusManager` in `lib/query-client.ts`).
 
 ### The life of a match on the phone
 
 ```
 match/[id] opens  →  MatchScreen
-                       ├─ useMatchConnection   opens the socket, subscribes, and turns every
-                       │                       server event into a store action:
+                       ├─ useMatchConnection   subscribes over the app's socket (match:subscribe),
+                       │                       and turns every server event into a store action:
                        │                         'player:caught' → playerCaught()
                        │                         'ping:reveal'   → pingRevealed()  …
                        ├─ useLocationTracking  while live and free: GPS → myPosition,
                        │                       and sends it to the server every few seconds
                        └─ picks a phase from match.status:
                             WAITING → LobbyPhase · HIDING/ACTIVE → PlayPhase · FINISHED → ResultsPhase
-leaving the screen →  socket closed, store emptied
+leaving the screen →  match:unsubscribe, store emptied (the socket stays open)
 ```
 
 - After every (re)connection the app subscribes again and gets a full snapshot, so a dropped connection never leaves stale state.
@@ -123,6 +144,8 @@ leaving the screen →  socket closed, store emptied
 | ---------------------------------------- | --------------------------------------------- |
 | What happens when a server event arrives | `live-match/live-match.store.ts` (the action) |
 | Which events the app listens to          | `live-match/use-match-connection.ts`          |
+| When the socket connects or disconnects  | `realtime/use-realtime-connection.ts`         |
+| How location access is asked or fixed    | `location/location-access.store.ts`           |
 | How often the position is sent           | `live-match/rules/location-reporting.ts`      |
 | The lobby / game / results screens       | `live-match/phases/`                          |
 | Login, logout, what happens on a 401     | `auth/session.store.ts`                       |

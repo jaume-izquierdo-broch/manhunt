@@ -16,6 +16,7 @@ import {
   type MatchSnapshot,
   matchSubscribeSchema,
   MatchStatus,
+  matchUnsubscribeSchema,
 } from '@manhunt/types';
 import { parseOrThrow } from '../../common/validation/zod-validation.pipe.js';
 import { withAck } from '../../common/websocket/with-ack.js';
@@ -80,6 +81,22 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection {
         await socket.join(Rooms.team(matchId, snapshot.me.team));
       }
       return snapshot;
+    });
+  }
+
+  /** The socket stays open for the whole session: leaving a match screen only leaves its rooms. */
+  @SubscribeMessage('match:unsubscribe')
+  onUnsubscribe(
+    @ConnectedSocket() socket: GameSocket,
+    @MessageBody() body: unknown,
+  ): Promise<Ack<null>> {
+    return withAck(this.logger, async () => {
+      const { matchId } = parseOrThrow(matchUnsubscribeSchema, body);
+      if (socket.data.matchId === matchId) {
+        await this.leaveCurrentMatch(socket);
+        socket.data.matchId = undefined;
+      }
+      return null;
     });
   }
 

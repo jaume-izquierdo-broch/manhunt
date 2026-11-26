@@ -1,7 +1,9 @@
 import { type MatchDto, MatchStatus, PlayerStatus, Team } from '@manhunt/types';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Banner, type BannerTone, Button, spacing, useThemeColors } from '@/ui';
+import { LocationAccessNotice } from '@/features/location/location-access-notice';
+import { useRealtime } from '@/features/realtime/realtime.store';
+import { Banner, type BannerTone, spacing, useThemeColors } from '@/ui';
 import { CatchPanel } from '../components/catch-panel';
 import { GameHud } from '../components/game-hud';
 import { GameMap, type MapMarkerData } from '../components/game-map';
@@ -30,6 +32,7 @@ export function PlayPhase() {
   // The whole state: this screen shows most of it, and redraws every second anyway.
   const state = useLiveMatch();
   const match = useLoadedMatch();
+  const connected = useRealtime((s) => s.status === 'connected');
   const now = useServerNow(state.clockOffsetMs);
   const c = useThemeColors();
 
@@ -55,26 +58,18 @@ export function PlayPhase() {
       >
         <View style={styles.top} pointerEvents="box-none">
           <GameHud match={match} myTeam={me.team} now={now} />
-          {buildNotices(state, match, now).map((notice) => (
+          {buildNotices(state, match, now, connected).map((notice) => (
             <Banner
               key={notice.key}
               tone={notice.tone}
               message={notice.message}
             />
           ))}
-          {state.locationPermission === 'denied' ? (
-            <>
-              <Banner
-                tone="danger"
-                message="You can't play without location access."
-              />
-              <Button
-                title="Allow location"
-                variant="secondary"
-                compact
-                onPress={state.requestLocationPermission}
-              />
-            </>
+          {isHunter || !caught ? (
+            <LocationAccessNotice
+              tone="danger"
+              askMessage="You can't play without location access."
+            />
           ) : null}
         </View>
 
@@ -133,6 +128,7 @@ function buildNotices(
   state: LiveMatchState,
   match: MatchDto,
   now: number,
+  connected: boolean,
 ): Notice[] {
   const { me, myPosition: position } = state;
   if (!me) return [];
@@ -141,7 +137,7 @@ function buildNotices(
     !!iso && now - Date.parse(iso) < NOTICE_DURATION_MS;
 
   const notices: Notice[] = [];
-  if (state.connection !== 'connected') {
+  if (!connected) {
     notices.push({
       key: 'connection',
       tone: 'warning',

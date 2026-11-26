@@ -59,6 +59,53 @@ describe('live match', () => {
     return { match, hunter, runner, hunterSocket, runnerSocket };
   }
 
+  it('unsubscribing stops the match events but keeps the socket open', async () => {
+    const host = await t.register('host');
+    const ana = await t.register('ana');
+    const bob = await t.register('bob');
+    const match = (
+      await host.api
+        .post('/matches', {
+          playArea: { ...ORIGIN, radiusMeters: 500 },
+          hidingSeconds: 0,
+          durationSeconds: 600,
+          pingIntervalSeconds: 60,
+        })
+        .expect(201)
+    ).body as MatchDto;
+    await ana.api
+      .post('/matches/join', { joinCode: match.joinCode })
+      .expect(200);
+    const [hostSocket, anaSocket] = await Promise.all([
+      host.connect(),
+      ana.connect(),
+    ]);
+    for (const socket of [hostSocket, anaSocket]) {
+      await emit(socket, 'match:subscribe', { matchId: match.id });
+    }
+
+    const left = await emit(anaSocket, 'match:unsubscribe', {
+      matchId: match.id,
+    });
+    expect(left).toEqual({ ok: true, data: null });
+
+    let anaGotUpdate = false;
+    anaSocket.on('match:updated', () => (anaGotUpdate = true));
+    const hostGotUpdate = waitFor(
+      hostSocket,
+      'match:updated',
+      (m) => m.players.length === 3,
+    );
+    await bob.api
+      .post('/matches/join', { joinCode: match.joinCode })
+      .expect(200);
+    await hostGotUpdate;
+    await new Promise((r) => setTimeout(r, 300));
+
+    expect(anaGotUpdate).toBe(false);
+    expect(anaSocket.connected).toBe(true);
+  });
+
   it('only the host can start the match, and only once', async () => {
     const { match, hunter, runner } = await startedMatch();
     await runner.api.post(`/matches/${match.id}/start`).expect(403);
