@@ -1,7 +1,7 @@
 # @manhunt/api
 
 The Manhunt API, built with NestJS: REST for accounts and lobbies, WebSocket (Socket.IO) for live matches.
-Endpoints, events and game rules are documented in the [main README](../../README.md).
+Endpoints, events and the rules of a match are documented in the [main README](../../README.md).
 
 ## Structure
 
@@ -13,7 +13,7 @@ src/
 │
 ├── config/                    Environment variables validated with zod  →  @InjectEnv()
 │
-├── infrastructure/            Technical building blocks, no game logic
+├── infrastructure/            Technical building blocks, no match logic
 │   ├── database/              Postgres + Drizzle: schema, migrations, pool  →  @InjectDb()
 │   ├── redis/                 Shared ioredis client  →  @InjectRedis()
 │   └── websocket/             Socket.IO adapter over Redis (multiple replicas)
@@ -28,8 +28,9 @@ src/
     ├── users/                 Users repository
     ├── auth/                  Sign-up, login, sessions in Redis, global guard
     ├── realtime/              Socket.IO rooms and RealtimePublisher (sending events)
-    ├── matches/               Matches: repository, queries and the LOBBY (WAITING)
-    └── game/                  LIVE matches: phases, timers, positions, catches, gateway
+    ├── matches/               The match itself: repository, queries, positions (shared)
+    ├── lobby/                 Before the match: create, join, rules, teams, who is ready
+    └── live-match/            The match being played: start, timers, catches, gateway
 ```
 
 ### Inside a module
@@ -43,7 +44,7 @@ Every module uses the same kinds of files, each with one job:
 | `*.repository.ts` | **All** SQL for its tables. Nothing else touches Drizzle | `infrastructure/database` |
 | `*.store.ts` / `*.queue.ts` | State in Redis / BullMQ timers | `infrastructure/redis` |
 | `*.mapper.ts` | Database row → public DTO (`@manhunt/types`) | — |
-| `*.errors.ts` | The module's errors and their `ErrorCode` (`MatchErrors.notHost()`) | `common/errors` |
+| `*.errors.ts` | The module's errors and their `ErrorCode` (`LobbyErrors.notHost()`) | `common/errors` |
 | `domain/*.ts` | Pure rules, no I/O, with a `*.spec.ts` next to them | no Nest, no database |
 
 DTOs, validation schemas and WebSocket events are **not** defined here: they live in
@@ -54,10 +55,12 @@ DTOs, validation schemas and WebSocket events are **not** defined here: they liv
 ```
 auth ──▶ users, realtime (closes sockets on logout)
 matches ──▶ realtime
-game ──▶ matches, realtime, auth (SessionStore)
+lobby ──▶ matches, realtime
+live-match ──▶ lobby, matches, realtime, auth (SessionStore)
 ```
 
-`game` depends on `matches`, never the other way around: the lobby knows nothing about timers.
+Each one only depends on the ones before it: the lobby knows nothing about timers, and
+`matches` knows nothing about either.
 
 ## Sessions
 
@@ -79,14 +82,15 @@ To look at them: `SCAN 0 MATCH mh:session:*` in `redis-cli`, or Redis Insight (t
 ## The life of a match
 
 ```
-REST   POST /matches            LobbyService.create          WAITING
-REST   POST /matches/join       LobbyService.join            (match:updated to the lobby)
-REST   POST /matches/:id/start  MatchLifecycleService.start  WAITING → HIDING
+REST   POST /lobbies            LobbyService.create          LOBBY
+REST   POST /lobbies/join       LobbyService.join            (match:updated to the lobby)
+WS     location:update          LobbyService.reportLocation  who is ready, in match:updated
+REST   POST /matches/:id/start  MatchLifecycleService.start  LOBBY → HIDING
                                  └─ schedules in BullMQ: hiding-end, match-end, ping #1
 BullMQ hiding-end               MatchLifecycleService        HIDING → ACTIVE
 BullMQ ping #n                  MatchLifecycleService        ping:reveal / ping:notice, schedules #n+1
-WS     location:update          GameplayService              Redis + player:position to the team
-WS     catch:attempt            GameplayService              CAUGHT; if none left → finish(HUNTER)
+WS     location:update          PlayService                  Redis + player:position to the team
+WS     catch:attempt            PlayService                  CAUGHT; if none left → finish(HUNTER)
 BullMQ match-end                MatchLifecycleService        ACTIVE → FINISHED (runners win)
 ```
 

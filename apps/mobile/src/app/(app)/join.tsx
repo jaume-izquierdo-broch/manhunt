@@ -1,5 +1,5 @@
-import { JoinMatchScreen } from '@/features/matches/join-match-screen';
+import { JoinLobbyScreen } from '@/features/lobby/join-lobby-screen';
 
 export default function JoinMatchRoute() {
-  return <JoinMatchScreen />;
+  return <JoinLobbyScreen />;
 }

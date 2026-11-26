@@ -28,10 +28,8 @@ import {
   goToMatch,
   handleMatchEntryError,
 } from '@/features/matches/match-navigation';
-import {
-  useCreateMatch,
-  useCurrentMatch,
-} from '@/features/matches/matches.queries';
+import { useCreateLobby } from '@/features/lobby/lobby.queries';
+import { useCurrentMatch } from '@/features/matches/matches.queries';
 
 const HOW_TO_PLAY: {
   icon: IconName;
@@ -71,9 +69,9 @@ export function HomeScreen() {
   const c = useThemeColors();
   const current = useCurrentMatch();
   const openMatch = current.data;
-  const create = useCreateMatch();
+  const create = useCreateLobby();
 
-  const createMatch = async () => {
+  const createLobby = async () => {
     try {
       const match = await create.mutateAsync();
       goToMatch(router, match.id);
@@ -139,7 +137,7 @@ export function HomeScreen() {
                 title="Create a match"
                 description="Invite your friends and set the rules"
                 busy={create.isPending}
-                onPress={() => void createMatch()}
+                onPress={() => void createLobby()}
               />
               <ActionCard
                 icon="keypad-outline"

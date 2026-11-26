@@ -14,7 +14,7 @@ export interface MapMarkerData {
   kind: 'teammate' | 'ping';
 }
 
-export interface GameMapProps {
+export interface MatchMapProps {
   area: PlayArea;
   markers: MapMarkerData[];
   /** Color of the play area's border (my team's). */
@@ -22,7 +22,7 @@ export interface GameMapProps {
 }
 
 /** The match map: play area, teammates and, for hunters, the latest ping. */
-export function GameMap({ area, markers, accentColor }: GameMapProps) {
+export function MatchMap({ area, markers, accentColor }: MatchMapProps) {
   const c = useThemeColors();
   return (
     <MapView

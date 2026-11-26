@@ -16,7 +16,7 @@ export interface Membership {
 }
 
 /**
- * Reads shared by the lobby and the `game` module: load with access checks,
+ * Reads shared by the lobby and the `live-match` module: load with access checks,
  * build the DTO, and broadcast the latest state.
  */
 @Injectable()
@@ -47,7 +47,7 @@ export class MatchReader {
   async toDto(match: MatchRow): Promise<MatchDto> {
     const players = await this.repo.listPlayerViews(match.id);
     const lobbyPositions =
-      match.status === MatchStatus.WAITING
+      match.status === MatchStatus.LOBBY
         ? await this.positions.getMany(
             match.id,
             players.map((p) => p.userId),

@@ -5,8 +5,8 @@ import { LocationAccessNotice } from '@/features/location/location-access-notice
 import { useRealtime } from '@/features/realtime/realtime.store';
 import { Banner, type BannerTone, spacing, useThemeColors } from '@/ui';
 import { CatchPanel } from '../components/catch-panel';
-import { GameHud } from '../components/game-hud';
-import { GameMap, type MapMarkerData } from '../components/game-map';
+import { MatchHud } from '../components/match-hud';
+import { MatchMap, type MapMarkerData } from '../components/match-map';
 import { HidingOverlay } from '../components/hiding-overlay';
 import {
   type LiveMatchState,
@@ -46,7 +46,7 @@ export function PlayPhase() {
 
   return (
     <View style={[styles.fill, { backgroundColor: c.background }]}>
-      <GameMap
+      <MatchMap
         area={area}
         markers={buildMarkers(state, match, isHunter)}
         accentColor={isHunter ? c.hunter : c.runner}
@@ -58,7 +58,7 @@ export function PlayPhase() {
         pointerEvents="box-none"
       >
         <View style={styles.top} pointerEvents="box-none">
-          <GameHud match={match} myTeam={me.team} now={now} />
+          <MatchHud match={match} myTeam={me.team} now={now} />
           {buildNotices(state, match, now, connected).map((notice) => (
             <Banner
               key={notice.key}

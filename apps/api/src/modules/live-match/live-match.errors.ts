@@ -6,7 +6,7 @@ import {
   type PlayerNotReady,
 } from './domain/start-rules.js';
 
-export const GameErrors = {
+export const LiveMatchErrors = {
   notSubscribed: () =>
     new AppError(
       ErrorCode.NOT_IN_MATCH,

@@ -36,7 +36,7 @@ describe('hasBalancedTeams', () => {
 });
 
 describe('assertHostInLobby', () => {
-  const match = { hostId: 'host', status: 'WAITING' } as MatchRow;
+  const match = { hostId: 'host', status: 'LOBBY' } as MatchRow;
 
   it('lets the host through while in the lobby', () => {
     expect(() => assertHostInLobby(match, 'host')).not.toThrow();

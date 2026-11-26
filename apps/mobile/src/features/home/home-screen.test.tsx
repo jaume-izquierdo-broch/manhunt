@@ -1,10 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 import { makeMatch } from '@/test-utils/fixtures';
-import {
-  useCreateMatch,
-  useCurrentMatch,
-} from '@/features/matches/matches.queries';
+import { useCreateLobby } from '@/features/lobby/lobby.queries';
+import { useCurrentMatch } from '@/features/matches/matches.queries';
 import { HomeScreen } from './home-screen';
 
 const mockPush = jest.fn();
@@ -22,12 +20,13 @@ jest.mock('expo-router', () => ({
   },
 }));
 jest.mock('@/features/matches/matches.queries');
+jest.mock('@/features/lobby/lobby.queries');
 const currentMatch = jest.mocked(useCurrentMatch);
-const createMatch = jest.fn();
-jest.mocked(useCreateMatch).mockReturnValue({
-  mutateAsync: createMatch,
+const createLobby = jest.fn();
+jest.mocked(useCreateLobby).mockReturnValue({
+  mutateAsync: createLobby,
   isPending: false,
-} as unknown as ReturnType<typeof useCreateMatch>);
+} as unknown as ReturnType<typeof useCreateLobby>);
 
 function withCurrentMatch(data: ReturnType<typeof makeMatch> | null) {
   currentMatch.mockReturnValue({
@@ -46,11 +45,11 @@ describe('HomeScreen', () => {
     withCurrentMatch(null);
     await render(<HomeScreen />);
 
-    createMatch.mockResolvedValue(makeMatch());
+    createLobby.mockResolvedValue(makeMatch());
     await fireEvent.press(
       screen.getByRole('button', { name: 'Create a match' }),
     );
-    expect(createMatch).toHaveBeenCalled();
+    expect(createLobby).toHaveBeenCalled();
     expect(mockPush).toHaveBeenCalledWith({
       pathname: '/match/[id]',
       params: { id: 'm1' },

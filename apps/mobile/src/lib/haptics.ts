@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
 
-/** Game vibrations. Silently skipped when the device can't vibrate. */
+/** Vibrations during a match. Silently skipped when the device can't vibrate. */
 const vibrate = (type: Haptics.NotificationFeedbackType) => {
   Haptics.notificationAsync(type).catch(() => undefined);
 };

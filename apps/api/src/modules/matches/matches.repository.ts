@@ -61,7 +61,7 @@ export class MatchesRepository {
     });
   }
 
-  /** The unfinished match (WAITING/HIDING/ACTIVE) the user belongs to. */
+  /** The unfinished match (LOBBY/HIDING/ACTIVE) the user belongs to. */
   async findOpenForUser(userId: string): Promise<MatchRow | undefined> {
     const [row] = await this.db
       .select({ match: matches })
@@ -124,13 +124,13 @@ export class MatchesRepository {
       .update(matches)
       .set(settings)
       .where(
-        and(eq(matches.id, matchId), eq(matches.status, MatchStatus.WAITING)),
+        and(eq(matches.id, matchId), eq(matches.status, MatchStatus.LOBBY)),
       )
       .returning();
     return row ?? null;
   }
 
-  /** WAITING -> HIDING, storing the play area's center and the timeline. */
+  /** LOBBY -> HIDING, storing the play area's center and the timeline. */
   async markStarted(
     matchId: string,
     center: LatLng,
@@ -145,7 +145,7 @@ export class MatchesRepository {
         ...timeline,
       })
       .where(
-        and(eq(matches.id, matchId), eq(matches.status, MatchStatus.WAITING)),
+        and(eq(matches.id, matchId), eq(matches.status, MatchStatus.LOBBY)),
       )
       .returning();
     return row ?? null;

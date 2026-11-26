@@ -9,7 +9,7 @@ import {
   type TextTone,
   type ThemeColors,
 } from '@/ui';
-import { readinessOf } from '../rules/lobby';
+import { readinessOf } from '../readiness';
 
 interface Look {
   icon: IconName;

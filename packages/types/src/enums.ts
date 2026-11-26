@@ -6,10 +6,10 @@ export type Team = (typeof Team)[keyof typeof Team];
 
 /**
  * Match lifecycle:
- * WAITING (lobby) -> HIDING (runners' head start) -> ACTIVE (the hunt) -> FINISHED
+ * LOBBY (players join, the host sets the rules) -> HIDING (runners' head start) -> ACTIVE (the hunt) -> FINISHED
  */
 export const MatchStatus = {
-  WAITING: 'WAITING',
+  LOBBY: 'LOBBY',
   HIDING: 'HIDING',
   ACTIVE: 'ACTIVE',
   FINISHED: 'FINISHED',
@@ -24,7 +24,7 @@ export const LIVE_MATCH_STATUSES = [
 
 /** Statuses that keep a player busy: they cannot join another match. */
 export const OPEN_MATCH_STATUSES = [
-  MatchStatus.WAITING,
+  MatchStatus.LOBBY,
   MatchStatus.HIDING,
   MatchStatus.ACTIVE,
 ] as const;

@@ -53,7 +53,7 @@ The mobile app finds the API on its own (it uses your computer's IP). Details in
 
 ## Rules
 
-1. **Lobby (`WAITING`)**: the host creates the match (a circular play area and timings) and shares the 6-character code. The host joins as a hunter, everyone else as a runner; the host can switch teams or kick players. A match needs at least one hunter and one runner.
+1. **Lobby (`LOBBY`)**: the host creates a lobby and shares its 6-character code. The host joins as a hunter, everyone else as a runner; the host sets the rules (area radius and timings), switches teams and kicks players. Everyone shares their location, so the lobby shows who is close enough. The host starts the match where they stand: that point becomes the center of the play area, and every player must be inside it. A match needs at least one hunter and one runner.
 2. **Hiding (`HIDING`)**: runners get a `hidingSeconds` head start.
 3. **Hunt (`ACTIVE`)**: lasts `durationSeconds`.
    - Each team sees its own members live.
@@ -73,27 +73,28 @@ Every route requires `Authorization: Bearer <token>`, except those marked 🌐. 
 | 🌐 POST | `/auth/login` | `{ identifier, password }` (username **or** email) → `{ accessToken, user }`. One device at a time: it ends the user's previous session |
 | GET | `/auth/me` | The current user |
 | POST | `/auth/logout` | Ends this session: the token stops working and its sockets are closed (204) |
-| POST | `/matches` | Creates a match: `{ playArea: { lat, lng, radiusMeters }, hidingSeconds?, durationSeconds?, pingIntervalSeconds? }` |
-| POST | `/matches/join` | `{ joinCode }` → joins the lobby |
-| GET | `/matches/current` | `{ match }` with your unfinished match, or `null` |
+| POST | `/lobbies` | Creates a lobby: `{ radiusMeters?, hidingSeconds?, durationSeconds?, pingIntervalSeconds? }` |
+| POST | `/lobbies/join` | `{ joinCode }` → joins the lobby |
+| POST | `/lobbies/:id/leave` | Leave the lobby (not the host) |
+| DELETE | `/lobbies/:id` | Close the lobby (host) |
+| PATCH | `/lobbies/:id/settings` | `{ radiusMeters, hidingSeconds, durationSeconds, pingIntervalSeconds }`: change the rules (host) |
+| PATCH | `/lobbies/:id/players/:userId` | `{ team }`: switch a player's team (host) |
+| DELETE | `/lobbies/:id/players/:userId` | Kick a player (host) |
+| GET | `/matches/current` | `{ match }` with your unfinished match (lobby or live), or `null` |
 | GET | `/matches/:id` | Match details (participants only) |
-| POST | `/matches/:id/leave` | Leave the lobby (not the host, `WAITING` only) |
-| DELETE | `/matches/:id` | Close the lobby (host, `WAITING` only) |
-| PATCH | `/matches/:id/players/:userId` | `{ team }`: switch a player's team (host, `WAITING`) |
-| DELETE | `/matches/:id/players/:userId` | Kick a player (host, `WAITING`) |
-| POST | `/matches/:id/start` | Start: `WAITING → HIDING` |
+| POST | `/matches/:id/start` | `{ lat, lng, accuracy? }`, the host's position: `LOBBY → HIDING` (host) |
 | 🌐 GET | `/health` · `/health/live` | Readiness (Postgres + Redis) · liveness |
 
-## WebSocket (Socket.IO, namespace `/game`)
+## WebSocket (Socket.IO, namespace `/realtime`)
 
-Connect with `io(URL + '/game', { auth: { token } })`. After connecting, and after every reconnection, emit `match:subscribe`. Every client event is answered with an ack: `{ ok: true, data } | { ok: false, error: { code, message } }`. The types are `ClientToServerEvents` and `ServerToClientEvents`.
+The app keeps one connection for the whole session: `io(URL + '/realtime', { auth: { token } })`. To follow a match (its lobby included), emit `match:subscribe` after connecting and after every reconnection. Every client event is answered with an ack: `{ ok: true, data } | { ok: false, error: { code, message } }`. The types are `ClientToServerEvents` and `ServerToClientEvents`.
 
 **Client → server**
 
 | Event | Payload | Ack `data` |
 |---|---|---|
 | `match:subscribe` | `{ matchId }` | `MatchSnapshot`: the match, your team and status, teammates, latest ping, next ping |
-| `location:update` | `{ lat, lng, accuracy? }` (every 3-10 s) | `{ at }` |
+| `location:update` | `{ lat, lng, accuracy? }` (every 3-10 s; also in the lobby) | `{ at }` |
 | `catch:attempt` | `{ runnerId }` | `{ runnerId, distanceMeters, runnersRemaining }` |
 
 **Server → client**

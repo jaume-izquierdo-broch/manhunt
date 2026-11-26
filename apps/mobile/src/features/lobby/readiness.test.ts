@@ -1,5 +1,5 @@
 import { makeMatch, player } from '@/test-utils/fixtures';
-import { describeWaitingFor, playersNotReady } from './lobby';
+import { describeWaitingFor, playersNotReady } from './readiness';
 
 const now = Date.parse('2026-01-01T12:00:00Z');
 const located = (distance: number | null, secondsAgo = 0) => ({

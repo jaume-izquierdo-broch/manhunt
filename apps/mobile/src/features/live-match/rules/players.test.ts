@@ -28,7 +28,7 @@ describe('player rules', () => {
   it('isLive: only while hiding or hunting', () => {
     expect(isLive('HIDING')).toBe(true);
     expect(isLive('ACTIVE')).toBe(true);
-    expect(isLive('WAITING')).toBe(false);
+    expect(isLive('LOBBY')).toBe(false);
     expect(isLive(undefined)).toBe(false);
   });
 });

@@ -10,7 +10,8 @@ import {
 import { randomInt } from 'node:crypto';
 import { distanceMeters } from '../../../common/geo/geo.js';
 import type { MatchRow } from '../../../infrastructure/database/schema.js';
-import { MatchErrors } from '../matches.errors.js';
+import { MatchErrors } from '../../matches/matches.errors.js';
+import { LobbyErrors } from '../lobby.errors.js';
 
 /** A random join code from the unambiguous alphabet. */
 export function generateJoinCode(): string {
@@ -31,7 +32,7 @@ export function hasBalancedTeams(players: { team: Team }[]): boolean {
 
 /** Throws unless the user is the host and the match is still in the lobby. */
 export function assertHostInLobby(match: MatchRow, userId: string): void {
-  if (match.hostId !== userId) throw MatchErrors.notHost();
+  if (match.hostId !== userId) throw LobbyErrors.notHost();
   assertInLobby(match);
 }
 
@@ -39,7 +40,7 @@ export function assertInLobby(
   match: MatchRow,
   message = 'The match has already started',
 ): void {
-  if (match.status !== MatchStatus.WAITING) {
+  if (match.status !== MatchStatus.LOBBY) {
     throw MatchErrors.invalidStatus(message);
   }
 }

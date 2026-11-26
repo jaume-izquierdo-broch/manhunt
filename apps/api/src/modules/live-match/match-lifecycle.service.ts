@@ -16,7 +16,8 @@ import type { MatchRow } from '../../infrastructure/database/schema.js';
 import {
   assertHostInLobby,
   hasBalancedTeams,
-} from '../matches/domain/lobby-rules.js';
+} from '../lobby/domain/lobby-rules.js';
+import { LobbyErrors } from '../lobby/lobby.errors.js';
 import { MatchReader } from '../matches/match-reader.service.js';
 import { MatchErrors } from '../matches/matches.errors.js';
 import { MatchesRepository } from '../matches/matches.repository.js';
@@ -33,13 +34,13 @@ import {
   findPlayersNotReady,
   isHostAccurateEnough,
 } from './domain/start-rules.js';
-import { GameErrors } from './game.errors.js';
+import { LiveMatchErrors } from './live-match.errors.js';
 import { MatchTimersQueue, type TimerJob } from './match-timers.queue.js';
 
 /**
  * The match state machine:
  *
- *   WAITING ──start()──▶ HIDING ──[hiding-end]──▶ ACTIVE ──[match-end]──▶ FINISHED (runners win)
+ *   LOBBY ──start()──▶ HIDING ──[hiding-end]──▶ ACTIVE ──[match-end]──▶ FINISHED (runners win)
  *                                                   │  └─[ping] × N (reveals runners to hunters)
  *                                                   └──finish(HUNTER) when the last runner is caught
  *
@@ -84,7 +85,7 @@ export class MatchLifecycleService
   // --- Transitions ---------------------------------------------------------
 
   /**
-   * WAITING -> HIDING, requested by the host. The play area is centered on the
+   * LOBBY -> HIDING, requested by the host. The play area is centered on the
    * host, and every other player must be inside it.
    */
   async start(
@@ -96,9 +97,9 @@ export class MatchLifecycleService
     assertHostInLobby(match, hostId);
 
     const players = await this.repo.listPlayerViews(matchId);
-    if (!hasBalancedTeams(players)) throw MatchErrors.teamsUnbalanced();
+    if (!hasBalancedTeams(players)) throw LobbyErrors.teamsUnbalanced();
     if (!isHostAccurateEnough(host.accuracy)) {
-      throw GameErrors.hostLocationInaccurate();
+      throw LiveMatchErrors.hostLocationInaccurate();
     }
 
     const now = new Date();
@@ -117,7 +118,7 @@ export class MatchLifecycleService
       match.radiusMeters,
       now,
     );
-    if (notReady.length > 0) throw GameErrors.playersNotReady(notReady);
+    if (notReady.length > 0) throw LiveMatchErrors.playersNotReady(notReady);
 
     const timeline = computeTimeline(
       now,

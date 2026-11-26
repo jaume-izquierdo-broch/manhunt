@@ -19,7 +19,7 @@ export const makeMatch = (overrides: Partial<MatchDto> = {}): MatchDto => ({
   id: 'm1',
   joinCode: 'ABC234',
   hostId: 'host',
-  status: 'WAITING',
+  status: 'LOBBY',
   radiusMeters: 400,
   playArea: { lat: 41.387, lng: 2.17, radiusMeters: 400 },
   hidingSeconds: 120,

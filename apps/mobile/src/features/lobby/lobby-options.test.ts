@@ -4,7 +4,7 @@ import {
   HIDING_OPTIONS,
   PING_OPTIONS,
   RADIUS_OPTIONS,
-} from './match-options';
+} from './lobby-options';
 
 describe('match options', () => {
   it('stay within the server limits', () => {

@@ -1,20 +1,23 @@
-import { JOIN_CODE_LENGTH, joinMatchSchema } from '@manhunt/types';
+import { JOIN_CODE_LENGTH, joinLobbySchema } from '@manhunt/types';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { validateForm } from '@/lib/forms';
 import { AppText, Banner, Button, Screen, TextField } from '@/ui';
-import { goToMatch, handleMatchEntryError } from './match-navigation';
-import { useJoinMatch } from './matches.queries';
+import {
+  goToMatch,
+  handleMatchEntryError,
+} from '@/features/matches/match-navigation';
+import { useJoinLobby } from './lobby.queries';
 
-export function JoinMatchScreen() {
+export function JoinLobbyScreen() {
   const router = useRouter();
-  const join = useJoinMatch();
+  const join = useJoinLobby();
   const [code, setCode] = useState('');
   const [fieldError, setFieldError] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
 
   const submit = async () => {
-    const result = validateForm(joinMatchSchema, { joinCode: code });
+    const result = validateForm(joinLobbySchema, { joinCode: code });
     setFieldError(result.errors.joinCode);
     if (!result.ok) return;
 

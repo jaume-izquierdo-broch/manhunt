@@ -4,13 +4,13 @@ import { authApi } from '@/features/auth/auth.api';
 import { useSession } from '@/features/auth/session.store';
 import { signInAs } from '@/test-utils/stores';
 import { useRealtime } from './realtime.store';
-import { createGameSocket } from './socket';
+import { createRealtimeSocket } from './socket';
 import { useRealtimeConnection } from './use-realtime-connection';
 
 jest.mock('@/features/auth/auth.api');
 jest.mock('./socket', () => ({
   ...jest.requireActual('./socket'),
-  createGameSocket: jest.fn(),
+  createRealtimeSocket: jest.fn(),
 }));
 
 /** Just enough of a Socket.IO client: `connect` succeeds right away. */
@@ -44,7 +44,7 @@ const expire = jest.fn().mockResolvedValue(undefined);
 beforeEach(() => {
   jest.clearAllMocks();
   socket = new FakeSocket();
-  jest.mocked(createGameSocket).mockReturnValue(socket as never);
+  jest.mocked(createRealtimeSocket).mockReturnValue(socket as never);
   jest.spyOn(AppState, 'addEventListener').mockImplementation((_, listener) => {
     changeAppState = listener;
     return { remove: jest.fn() };
@@ -57,7 +57,7 @@ describe('useRealtimeConnection', () => {
   it('opens one socket for the session and closes it when the session ends', async () => {
     const { unmount } = await renderHook(() => useRealtimeConnection());
 
-    expect(createGameSocket).toHaveBeenCalledWith('token');
+    expect(createRealtimeSocket).toHaveBeenCalledWith('token');
     expect(useRealtime.getState()).toMatchObject({
       socket,
       status: 'connected',

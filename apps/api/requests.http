@@ -84,13 +84,14 @@ Authorization: Bearer {{hunterToken}}
 
 ###
 
-# @name createMatch
-POST {{baseUrl}}/matches
+# Create a lobby. Every rule is optional; the host can change them later.
+# @name createLobby
+POST {{baseUrl}}/lobbies
 Authorization: Bearer {{hunterToken}}
 Content-Type: application/json
 
 {
-  "playArea": { "lat": 41.387, "lng": 2.17, "radiusMeters": 400 },
+  "radiusMeters": 400,
   "hidingSeconds": 10,
   "durationSeconds": 120,
   "pingIntervalSeconds": 15
@@ -98,10 +99,10 @@ Content-Type: application/json
 
 ###
 
-@matchId = {{createMatch.response.body.id}}
-@joinCode = {{createMatch.response.body.joinCode}}
+@matchId = {{createLobby.response.body.id}}
+@joinCode = {{createLobby.response.body.joinCode}}
 
-POST {{baseUrl}}/matches/join
+POST {{baseUrl}}/lobbies/join
 Authorization: Bearer {{runnerToken}}
 Content-Type: application/json
 
@@ -115,7 +116,7 @@ Authorization: Bearer {{runnerToken}}
 ###
 
 # Change a player's team (host only): "HUNTER" or "RUNNER".
-PATCH {{baseUrl}}/matches/{{matchId}}/players/{{runnerId}}
+PATCH {{baseUrl}}/lobbies/{{matchId}}/players/{{runnerId}}
 Authorization: Bearer {{hunterToken}}
 Content-Type: application/json
 
@@ -123,9 +124,23 @@ Content-Type: application/json
 
 ###
 
-# Start: WAITING -> HIDING (and ACTIVE 10 s later)
+# Change the rules (host only)
+PATCH {{baseUrl}}/lobbies/{{matchId}}/settings
+Authorization: Bearer {{hunterToken}}
+Content-Type: application/json
+
+{ "radiusMeters": 800, "hidingSeconds": 10, "durationSeconds": 120, "pingIntervalSeconds": 15 }
+
+###
+
+# Start: LOBBY -> HIDING (and ACTIVE 10 s later), centered on the host.
+# Every other player must have sent a recent `location:update` over the
+# socket from inside the area; from here alone it answers PLAYERS_NOT_READY.
 POST {{baseUrl}}/matches/{{matchId}}/start
 Authorization: Bearer {{hunterToken}}
+Content-Type: application/json
+
+{ "lat": 41.387, "lng": 2.17, "accuracy": 10 }
 
 ###
 
@@ -136,7 +151,7 @@ Authorization: Bearer {{hunterToken}}
 ###
 
 # Close the lobby (only BEFORE the match starts)
-DELETE {{baseUrl}}/matches/{{matchId}}
+DELETE {{baseUrl}}/lobbies/{{matchId}}
 Authorization: Bearer {{hunterToken}}
 
 
@@ -165,8 +180,8 @@ Content-Type: application/json
 
 ###
 
-# 404 MATCH_NOT_FOUND
-POST {{baseUrl}}/matches/join
+# 404 LOBBY_NOT_FOUND
+POST {{baseUrl}}/lobbies/join
 Authorization: Bearer {{runnerToken}}
 Content-Type: application/json
 
@@ -177,6 +192,9 @@ Content-Type: application/json
 # 403 NOT_HOST: the runner tries to start the match
 POST {{baseUrl}}/matches/{{matchId}}/start
 Authorization: Bearer {{runnerToken}}
+Content-Type: application/json
+
+{ "lat": 41.387, "lng": 2.17 }
 
 ###
 

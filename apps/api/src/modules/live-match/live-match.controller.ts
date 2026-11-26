@@ -18,10 +18,10 @@ import { MatchLifecycleService } from './match-lifecycle.service.js';
 
 /** The only REST action of a live match is starting it; the rest goes over WebSocket. */
 @Controller('matches')
-export class GameController {
+export class LiveMatchController {
   constructor(private readonly lifecycle: MatchLifecycleService) {}
 
-  /** WAITING -> HIDING. Host only; the body is the host's position, the area's center. */
+  /** LOBBY -> HIDING. Host only; the body is the host's position, the area's center. */
   @Post(':id/start')
   @HttpCode(200)
   start(

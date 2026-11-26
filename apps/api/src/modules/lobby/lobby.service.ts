@@ -15,16 +15,17 @@ import {
   generateJoinCode,
   shouldPublishLobbyLocation,
 } from './domain/lobby-rules.js';
-import { MatchReader } from './match-reader.service.js';
-import { MatchErrors } from './matches.errors.js';
-import { MatchesRepository } from './matches.repository.js';
-import { PositionsStore } from './positions.store.js';
+import { MatchReader } from '../matches/match-reader.service.js';
+import { MatchErrors } from '../matches/matches.errors.js';
+import { MatchesRepository } from '../matches/matches.repository.js';
+import { PositionsStore } from '../matches/positions.store.js';
+import { LobbyErrors } from './lobby.errors.js';
 
 const JOIN_CODE_ATTEMPTS = 5;
 
 /**
- * Lobby use cases (WAITING status): create, join, leave, close, settings,
- * teams, kicks and players' locations. Starting belongs to the `game` module.
+ * Lobby use cases (LOBBY status): create, join, leave, close, settings,
+ * teams, kicks and players' locations. Starting the match belongs to `live-match`.
  */
 @Injectable()
 export class LobbyService {
@@ -53,7 +54,7 @@ export class LobbyService {
   /** New players join as runners. Joining again is a no-op. */
   async join(userId: string, joinCode: string): Promise<MatchDto> {
     const match = await this.repo.findByJoinCode(joinCode);
-    if (!match) throw MatchErrors.joinCodeNotFound();
+    if (!match) throw LobbyErrors.joinCodeNotFound();
 
     if (await this.repo.getPlayer(match.id, userId)) {
       return this.reader.toDto(match);
@@ -62,7 +63,7 @@ export class LobbyService {
     assertInLobby(match);
     await this.assertNotInOpenMatch(userId);
     if ((await this.repo.countPlayers(match.id)) >= MATCH_LIMITS.maxPlayers) {
-      throw MatchErrors.full();
+      throw LobbyErrors.full();
     }
 
     await this.repo.addPlayer(match.id, userId, Team.RUNNER);
@@ -72,7 +73,7 @@ export class LobbyService {
   async leave(matchId: string, userId: string): Promise<void> {
     const { match } = await this.reader.getMembershipOrThrow(matchId, userId);
     assertInLobby(match, 'You cannot leave a match that has started');
-    if (match.hostId === userId) throw MatchErrors.hostCannotLeave();
+    if (match.hostId === userId) throw LobbyErrors.hostCannotLeave();
     await this.removePlayer(matchId, userId);
   }
 
@@ -83,7 +84,7 @@ export class LobbyService {
   ): Promise<MatchDto> {
     const match = await this.reader.getOrThrow(matchId);
     assertHostInLobby(match, hostId);
-    if (targetId === hostId) throw MatchErrors.cannotKickHost();
+    if (targetId === hostId) throw LobbyErrors.cannotKickHost();
     if (!(await this.repo.getPlayer(matchId, targetId))) {
       throw MatchErrors.playerNotFound();
     }

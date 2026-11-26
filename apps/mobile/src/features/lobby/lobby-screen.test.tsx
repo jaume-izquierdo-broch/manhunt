@@ -1,11 +1,12 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as Location from 'expo-location';
+import { useLiveMatch } from '@/features/live-match/live-match.store';
 import { matchesApi } from '@/features/matches/matches.api';
 import { makeMatch, player } from '@/test-utils/fixtures';
 import { renderWithQueryClient, showLiveMatch } from '@/test-utils/stores';
-import { useLiveMatch } from '../live-match.store';
-import { LobbyPhase } from './lobby-phase';
+import { lobbyApi } from './lobby.api';
+import { LobbyScreen } from './lobby-screen';
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({
@@ -15,7 +16,9 @@ jest.mock('expo-router', () => ({
   }),
 }));
 jest.mock('@/features/matches/matches.api');
+jest.mock('./lobby.api');
 const api = jest.mocked(matchesApi);
+const lobby = jest.mocked(lobbyApi);
 
 const here = (distanceFromHostMeters: number | null) => ({
   distanceFromHostMeters,
@@ -36,10 +39,10 @@ function renderAs(
   extra: Parameters<typeof showLiveMatch>[2] = {},
 ) {
   showLiveMatch(match, userId, extra);
-  return renderWithQueryClient(<LobbyPhase />);
+  return renderWithQueryClient(<LobbyScreen />);
 }
 
-describe('LobbyPhase', () => {
+describe('LobbyScreen', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('shows the code, the rules and both teams', async () => {
@@ -119,7 +122,7 @@ describe('LobbyPhase', () => {
   });
 
   it('the host changes the rules', async () => {
-    api.updateSettings.mockResolvedValue({ ...balanced, radiusMeters: 800 });
+    lobby.updateSettings.mockResolvedValue({ ...balanced, radiusMeters: 800 });
     await renderAs('host');
 
     await fireEvent.press(
@@ -128,7 +131,7 @@ describe('LobbyPhase', () => {
     await fireEvent.press(screen.getByRole('radio', { name: '800 m' }));
 
     await waitFor(() =>
-      expect(api.updateSettings).toHaveBeenCalledWith('m1', {
+      expect(lobby.updateSettings).toHaveBeenCalledWith('m1', {
         radiusMeters: 800,
         hidingSeconds: 120,
         durationSeconds: 1800,
@@ -141,14 +144,14 @@ describe('LobbyPhase', () => {
   });
 
   it('the host moves a player to the other team', async () => {
-    api.setTeam.mockResolvedValue(balanced);
+    lobby.setTeam.mockResolvedValue(balanced);
     await renderAs('host');
 
     await fireEvent.press(
       screen.getByRole('button', { name: 'Move to hunters: ana' }),
     );
     await waitFor(() =>
-      expect(api.setTeam).toHaveBeenCalledWith('m1', 'ana', 'HUNTER'),
+      expect(lobby.setTeam).toHaveBeenCalledWith('m1', 'ana', 'HUNTER'),
     );
   });
 

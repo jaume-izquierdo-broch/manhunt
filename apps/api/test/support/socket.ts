@@ -1,7 +1,7 @@
 import {
   type Ack,
   type ClientToServerEvents,
-  GAME_NAMESPACE,
+  REALTIME_NAMESPACE,
   type ServerToClientEvents,
 } from '@manhunt/types';
 import { io, type Socket } from 'socket.io-client';
@@ -22,12 +22,12 @@ type AckData<E extends ClientEvent> =
     ? T
     : never;
 
-/** Connects to the `/game` namespace the same way the app does. */
+/** Connects to the `/realtime` namespace the same way the app does. */
 export async function connectSocket(
   baseUrl: string,
   token: string,
 ): Promise<ClientSocket> {
-  const socket: ClientSocket = io(`${baseUrl}${GAME_NAMESPACE}`, {
+  const socket: ClientSocket = io(`${baseUrl}${REALTIME_NAMESPACE}`, {
     auth: { token },
     transports: ['websocket'],
     reconnection: false,

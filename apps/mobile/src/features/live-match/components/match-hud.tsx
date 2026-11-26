@@ -4,7 +4,7 @@ import { AppText, Badge, Card, spacing } from '@/ui';
 import { aliveRunners, playersOfTeam } from '../rules/players';
 import { formatCountdown, msUntil, nextPingTime } from '../rules/time';
 
-export interface GameHudProps {
+export interface MatchHudProps {
   match: MatchDto;
   myTeam: Team;
   /** "Now" by the server's clock. */
@@ -12,7 +12,7 @@ export interface GameHudProps {
 }
 
 /** Match header: phase, countdown, next ping and how many runners are free. */
-export function GameHud({ match, myTeam, now }: GameHudProps) {
+export function MatchHud({ match, myTeam, now }: MatchHudProps) {
   const hiding = match.status === MatchStatus.HIDING;
   const remaining = msUntil(hiding ? match.hidingEndsAt : match.endsAt, now);
   const pingAt = nextPingTime(match, now);

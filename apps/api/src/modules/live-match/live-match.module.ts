@@ -1,20 +1,21 @@
 import { Module } from '@nestjs/common';
+import { LobbyModule } from '../lobby/lobby.module.js';
 import { MatchesModule } from '../matches/matches.module.js';
-import { GameController } from './game.controller.js';
-import { GameGateway } from './game.gateway.js';
-import { GameplayService } from './gameplay.service.js';
+import { LiveMatchController } from './live-match.controller.js';
+import { LiveMatchGateway } from './live-match.gateway.js';
+import { PlayService } from './play.service.js';
 import { MatchLifecycleService } from './match-lifecycle.service.js';
 import { MatchTimersQueue } from './match-timers.queue.js';
 
 /** Live matches: phases, timers, catches and the WebSocket gateway. */
 @Module({
-  imports: [MatchesModule],
-  controllers: [GameController],
+  imports: [MatchesModule, LobbyModule],
+  controllers: [LiveMatchController],
   providers: [
-    GameGateway,
-    GameplayService,
+    LiveMatchGateway,
+    PlayService,
     MatchLifecycleService,
     MatchTimersQueue,
   ],
 })
-export class GameModule {}
+export class LiveMatchModule {}

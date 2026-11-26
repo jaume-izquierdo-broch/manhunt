@@ -3,7 +3,7 @@ import { AppState } from 'react-native';
 import { authApi } from '@/features/auth/auth.api';
 import { useCurrentUser, useSession } from '@/features/auth/session.store';
 import { type RealtimeStatus, useRealtime } from './realtime.store';
-import { createGameSocket, isUnauthorizedConnectError } from './socket';
+import { createRealtimeSocket, isUnauthorizedConnectError } from './socket';
 
 /**
  * Keeps one socket open for the whole session while the app is in the
@@ -14,7 +14,7 @@ export function useRealtimeConnection() {
   const { token } = useCurrentUser();
 
   useEffect(() => {
-    const socket = createGameSocket(token);
+    const socket = createRealtimeSocket(token);
     const setStatus = (status: RealtimeStatus) =>
       useRealtime.setState({ status });
 

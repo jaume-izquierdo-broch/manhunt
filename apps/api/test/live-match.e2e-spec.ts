@@ -24,7 +24,7 @@ describe('live match', () => {
     const runner = await t.register('runner');
     const match = (
       await hunter.api
-        .post('/matches', {
+        .post('/lobbies', {
           radiusMeters: 500,
           hidingSeconds: 0,
           durationSeconds: 600,
@@ -33,7 +33,7 @@ describe('live match', () => {
         .expect(201)
     ).body as MatchDto;
     await runner.api
-      .post('/matches/join', { joinCode: match.joinCode })
+      .post('/lobbies/join', { joinCode: match.joinCode })
       .expect(200);
 
     const [hunterSocket, runnerSocket] = await Promise.all([
@@ -67,7 +67,7 @@ describe('live match', () => {
     const bob = await t.register('bob');
     const match = (
       await host.api
-        .post('/matches', {
+        .post('/lobbies', {
           radiusMeters: 500,
           hidingSeconds: 0,
           durationSeconds: 600,
@@ -76,7 +76,7 @@ describe('live match', () => {
         .expect(201)
     ).body as MatchDto;
     await ana.api
-      .post('/matches/join', { joinCode: match.joinCode })
+      .post('/lobbies/join', { joinCode: match.joinCode })
       .expect(200);
     const [hostSocket, anaSocket] = await Promise.all([
       host.connect(),
@@ -99,7 +99,7 @@ describe('live match', () => {
       (m) => m.players.length === 3,
     );
     await bob.api
-      .post('/matches/join', { joinCode: match.joinCode })
+      .post('/lobbies/join', { joinCode: match.joinCode })
       .expect(200);
     await hostGotUpdate;
     await new Promise((r) => setTimeout(r, 300));

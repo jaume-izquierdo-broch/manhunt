@@ -2,7 +2,7 @@ import { type MatchDto, MatchStatus } from '@manhunt/types';
 import { AppText, Badge, type BadgeTone, Button, Card } from '@/ui';
 
 const STATUS: Record<MatchStatus, { label: string; tone: BadgeTone }> = {
-  WAITING: { label: 'In the lobby', tone: 'accent' },
+  LOBBY: { label: 'In the lobby', tone: 'accent' },
   HIDING: { label: 'Hiding', tone: 'warning' },
   ACTIVE: { label: 'Hunting', tone: 'hunter' },
   FINISHED: { label: 'Finished', tone: 'neutral' },
@@ -25,7 +25,7 @@ export function CurrentMatchCard({
       </AppText>
       <Button
         title={
-          match.status === MatchStatus.WAITING
+          match.status === MatchStatus.LOBBY
             ? 'Back to the lobby'
             : 'Back to the match'
         }

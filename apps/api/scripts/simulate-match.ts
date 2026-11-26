@@ -14,7 +14,7 @@ import type {
 } from '@manhunt/types';
 import { io, type Socket } from 'socket.io-client';
 
-type GameSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
+type RealtimeSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 type Actor = 'hunter' | 'runner' | 'api';
 
 const API_URL = process.env.API_URL ?? 'http://localhost:3000';
@@ -90,8 +90,8 @@ async function registerUser(prefix: string) {
 
 // --- WebSocket ----------------------------------------------------------------
 
-async function connect(actor: Actor, token: string): Promise<GameSocket> {
-  const socket: GameSocket = io(`${API_URL}/game`, {
+async function connect(actor: Actor, token: string): Promise<RealtimeSocket> {
+  const socket: RealtimeSocket = io(`${API_URL}/realtime`, {
     auth: { token },
     transports: ['websocket'],
   });
@@ -131,7 +131,7 @@ const summarizePlayers = (m: MatchDto) =>
 
 async function send(
   actor: Actor,
-  socket: GameSocket,
+  socket: RealtimeSocket,
   event: keyof ClientToServerEvents,
   payload: object,
 ) {
@@ -147,7 +147,7 @@ async function send(
 }
 
 function waitFor<E extends keyof ServerToClientEvents>(
-  socket: GameSocket,
+  socket: RealtimeSocket,
   event: E,
   predicate: (
     payload: Parameters<ServerToClientEvents[E]>[0],
@@ -174,7 +174,7 @@ async function main() {
   const runner = await registerUser('runner');
 
   step('The hunter creates the lobby (5 s to hide, a ping every 15 s)');
-  const match = await http<MatchDto>('POST', '/matches', hunter.token, {
+  const match = await http<MatchDto>('POST', '/lobbies', hunter.token, {
     radiusMeters: 400,
     hidingSeconds: 5,
     durationSeconds: 120,
@@ -187,7 +187,7 @@ async function main() {
   await send('hunter', hunterSocket, 'match:subscribe', { matchId: match.id });
 
   step('The runner joins with the code');
-  await http('POST', '/matches/join', runner.token, {
+  await http('POST', '/lobbies/join', runner.token, {
     joinCode: match.joinCode,
   });
   await send('runner', runnerSocket, 'match:subscribe', { matchId: match.id });

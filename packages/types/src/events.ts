@@ -3,8 +3,8 @@ import type { PlayerStatus, Team } from './enums.js';
 import type { ErrorCode } from './errors.js';
 import { latSchema, lngSchema, type MatchDto } from './match.js';
 
-/** Socket.IO namespace for live matches. */
-export const GAME_NAMESPACE = '/game';
+/** Socket.IO namespace of the app's single realtime connection. */
+export const REALTIME_NAMESPACE = '/realtime';
 
 // ---------------------------------------------------------------------------
 // Client -> server payloads (validated by the server with these schemas)

@@ -7,11 +7,11 @@ import {
   useTestApp,
 } from './support/test-app.js';
 
-describe('lobby (WAITING)', () => {
+describe('lobby (LOBBY)', () => {
   const t = useTestApp();
 
   async function createMatch(host: TestPlayer): Promise<MatchDto> {
-    const res = await host.api.post('/matches', {}).expect(201);
+    const res = await host.api.post('/lobbies', {}).expect(201);
     return res.body as MatchDto;
   }
 
@@ -20,7 +20,7 @@ describe('lobby (WAITING)', () => {
     const match = await createMatch(host);
 
     expect(match).toMatchObject({
-      status: 'WAITING',
+      status: 'LOBBY',
       hostId: host.user.id,
       radiusMeters: 400,
       playArea: null,
@@ -54,7 +54,7 @@ describe('lobby (WAITING)', () => {
     );
 
     const joined = await guest.api
-      .post('/matches/join', { joinCode: match.joinCode.toLowerCase() })
+      .post('/lobbies/join', { joinCode: match.joinCode.toLowerCase() })
       .expect(200);
     expect((joined.body as MatchDto).players[1]).toMatchObject({
       userId: guest.user.id,
@@ -63,7 +63,7 @@ describe('lobby (WAITING)', () => {
     await updated;
 
     const again = await guest.api
-      .post('/matches/join', { joinCode: match.joinCode })
+      .post('/lobbies/join', { joinCode: match.joinCode })
       .expect(200);
     expect((again.body as MatchDto).players).toHaveLength(2);
   });
@@ -71,16 +71,16 @@ describe('lobby (WAITING)', () => {
   it('a user cannot be in two matches at once', async () => {
     const host = await t.register('host');
     await createMatch(host);
-    const res = await host.api.post('/matches', {}).expect(409);
+    const res = await host.api.post('/lobbies', {}).expect(409);
     expect(res.body).toMatchObject({ code: 'ALREADY_IN_MATCH' });
   });
 
   it('an unknown code returns 404', async () => {
     const guest = await t.register('guest');
     const res = await guest.api
-      .post('/matches/join', { joinCode: 'ZZZZZZ' })
+      .post('/lobbies/join', { joinCode: 'ZZZZZZ' })
       .expect(404);
-    expect(res.body.code).toBe('MATCH_NOT_FOUND');
+    expect(res.body.code).toBe('LOBBY_NOT_FOUND');
   });
 
   it('only participants can see a match', async () => {
@@ -96,16 +96,16 @@ describe('lobby (WAITING)', () => {
     const guest = await t.register('guest');
     const match = await createMatch(host);
     await guest.api
-      .post('/matches/join', { joinCode: match.joinCode })
+      .post('/lobbies/join', { joinCode: match.joinCode })
       .expect(200);
 
     const forbidden = await guest.api
-      .patch(`/matches/${match.id}/players/${host.user.id}`, { team: 'RUNNER' })
+      .patch(`/lobbies/${match.id}/players/${host.user.id}`, { team: 'RUNNER' })
       .expect(403);
     expect(forbidden.body.code).toBe('NOT_HOST');
 
     const changed = await host.api
-      .patch(`/matches/${match.id}/players/${guest.user.id}`, {
+      .patch(`/lobbies/${match.id}/players/${guest.user.id}`, {
         team: 'HUNTER',
       })
       .expect(200);
@@ -116,7 +116,7 @@ describe('lobby (WAITING)', () => {
     const guestSocket = await guest.connect();
     const closed = waitFor(guestSocket, 'match:closed');
     const afterKick = await host.api
-      .delete(`/matches/${match.id}/players/${guest.user.id}`)
+      .delete(`/lobbies/${match.id}/players/${guest.user.id}`)
       .expect(200);
     expect((afterKick.body as MatchDto).players).toHaveLength(1);
     expect(await closed).toEqual({ matchId: match.id });
@@ -127,16 +127,16 @@ describe('lobby (WAITING)', () => {
     const guest = await t.register('guest');
     const match = await createMatch(host);
     await guest.api
-      .post('/matches/join', { joinCode: match.joinCode })
+      .post('/lobbies/join', { joinCode: match.joinCode })
       .expect(200);
 
-    await guest.api.post(`/matches/${match.id}/leave`).expect(204);
+    await guest.api.post(`/lobbies/${match.id}/leave`).expect(204);
     await guest.api.get('/matches/current').expect(200, { match: null });
 
-    const res = await host.api.post(`/matches/${match.id}/leave`).expect(409);
+    const res = await host.api.post(`/lobbies/${match.id}/leave`).expect(409);
     expect(res.body.code).toBe('HOST_CANNOT_LEAVE');
 
-    await host.api.delete(`/matches/${match.id}`).expect(204);
+    await host.api.delete(`/lobbies/${match.id}`).expect(204);
     await host.api.get(`/matches/${match.id}`).expect(404);
   });
 
@@ -154,7 +154,7 @@ describe('lobby (WAITING)', () => {
     const guest = await t.register('guest');
     const match = await createMatch(host);
     await guest.api
-      .post('/matches/join', { joinCode: match.joinCode })
+      .post('/lobbies/join', { joinCode: match.joinCode })
       .expect(200);
     const socket = await guest.connect();
     await emit(socket, 'match:subscribe', { matchId: match.id });
@@ -166,7 +166,7 @@ describe('lobby (WAITING)', () => {
       pingIntervalSeconds: 30,
     };
     await guest.api
-      .patch(`/matches/${match.id}/settings`, settings)
+      .patch(`/lobbies/${match.id}/settings`, settings)
       .expect(403);
     const updated = waitFor(
       socket,
@@ -174,7 +174,7 @@ describe('lobby (WAITING)', () => {
       (m) => m.radiusMeters === 800,
     );
     const res = await host.api
-      .patch(`/matches/${match.id}/settings`, settings)
+      .patch(`/lobbies/${match.id}/settings`, settings)
       .expect(200);
 
     expect(res.body).toMatchObject(settings);
@@ -187,7 +187,7 @@ describe('lobby (WAITING)', () => {
       const guest = await t.register('guest');
       const match = await createMatch(host);
       await guest.api
-        .post('/matches/join', { joinCode: match.joinCode })
+        .post('/lobbies/join', { joinCode: match.joinCode })
         .expect(200);
       const [hostSocket, guestSocket] = await Promise.all([
         host.connect(),

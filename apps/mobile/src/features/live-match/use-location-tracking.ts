@@ -35,10 +35,10 @@ const LOBBY_REPORT_POLICY: ReportPolicy = {
  *    few seconds even if I stand still, so catches can be validated.
  */
 export function useLocationTracking() {
-  const inLobby = useLiveMatch((s) => s.match?.status === MatchStatus.WAITING);
+  const inLobby = useLiveMatch((s) => s.match?.status === MatchStatus.LOBBY);
   const tracking = useLiveMatch(
     (s) =>
-      s.match?.status === MatchStatus.WAITING ||
+      s.match?.status === MatchStatus.LOBBY ||
       (isLive(s.match?.status) && s.me?.status === PlayerStatus.ALIVE),
   );
   const access = useLocationAccess();

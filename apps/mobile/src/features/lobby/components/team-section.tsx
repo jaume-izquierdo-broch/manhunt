@@ -11,7 +11,7 @@ import {
   spacing,
   useThemeColors,
 } from '@/ui';
-import { PlayerRow } from './player-row';
+import { PlayerRow } from '@/features/live-match/components/player-row';
 
 const TEAMS = {
   [Team.HUNTER]: {

@@ -11,14 +11,14 @@ import {
 } from '@manhunt/types';
 import { type Env, InjectEnv } from '../../config/env.js';
 import type { MatchRow } from '../../infrastructure/database/schema.js';
-import { LobbyService } from '../matches/lobby.service.js';
+import { LobbyService } from '../lobby/lobby.service.js';
 import { MatchReader } from '../matches/match-reader.service.js';
 import { MatchesRepository } from '../matches/matches.repository.js';
 import { PositionsStore } from '../matches/positions.store.js';
 import { RealtimePublisher } from '../realtime/realtime.publisher.js';
 import { checkCatch } from './domain/catch-rules.js';
 import { huntWindowOf, nextPingAfter } from './domain/timeline.js';
-import { GameErrors } from './game.errors.js';
+import { LiveMatchErrors } from './live-match.errors.js';
 import { MatchLifecycleService } from './match-lifecycle.service.js';
 
 const isLive = (match: MatchRow) =>
@@ -26,8 +26,8 @@ const isLive = (match: MatchRow) =>
 
 /** Player actions during a match (they arrive over WebSocket). */
 @Injectable()
-export class GameplayService {
-  private readonly logger = new Logger(GameplayService.name);
+export class PlayService {
+  private readonly logger = new Logger(PlayService.name);
 
   constructor(
     @InjectEnv() private readonly env: Env,
@@ -80,11 +80,12 @@ export class GameplayService {
       matchId,
       userId,
     );
-    if (match.status === MatchStatus.WAITING) {
+    if (match.status === MatchStatus.LOBBY) {
       return this.lobby.reportLocation(match, userId, input);
     }
-    if (!isLive(match)) throw GameErrors.notPlaying();
-    if (player.status !== PlayerStatus.ALIVE) throw GameErrors.youAreCaught();
+    if (!isLive(match)) throw LiveMatchErrors.notPlaying();
+    if (player.status !== PlayerStatus.ALIVE)
+      throw LiveMatchErrors.youAreCaught();
 
     const position: PositionDto = {
       userId,
@@ -114,13 +115,14 @@ export class GameplayService {
       matchId,
       hunterId,
     );
-    if (match.status !== MatchStatus.ACTIVE) throw GameErrors.notHuntingPhase();
-    if (hunter.team !== Team.HUNTER) throw GameErrors.notHunter();
+    if (match.status !== MatchStatus.ACTIVE)
+      throw LiveMatchErrors.notHuntingPhase();
+    if (hunter.team !== Team.HUNTER) throw LiveMatchErrors.notHunter();
 
     const runner = await this.repo.getPlayer(matchId, runnerId);
-    if (runner?.team !== Team.RUNNER) throw GameErrors.notRunner();
+    if (runner?.team !== Team.RUNNER) throw LiveMatchErrors.notRunner();
     if (runner.status !== PlayerStatus.ALIVE) {
-      throw GameErrors.runnerAlreadyCaught();
+      throw LiveMatchErrors.runnerAlreadyCaught();
     }
 
     const now = new Date();
@@ -135,13 +137,16 @@ export class GameplayService {
     );
     if (!check.ok) {
       throw check.reason === 'TOO_FAR'
-        ? GameErrors.tooFar(check.distanceMeters, this.env.CATCH_RADIUS_METERS)
-        : GameErrors.positionUnknown();
+        ? LiveMatchErrors.tooFar(
+            check.distanceMeters,
+            this.env.CATCH_RADIUS_METERS,
+          )
+        : LiveMatchErrors.positionUnknown();
     }
 
     // If two hunters catch the same runner at once, only the first one counts.
     if (!(await this.repo.markCaught(matchId, runnerId, hunterId, now))) {
-      throw GameErrors.runnerAlreadyCaught();
+      throw LiveMatchErrors.runnerAlreadyCaught();
     }
     await this.positions.remove(matchId, runnerId);
 

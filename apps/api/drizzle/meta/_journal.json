@@ -15,6 +15,13 @@
       "when": 1795707748648,
       "tag": "0001_lobby_first",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795710074819,
+      "tag": "0002_lobby_status",
+      "breakpoints": true
     }
   ]
 }

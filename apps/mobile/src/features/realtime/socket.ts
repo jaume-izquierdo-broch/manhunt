@@ -2,13 +2,13 @@ import {
   type Ack,
   type ClientToServerEvents,
   ErrorCode,
-  GAME_NAMESPACE,
+  REALTIME_NAMESPACE,
   type ServerToClientEvents,
 } from '@manhunt/types';
 import { io, type Socket } from 'socket.io-client';
 import { getApiBaseUrl } from '@/lib/http/api-client';
 
-export type GameSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
+export type RealtimeSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 type ClientEvent = keyof ClientToServerEvents;
 type Payload<E extends ClientEvent> = Parameters<ClientToServerEvents[E]>[0];
@@ -30,9 +30,9 @@ export class GameActionError extends Error {
   }
 }
 
-/** A socket for the `/game` namespace, not yet connected. It reconnects by itself. */
-export function createGameSocket(token: string): GameSocket {
-  return io(`${getApiBaseUrl()}${GAME_NAMESPACE}`, {
+/** A socket for the `/realtime` namespace, not yet connected. It reconnects by itself. */
+export function createRealtimeSocket(token: string): RealtimeSocket {
+  return io(`${getApiBaseUrl()}${REALTIME_NAMESPACE}`, {
     auth: { token },
     transports: ['websocket'],
     autoConnect: false,
@@ -44,7 +44,7 @@ export function createGameSocket(token: string): GameSocket {
 
 /** Emits an event and awaits its ack: returns `data` or throws GameActionError. */
 export async function emitWithAck<E extends ClientEvent>(
-  socket: GameSocket,
+  socket: RealtimeSocket,
   event: E,
   payload: Payload<E>,
 ): Promise<AckData<E>> {

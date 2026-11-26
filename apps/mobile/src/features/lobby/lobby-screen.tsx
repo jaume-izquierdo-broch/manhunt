@@ -5,25 +5,31 @@ import { Alert, StyleSheet, View } from 'react-native';
 import { useCurrentUser } from '@/features/auth/session.store';
 import { LocationAccessNotice } from '@/features/location/location-access-notice';
 import { goHome } from '@/features/matches/match-navigation';
-import {
-  useCloseMatch,
-  useKickPlayer,
-  useLeaveMatch,
-  useSetTeam,
-  useStartMatch,
-  useUpdateSettings,
-} from '@/features/matches/matches.queries';
+import { useStartMatch } from '@/features/matches/matches.queries';
 import { errorMessage } from '@/lib/http/api-error';
 import { getCurrentPosition } from '@/lib/location/device-location';
 import { AppText, Button, Screen, SectionTitle, spacing } from '@/ui';
-import { InviteCodeCard } from '../components/invite-code-card';
-import { LobbyLocation } from '../components/lobby-location';
-import { MatchRules } from '../components/match-rules';
-import { TeamSection } from '../components/team-section';
-import { useLiveMatch, useLoadedMatch } from '../live-match.store';
-import { describeWaitingFor, playersNotReady } from '../rules/lobby';
-import { hasBalancedTeams, playersOfTeam } from '../rules/players';
-import { useServerNow } from '../use-server-clock';
+import {
+  useLiveMatch,
+  useLoadedMatch,
+} from '@/features/live-match/live-match.store';
+import {
+  hasBalancedTeams,
+  playersOfTeam,
+} from '@/features/live-match/rules/players';
+import { useServerNow } from '@/features/live-match/use-server-clock';
+import { InviteCodeCard } from './components/invite-code-card';
+import { LobbyLocation } from './components/lobby-location';
+import { MatchRules } from './components/match-rules';
+import { TeamSection } from './components/team-section';
+import {
+  useCloseLobby,
+  useKickPlayer,
+  useLeaveLobby,
+  useSetTeam,
+  useUpdateSettings,
+} from './lobby.queries';
+import { describeWaitingFor, playersNotReady } from './readiness';
 
 const otherTeam = (team: Team) =>
   team === Team.HUNTER ? Team.RUNNER : Team.HUNTER;
@@ -32,7 +38,7 @@ const otherTeam = (team: Team) =>
  * The lobby: a code to invite players, the teams with who is ready, and the
  * rules. The host edits the rules and starts the match where they stand.
  */
-export function LobbyPhase() {
+export function LobbyScreen() {
   const userId = useCurrentUser().user.id;
   const match = useLoadedMatch();
   const updateMatch = useLiveMatch((s) => s.updateMatch);
@@ -48,8 +54,8 @@ export function LobbyPhase() {
   const setTeam = useSetTeam(match.id);
   const kick = useKickPlayer(match.id);
   const start = useStartMatch(match.id);
-  const leave = useLeaveMatch(match.id);
-  const close = useCloseMatch(match.id);
+  const leave = useLeaveLobby(match.id);
+  const close = useCloseLobby(match.id);
   const updateSettings = useUpdateSettings(match.id);
 
   /** Runs a host action and shows the match it returns right away (the socket confirms it later). */

@@ -55,14 +55,14 @@ export const JOIN_CODE_LENGTH = 6;
 /** No 0/O or 1/I, so codes can be read out loud without confusion. */
 export const JOIN_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
-export const joinMatchSchema = z.object({
+export const joinLobbySchema = z.object({
   joinCode: z
     .string()
     .trim()
     .toUpperCase()
     .length(JOIN_CODE_LENGTH, `The code has ${JOIN_CODE_LENGTH} characters`),
 });
-export type JoinMatchInput = z.infer<typeof joinMatchSchema>;
+export type JoinLobbyInput = z.infer<typeof joinLobbySchema>;
 
 export const setTeamSchema = z.object({
   team: z.enum([Team.HUNTER, Team.RUNNER]),

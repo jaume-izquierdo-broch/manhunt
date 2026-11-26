@@ -51,24 +51,30 @@ src/
 │   │   └── components/        The two forms
 │   │
 │   ├── home/                  Home: your match, create / join, how to play
-│   ├── matches/               Create, join and set up a match (REST)
-│   │   ├── matches.api.ts     Every /matches endpoint
-│   │   ├── matches.queries.ts React Query hooks (useCurrentMatch, useCreateMatch…)
-│   │   └── join-match-screen.tsx  Join with a code
+│   ├── matches/               The match itself: your current match, start, navigation
+│   │   ├── matches.api.ts     /matches endpoints
+│   │   └── matches.queries.ts React Query hooks (useCurrentMatch, useStartMatch)
+│   │
+│   ├── lobby/                 Before the match: code, teams, rules, who is ready
+│   │   ├── lobby-screen.tsx   ★ The lobby (shown by the match screen while LOBBY)
+│   │   ├── lobby.api.ts       /lobbies endpoints, and their hooks in lobby.queries.ts
+│   │   ├── readiness.ts       Who can start from where they are
+│   │   ├── join-lobby-screen.tsx  Join with a code
+│   │   └── components/        Invite code, teams, rules grid
 │   │
 │   ├── realtime/              The socket to the server, open for the whole session
 │   │   ├── use-realtime-connection.ts ★ Opens/closes it, background, session ended
 │   │   ├── realtime.store.ts  The socket and its status (connected, reconnecting…)
 │   │   └── socket.ts          Typed Socket.IO client
 │   │
-│   ├── live-match/            The match being played (over the realtime socket)
-│   │   ├── match-screen.tsx   ★ Entry point: follows the match and picks the phase
+│   ├── live-match/            The match on screen, over the realtime socket
+│   │   ├── match-screen.tsx   ★ Entry point: follows the match and picks the screen
 │   │   ├── live-match.store.ts★ Everything about the match on screen + its actions
 │   │   ├── use-match-connection.ts  Subscribes; server event → store action
 │   │   ├── use-location-tracking.ts GPS → store, and position → server
-│   │   ├── phases/            Lobby, play (hiding + hunt), results
-│   │   ├── components/        Map, HUD, catch panel, team list…
-│   │   └── rules/             Pure game logic: distances, timers, players
+│   │   ├── phases/            Play (hiding + hunt) and results
+│   │   ├── components/        Map, HUD, catch panel, player row…
+│   │   └── rules/             Pure match logic: distances, timers, players
 │   │
 │   ├── location/              Location access: allowed, blocked, GPS off, approximate…
 │   │   ├── location-access.store.ts  Read on use and on returning to the app; `fix()`
@@ -77,7 +83,7 @@ src/
 │   ├── settings/              Profile, privacy, log out
 │   └── legal/                 Privacy policy text and screen
 │
-├── lib/                       Technical building blocks, no game logic
+├── lib/                       Technical building blocks, no match logic
 │   ├── http/                  HTTP client + ApiError
 │   ├── location/              Location permission and GPS readings
 │   ├── query-client.ts        React Query cache
@@ -126,15 +132,15 @@ match/[id] opens  →  MatchScreen
                        │                       and turns every server event into a store action:
                        │                         'player:caught' → playerCaught()
                        │                         'ping:reveal'   → pingRevealed()  …
-                       ├─ useLocationTracking  while live and free: GPS → myPosition,
+                       ├─ useLocationTracking  in the lobby, and while live and free: GPS → myPosition,
                        │                       and sends it to the server every few seconds
-                       └─ picks a phase from match.status:
-                            WAITING → LobbyPhase · HIDING/ACTIVE → PlayPhase · FINISHED → ResultsPhase
+                       └─ picks what to show from match.status:
+                            LOBBY → LobbyScreen · HIDING/ACTIVE → PlayPhase · FINISHED → ResultsPhase
 leaving the screen →  match:unsubscribe, store emptied (the socket stays open)
 ```
 
 - After every (re)connection the app subscribes again and gets a full snapshot, so a dropped connection never leaves stale state.
-- **GPS only runs when needed:** while the match is live and you're still free. The position is sent when you move (at most every 3 s) and every 10 s even when you stand still, so the server always has a recent position to validate catches.
+- **GPS only runs when needed:** in the lobby (every 10 s, so everyone sees who is in range) and while the match is live and you're still free. Then the position is sent when you move (at most every 3 s) and every 10 s even when you stand still, so the server always has a recent position to validate catches.
 - **Countdowns use the server's clock:** the offset is measured from the snapshot.
 - **Types and validation come from `@manhunt/types`**, the same as the API.
 
@@ -147,7 +153,8 @@ leaving the screen →  match:unsubscribe, store emptied (the socket stays open)
 | When the socket connects or disconnects  | `realtime/use-realtime-connection.ts`         |
 | How location access is asked or fixed    | `location/location-access.store.ts`           |
 | How often the position is sent           | `live-match/rules/location-reporting.ts`      |
-| The lobby / game / results screens       | `live-match/phases/`                          |
+| The lobby                                | `lobby/lobby-screen.tsx`                      |
+| The play / results screens               | `live-match/phases/`                          |
 | Login, logout, what happens on a 401     | `auth/session.store.ts`                       |
 | A REST call                              | `*/…api.ts`, and its hook in `*.queries.ts`   |
 | Colors, spacing, fonts                   | `ui/theme.ts`                                 |

@@ -20,7 +20,7 @@ export type GameNamespace = Namespace<
   SocketData
 >;
 
-export type GameSocket = Socket<
+export type RealtimeSocket = Socket<
   ClientToServerEvents,
   ServerToClientEvents,
   InterServerEvents,

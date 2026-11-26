@@ -1,6 +1,6 @@
 import { ErrorCode } from '@manhunt/types';
 import type { SessionStore } from '../auth/session.store.js';
-import type { GameSocket } from './realtime.types.js';
+import type { RealtimeSocket } from './realtime.types.js';
 
 type Next = (err?: Error) => void;
 
@@ -10,7 +10,7 @@ type Next = (err?: Error) => void;
  * Rejected clients get a `connect_error` whose message is `UNAUTHORIZED`.
  */
 export function createWsAuthMiddleware(sessions: SessionStore) {
-  return (socket: GameSocket, next: Next) => {
+  return (socket: RealtimeSocket, next: Next) => {
     const auth = socket.handshake.auth as { token?: unknown } | undefined;
     const token =
       auth?.token ??

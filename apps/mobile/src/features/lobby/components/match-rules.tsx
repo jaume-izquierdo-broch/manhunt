@@ -6,7 +6,7 @@ import {
   HIDING_OPTIONS,
   PING_OPTIONS,
   RADIUS_OPTIONS,
-} from '@/features/matches/match-options';
+} from '../lobby-options';
 import { formatDistance, formatDuration } from '@/lib/format';
 import {
   AppText,

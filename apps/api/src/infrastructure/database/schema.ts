@@ -50,7 +50,7 @@ export const matches = pgTable(
     status: varchar('status', { length: 20 })
       .$type<MatchStatus>()
       .notNull()
-      .default('WAITING'),
+      .default('LOBBY'),
 
     // Play area: a circle, centered on the host when the match starts.
     centerLat: doublePrecision('center_lat'),
@@ -73,11 +73,11 @@ export const matches = pgTable(
     index('matches_status_idx').on(t.status),
     check(
       'matches_status_ck',
-      sql`${t.status} in ('WAITING','HIDING','ACTIVE','FINISHED')`,
+      sql`${t.status} in ('LOBBY','HIDING','ACTIVE','FINISHED')`,
     ),
     check(
       'matches_center_ck',
-      sql`${t.status} = 'WAITING' or (${t.centerLat} is not null and ${t.centerLng} is not null)`,
+      sql`${t.status} = 'LOBBY' or (${t.centerLat} is not null and ${t.centerLng} is not null)`,
     ),
     check(
       'matches_winner_ck',
