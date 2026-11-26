@@ -1,5 +1,5 @@
 import type { PositionDto } from '@manhunt/types';
-import { distanceMeters } from './geo.js';
+import { distanceMeters } from '../../../common/geo/geo.js';
 
 export interface CatchRules {
   /** Maximum hunter-runner distance. */

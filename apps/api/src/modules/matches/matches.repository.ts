@@ -1,11 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import {
   LIVE_MATCH_STATUSES,
+  type MatchSettings,
   MatchStatus,
   OPEN_MATCH_STATUSES,
   PlayerStatus,
   Team,
 } from '@manhunt/types';
+import type { LatLng } from '../../common/geo/geo.js';
 import { and, asc, count, eq, inArray, lte } from 'drizzle-orm';
 import {
   type Database,
@@ -113,14 +115,35 @@ export class MatchesRepository {
     await this.db.delete(matches).where(eq(matches.id, matchId));
   }
 
-  /** WAITING -> HIDING, storing the computed timeline. */
+  /** Only while the match is in the lobby. */
+  async updateSettings(
+    matchId: string,
+    settings: MatchSettings,
+  ): Promise<MatchRow | null> {
+    const [row] = await this.db
+      .update(matches)
+      .set(settings)
+      .where(
+        and(eq(matches.id, matchId), eq(matches.status, MatchStatus.WAITING)),
+      )
+      .returning();
+    return row ?? null;
+  }
+
+  /** WAITING -> HIDING, storing the play area's center and the timeline. */
   async markStarted(
     matchId: string,
+    center: LatLng,
     timeline: MatchTimeline,
   ): Promise<MatchRow | null> {
     const [row] = await this.db
       .update(matches)
-      .set({ status: MatchStatus.HIDING, ...timeline })
+      .set({
+        status: MatchStatus.HIDING,
+        centerLat: center.lat,
+        centerLng: center.lng,
+        ...timeline,
+      })
       .where(
         and(eq(matches.id, matchId), eq(matches.status, MatchStatus.WAITING)),
       )

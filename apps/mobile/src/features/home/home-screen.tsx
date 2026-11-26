@@ -2,6 +2,7 @@ import { JOIN_CODE_LENGTH } from '@manhunt/types';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback } from 'react';
 import {
+  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -23,8 +24,14 @@ import {
   useThemeColors,
 } from '@/ui';
 import { CurrentMatchCard } from './components/current-match-card';
-import { goToMatch } from '@/features/matches/match-navigation';
-import { useCurrentMatch } from '@/features/matches/matches.queries';
+import {
+  goToMatch,
+  handleMatchEntryError,
+} from '@/features/matches/match-navigation';
+import {
+  useCreateMatch,
+  useCurrentMatch,
+} from '@/features/matches/matches.queries';
 
 const HOW_TO_PLAY: {
   icon: IconName;
@@ -64,6 +71,17 @@ export function HomeScreen() {
   const c = useThemeColors();
   const current = useCurrentMatch();
   const openMatch = current.data;
+  const create = useCreateMatch();
+
+  const createMatch = async () => {
+    try {
+      const match = await create.mutateAsync();
+      goToMatch(router, match.id);
+    } catch (error) {
+      const message = handleMatchEntryError(router, error);
+      if (message) Alert.alert('Could not create the match', message);
+    }
+  };
 
   // Refresh whenever the screen gains focus (e.g. coming back from a match).
   const { refetch } = current;
@@ -119,8 +137,9 @@ export function HomeScreen() {
                 prominent
                 icon="add"
                 title="Create a match"
-                description="Pick the play area and invite your friends"
-                onPress={() => router.push('/create')}
+                description="Invite your friends and set the rules"
+                busy={create.isPending}
+                onPress={() => void createMatch()}
               />
               <ActionCard
                 icon="keypad-outline"

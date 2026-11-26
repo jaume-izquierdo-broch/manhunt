@@ -5,33 +5,51 @@ export const latSchema = z.number().min(-90).max(90);
 export const lngSchema = z.number().min(-180).max(180);
 
 /** The play area is a circle: a center point and a radius. */
-export const playAreaSchema = z.object({
-  lat: latSchema,
-  lng: lngSchema,
-  radiusMeters: z.number().int().min(50).max(5000),
-});
-export type PlayArea = z.infer<typeof playAreaSchema>;
+export interface PlayArea {
+  lat: number;
+  lng: number;
+  radiusMeters: number;
+}
 
 export const MATCH_LIMITS = {
   maxPlayers: 30,
+  radiusMeters: { min: 50, max: 5000, default: 400 },
   hidingSeconds: { min: 0, max: 1800, default: 120 },
   durationSeconds: { min: 60, max: 4 * 3600, default: 1800 },
   pingIntervalSeconds: { min: 15, max: 1800, default: 120 },
 } as const;
 
-const boundedSeconds = (limits: {
-  min: number;
-  max: number;
-  default: number;
-}) => z.number().int().min(limits.min).max(limits.max).default(limits.default);
+const bounded = (limits: { min: number; max: number; default: number }) =>
+  z.number().int().min(limits.min).max(limits.max).default(limits.default);
 
-export const createMatchSchema = z.object({
-  playArea: playAreaSchema,
-  hidingSeconds: boundedSeconds(MATCH_LIMITS.hidingSeconds),
-  durationSeconds: boundedSeconds(MATCH_LIMITS.durationSeconds),
-  pingIntervalSeconds: boundedSeconds(MATCH_LIMITS.pingIntervalSeconds),
+/** What the host can change in the lobby. Missing fields take the defaults. */
+export const matchSettingsSchema = z.object({
+  radiusMeters: bounded(MATCH_LIMITS.radiusMeters),
+  hidingSeconds: bounded(MATCH_LIMITS.hidingSeconds),
+  durationSeconds: bounded(MATCH_LIMITS.durationSeconds),
+  pingIntervalSeconds: bounded(MATCH_LIMITS.pingIntervalSeconds),
 });
-export type CreateMatchInput = z.infer<typeof createMatchSchema>;
+export type MatchSettings = z.output<typeof matchSettingsSchema>;
+export type MatchSettingsInput = z.input<typeof matchSettingsSchema>;
+
+/** The host's position when starting: it becomes the center of the play area. */
+export const startMatchSchema = z.object({
+  lat: latSchema,
+  lng: lngSchema,
+  accuracy: z.number().min(0).max(10_000).optional(),
+});
+export type StartMatchInput = z.infer<typeof startMatchSchema>;
+
+/** Every player shares their location from the lobby, so the host knows who is ready. */
+export const LOBBY_LOCATION = {
+  reportEveryMs: 10_000,
+  /** Older than this, the player counts as having no location. */
+  staleAfterMs: 45_000,
+  /** The host's GPS must be at least this precise to center the area. */
+  maxHostAccuracyMeters: 100,
+  /** GPS error forgiven when checking that a player is inside the area. */
+  maxAccuracyAllowanceMeters: 50,
+} as const;
 
 export const JOIN_CODE_LENGTH = 6;
 /** No 0/O or 1/I, so codes can be read out loud without confusion. */
@@ -51,6 +69,15 @@ export const setTeamSchema = z.object({
 });
 export type SetTeamInput = z.infer<typeof setTeamSchema>;
 
+/** A player's latest location in the lobby, compared with the host's. */
+export interface LobbyLocationDto {
+  /** Null for the host, or while the host has no location. */
+  distanceFromHostMeters: number | null;
+  accuracy: number | null;
+  /** When the server received it. */
+  at: string;
+}
+
 export interface PlayerDto {
   userId: string;
   username: string;
@@ -58,6 +85,30 @@ export interface PlayerDto {
   status: PlayerStatus;
   caughtBy: string | null;
   caughtAt: string | null;
+  /** Only in the lobby; null if the player hasn't shared a location. */
+  lobbyLocation: LobbyLocationDto | null;
+}
+
+export type LobbyReadiness = 'ready' | 'far' | 'noLocation';
+
+/** Whether a player can start the match from where they are. */
+export function lobbyReadiness(
+  location: LobbyLocationDto | null,
+  radiusMeters: number,
+  now: Date,
+): LobbyReadiness {
+  if (!location) return 'noLocation';
+  if (now.getTime() - Date.parse(location.at) > LOBBY_LOCATION.staleAfterMs) {
+    return 'noLocation';
+  }
+  if (location.distanceFromHostMeters === null) return 'ready';
+  const allowance = Math.min(
+    location.accuracy ?? 0,
+    LOBBY_LOCATION.maxAccuracyAllowanceMeters,
+  );
+  return location.distanceFromHostMeters - allowance > radiusMeters
+    ? 'far'
+    : 'ready';
 }
 
 /** All timestamps are ISO 8601 strings. */
@@ -66,7 +117,9 @@ export interface MatchDto {
   joinCode: string;
   hostId: string;
   status: MatchStatus;
-  playArea: PlayArea;
+  radiusMeters: number;
+  /** Centered on the host when the match starts; null in the lobby. */
+  playArea: PlayArea | null;
   hidingSeconds: number;
   durationSeconds: number;
   pingIntervalSeconds: number;

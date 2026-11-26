@@ -6,7 +6,6 @@ import {
   AppText,
   Button,
   Card,
-  radius,
   spacing,
   typography,
   useThemeColors,
@@ -14,7 +13,7 @@ import {
 
 const COPIED_FOR_MS = 2_000;
 
-/** The lobby's code, one character per tile, with copy and share. */
+/** The lobby's code, with copy and share. */
 export function InviteCodeCard({ code }: { code: string }) {
   const c = useThemeColors();
   const [copied, setCopied] = useState(false);
@@ -44,19 +43,15 @@ export function InviteCodeCard({ code }: { code: string }) {
         onPress={copy}
         accessibilityRole="button"
         accessibilityLabel={`Code ${code}. Tap to copy`}
-        style={styles.tiles}
+        hitSlop={spacing.sm}
       >
-        {code.split('').map((char, index) => (
-          <View
-            key={index}
-            style={[
-              styles.tile,
-              { backgroundColor: c.surfaceAlt, borderColor: c.border },
-            ]}
-          >
-            <AppText style={typography.mono}>{char}</AppText>
-          </View>
-        ))}
+        <AppText
+          style={[typography.mono, styles.code, { color: c.text }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+        >
+          {code}
+        </AppText>
       </Pressable>
 
       <View style={styles.actions}>
@@ -81,16 +76,7 @@ export function InviteCodeCard({ code }: { code: string }) {
 const styles = StyleSheet.create({
   card: { alignItems: 'center', gap: spacing.lg },
   label: { letterSpacing: 1.2, fontWeight: '700' },
-  tiles: { flexDirection: 'row', gap: spacing.sm, alignSelf: 'stretch' },
-  tile: {
-    flex: 1,
-    aspectRatio: 0.8,
-    maxHeight: 64,
-    borderRadius: radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  code: { fontSize: 44, lineHeight: 54, letterSpacing: 8, paddingLeft: 8 },
   actions: { flexDirection: 'row', gap: spacing.sm, alignSelf: 'stretch' },
   action: { flex: 1 },
 });

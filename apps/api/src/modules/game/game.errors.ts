@@ -1,6 +1,10 @@
 import { HttpStatus } from '@nestjs/common';
 import { ErrorCode } from '@manhunt/types';
 import { AppError } from '../../common/errors/app-error.js';
+import {
+  describePlayersNotReady,
+  type PlayerNotReady,
+} from './domain/start-rules.js';
 
 export const GameErrors = {
   notSubscribed: () =>
@@ -64,5 +68,20 @@ export const GameErrors = {
       `You are ${Math.round(distanceMeters)} m apart (max ${maxMeters} m)`,
       HttpStatus.CONFLICT,
       { distanceMeters },
+    ),
+
+  playersNotReady: (players: PlayerNotReady[]) =>
+    new AppError(
+      ErrorCode.PLAYERS_NOT_READY,
+      `Not everyone is in the play area: ${describePlayersNotReady(players)}`,
+      HttpStatus.CONFLICT,
+      { players },
+    ),
+
+  hostLocationInaccurate: () =>
+    new AppError(
+      ErrorCode.LOCATION_INACCURATE,
+      'Your location is not precise enough yet. Wait a moment, ideally outdoors.',
+      HttpStatus.CONFLICT,
     ),
 };

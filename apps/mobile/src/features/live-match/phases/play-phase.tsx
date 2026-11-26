@@ -37,7 +37,8 @@ export function PlayPhase() {
   const c = useThemeColors();
 
   const me = state.me;
-  if (!me) return null;
+  const area = match.playArea; // set when the match starts
+  if (!me || !area) return null;
 
   const isHunter = me.team === Team.HUNTER;
   const hiding = match.status === MatchStatus.HIDING;
@@ -46,7 +47,7 @@ export function PlayPhase() {
   return (
     <View style={[styles.fill, { backgroundColor: c.background }]}>
       <GameMap
-        area={match.playArea}
+        area={area}
         markers={buildMarkers(state, match, isHunter)}
         accentColor={isHunter ? c.hunter : c.runner}
       />
@@ -166,7 +167,12 @@ function buildNotices(
       message: `${playerName(match, hunterId)} caught ${playerName(match, runnerId)}`,
     });
   }
-  if (position && !caught && !isInsideArea(position, match.playArea)) {
+  if (
+    position &&
+    match.playArea &&
+    !caught &&
+    !isInsideArea(position, match.playArea)
+  ) {
     notices.push({
       key: 'outside',
       tone: 'warning',

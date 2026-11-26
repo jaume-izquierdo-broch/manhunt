@@ -39,7 +39,7 @@ src/
 ├── app/                       Routes (Expo Router). One line each: URL → screen
 │   ├── _layout.tsx            Loads the session and decides: (auth) or (app)
 │   ├── (auth)/                login, register
-│   ├── (app)/                 index (home), create, join, match/[id], settings
+│   ├── (app)/                 index (home), join, match/[id], settings
 │   └── privacy.tsx            Reachable with or without a session
 │
 ├── features/
@@ -51,10 +51,10 @@ src/
 │   │   └── components/        The two forms
 │   │
 │   ├── home/                  Home: your match, create / join, how to play
-│   ├── matches/               Create and join a match (REST)
+│   ├── matches/               Create, join and set up a match (REST)
 │   │   ├── matches.api.ts     Every /matches endpoint
 │   │   ├── matches.queries.ts React Query hooks (useCurrentMatch, useCreateMatch…)
-│   │   └── *-screen.tsx       Create match, join with a code
+│   │   └── join-match-screen.tsx  Join with a code
 │   │
 │   ├── realtime/              The socket to the server, open for the whole session
 │   │   ├── use-realtime-connection.ts ★ Opens/closes it, background, session ended

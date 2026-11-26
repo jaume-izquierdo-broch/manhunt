@@ -7,6 +7,7 @@ export type TextTone =
   | 'default'
   | 'muted'
   | 'danger'
+  | 'warning'
   | 'hunter'
   | 'runner'
   | 'primary'
@@ -30,6 +31,7 @@ export function AppText({
     default: c.text,
     muted: c.textMuted,
     danger: c.danger,
+    warning: c.warning,
     hunter: c.hunter,
     runner: c.runner,
     primary: c.primary,

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { MatchDto } from '@manhunt/types';
+import { type MatchDto, MatchStatus } from '@manhunt/types';
 import type {
   MatchPlayerRow,
   MatchRow,
@@ -8,6 +8,7 @@ import { RealtimePublisher } from '../realtime/realtime.publisher.js';
 import { toMatchDto } from './match.mapper.js';
 import { MatchErrors } from './matches.errors.js';
 import { MatchesRepository } from './matches.repository.js';
+import { PositionsStore } from './positions.store.js';
 
 export interface Membership {
   match: MatchRow;
@@ -23,6 +24,7 @@ export class MatchReader {
   constructor(
     private readonly repo: MatchesRepository,
     private readonly realtime: RealtimePublisher,
+    private readonly positions: PositionsStore,
   ) {}
 
   async getOrThrow(matchId: string): Promise<MatchRow> {
@@ -43,7 +45,15 @@ export class MatchReader {
   }
 
   async toDto(match: MatchRow): Promise<MatchDto> {
-    return toMatchDto(match, await this.repo.listPlayerViews(match.id));
+    const players = await this.repo.listPlayerViews(match.id);
+    const lobbyPositions =
+      match.status === MatchStatus.WAITING
+        ? await this.positions.getMany(
+            match.id,
+            players.map((p) => p.userId),
+          )
+        : [];
+    return toMatchDto(match, players, lobbyPositions);
   }
 
   async getDtoForMember(matchId: string, userId: string): Promise<MatchDto> {

@@ -11,6 +11,7 @@ export const player = (
   status: 'ALIVE',
   caughtBy: null,
   caughtAt: null,
+  lobbyLocation: null,
   ...extra,
 });
 
@@ -19,6 +20,7 @@ export const makeMatch = (overrides: Partial<MatchDto> = {}): MatchDto => ({
   joinCode: 'ABC234',
   hostId: 'host',
   status: 'WAITING',
+  radiusMeters: 400,
   playArea: { lat: 41.387, lng: 2.17, radiusMeters: 400 },
   hidingSeconds: 120,
   durationSeconds: 1800,

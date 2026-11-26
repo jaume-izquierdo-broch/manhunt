@@ -10,11 +10,11 @@ import {
   Post,
 } from '@nestjs/common';
 import {
-  type CreateMatchInput,
-  createMatchSchema,
   type JoinMatchInput,
   joinMatchSchema,
   type MatchDto,
+  type MatchSettings,
+  matchSettingsSchema,
   type SetTeamInput,
   setTeamSchema,
 } from '@manhunt/types';
@@ -54,10 +54,11 @@ export class MatchesController {
 
   // --- Lobby ---------------------------------------------------------------
 
+  /** Settings are optional: the host can change them later in the lobby. */
   @Post()
   create(
     @CurrentUser() user: AuthUser,
-    @Body(new ZodValidationPipe(createMatchSchema)) body: CreateMatchInput,
+    @Body(new ZodValidationPipe(matchSettingsSchema)) body: MatchSettings,
   ): Promise<MatchDto> {
     return this.lobby.create(user.userId, body);
   }
@@ -88,6 +89,16 @@ export class MatchesController {
     @Param('id', uuid) id: string,
   ): Promise<void> {
     return this.lobby.close(id, user.userId);
+  }
+
+  /** Host only. */
+  @Patch(':id/settings')
+  updateSettings(
+    @CurrentUser() user: AuthUser,
+    @Param('id', uuid) id: string,
+    @Body(new ZodValidationPipe(matchSettingsSchema)) body: MatchSettings,
+  ): Promise<MatchDto> {
+    return this.lobby.updateSettings(id, user.userId, body);
   }
 
   /** Host only. */

@@ -2,6 +2,7 @@ import { MatchStatus } from '@manhunt/types';
 import { Stack, useRouter } from 'expo-router';
 import { useEffect, useEffectEvent } from 'react';
 import { Alert } from 'react-native';
+import { goHome } from '@/features/matches/match-navigation';
 import { useInvalidateCurrentMatch } from '@/features/matches/matches.queries';
 import { useRealtime } from '@/features/realtime/realtime.store';
 import { Banner, Button, LoadingView, Screen } from '@/ui';
@@ -36,7 +37,7 @@ export function MatchScreen({ matchId }: { matchId: string }) {
 
   const onClosed = useEffectEvent(() => {
     void invalidateCurrentMatch();
-    router.replace('/');
+    goHome(router);
     Alert.alert(
       'Match closed',
       'The host closed the lobby or removed you from it.',
@@ -49,9 +50,7 @@ export function MatchScreen({ matchId }: { matchId: string }) {
   if (!status) {
     return error ? (
       <Screen
-        footer={
-          <Button title="Back to home" onPress={() => router.replace('/')} />
-        }
+        footer={<Button title="Back to home" onPress={() => goHome(router)} />}
       >
         <Banner tone="danger" message={error} />
       </Screen>

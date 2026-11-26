@@ -52,9 +52,9 @@ export const matches = pgTable(
       .notNull()
       .default('WAITING'),
 
-    // Play area: a circle. Could move to PostGIS if areas ever become polygons.
-    centerLat: doublePrecision('center_lat').notNull(),
-    centerLng: doublePrecision('center_lng').notNull(),
+    // Play area: a circle, centered on the host when the match starts.
+    centerLat: doublePrecision('center_lat'),
+    centerLng: doublePrecision('center_lng'),
     radiusMeters: integer('radius_meters').notNull(),
 
     hidingSeconds: integer('hiding_seconds').notNull(),
@@ -74,6 +74,10 @@ export const matches = pgTable(
     check(
       'matches_status_ck',
       sql`${t.status} in ('WAITING','HIDING','ACTIVE','FINISHED')`,
+    ),
+    check(
+      'matches_center_ck',
+      sql`${t.status} = 'WAITING' or (${t.centerLat} is not null and ${t.centerLng} is not null)`,
     ),
     check(
       'matches_winner_ck',

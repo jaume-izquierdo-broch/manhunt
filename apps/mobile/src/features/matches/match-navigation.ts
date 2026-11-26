@@ -4,8 +4,15 @@ import { ApiError, errorMessage } from '@/lib/http/api-error';
 
 type Router = ReturnType<typeof useRouter>;
 
+/** Opens the match on top of home, replacing the current screen unless it's home. */
 export function goToMatch(router: Router, matchId: string) {
-  router.replace({ pathname: '/match/[id]', params: { id: matchId } });
+  router.dismissTo('/');
+  router.push({ pathname: '/match/[id]', params: { id: matchId } });
+}
+
+/** Back to the home screen that is already under the match. */
+export function goHome(router: Router) {
+  router.dismissTo('/');
 }
 
 /**

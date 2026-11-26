@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { AppText } from './app-text';
 import { Icon, type IconName } from './icon';
 import { IconBadge } from './icon-badge';
@@ -14,6 +14,8 @@ export interface ActionCardProps {
   color?: keyof ThemeColors;
   /** The main action on the screen: filled with the accent color. */
   prominent?: boolean;
+  /** Shows a spinner instead of the chevron and ignores taps. */
+  busy?: boolean;
 }
 
 /** A large tappable card: icon, title, a short description and a chevron. */
@@ -24,6 +26,7 @@ export function ActionCard({
   onPress,
   color = 'primary',
   prominent = false,
+  busy = false,
 }: ActionCardProps) {
   const c = useThemeColors();
   const onColor = prominent ? 'onPrimary' : undefined;
@@ -33,6 +36,8 @@ export function ActionCard({
       accessibilityRole="button"
       accessibilityLabel={title}
       accessibilityHint={description}
+      accessibilityState={{ busy }}
+      disabled={busy}
       onPress={onPress}
       style={({ pressed }) => [
         styles.card,
@@ -65,7 +70,11 @@ export function ActionCard({
           {description}
         </AppText>
       </View>
-      <Icon name="chevron-forward" size={20} color={onColor ?? 'textMuted'} />
+      {busy ? (
+        <ActivityIndicator color={prominent ? c.onPrimary : c.textMuted} />
+      ) : (
+        <Icon name="chevron-forward" size={20} color={onColor ?? 'textMuted'} />
+      )}
     </Pressable>
   );
 }

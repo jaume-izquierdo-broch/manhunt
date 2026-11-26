@@ -11,14 +11,15 @@ import {
 } from '@manhunt/types';
 import { type Env, InjectEnv } from '../../config/env.js';
 import type { MatchRow } from '../../infrastructure/database/schema.js';
+import { LobbyService } from '../matches/lobby.service.js';
 import { MatchReader } from '../matches/match-reader.service.js';
 import { MatchesRepository } from '../matches/matches.repository.js';
+import { PositionsStore } from '../matches/positions.store.js';
 import { RealtimePublisher } from '../realtime/realtime.publisher.js';
 import { checkCatch } from './domain/catch-rules.js';
 import { huntWindowOf, nextPingAfter } from './domain/timeline.js';
 import { GameErrors } from './game.errors.js';
 import { MatchLifecycleService } from './match-lifecycle.service.js';
-import { PositionsStore } from './positions.store.js';
 
 const isLive = (match: MatchRow) =>
   (LIVE_MATCH_STATUSES as readonly MatchStatus[]).includes(match.status);
@@ -35,6 +36,7 @@ export class GameplayService {
     private readonly positions: PositionsStore,
     private readonly realtime: RealtimePublisher,
     private readonly lifecycle: MatchLifecycleService,
+    private readonly lobby: LobbyService,
   ) {}
 
   /** Everything a client needs to render the match, on first load or after reconnecting. */
@@ -68,7 +70,7 @@ export class GameplayService {
     };
   }
 
-  /** Stores the position and forwards it to the player's teammates. */
+  /** In the lobby, shows who is ready; in a live match, forwards it to the player's teammates. */
   async updateLocation(
     userId: string,
     matchId: string,
@@ -78,6 +80,9 @@ export class GameplayService {
       matchId,
       userId,
     );
+    if (match.status === MatchStatus.WAITING) {
+      return this.lobby.reportLocation(match, userId, input);
+    }
     if (!isLive(match)) throw GameErrors.notPlaying();
     if (player.status !== PlayerStatus.ALIVE) throw GameErrors.youAreCaught();
 

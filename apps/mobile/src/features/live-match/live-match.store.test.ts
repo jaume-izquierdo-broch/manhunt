@@ -12,6 +12,7 @@ const player = (
   status: 'ALIVE',
   caughtBy: null,
   caughtAt: null,
+  lobbyLocation: null,
   ...extra,
 });
 
@@ -20,6 +21,7 @@ const baseMatch: MatchDto = {
   joinCode: 'ABC234',
   hostId: 'hunter',
   status: 'ACTIVE',
+  radiusMeters: 400,
   playArea: { lat: 41.387, lng: 2.17, radiusMeters: 400 },
   hidingSeconds: 60,
   durationSeconds: 600,

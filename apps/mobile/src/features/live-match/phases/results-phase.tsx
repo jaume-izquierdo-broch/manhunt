@@ -1,6 +1,7 @@
 import { type MatchDto, type PlayerDto, Team } from '@manhunt/types';
 import { useRouter } from 'expo-router';
 import { useCurrentUser } from '@/features/auth/session.store';
+import { goHome } from '@/features/matches/match-navigation';
 import { useInvalidateCurrentMatch } from '@/features/matches/matches.queries';
 import { AppText, Button, Card, Screen } from '@/ui';
 import { PlayerRow } from '../components/player-row';
@@ -18,13 +19,13 @@ export function ResultsPhase() {
   const winner = match.winnerTeam;
   const myTeamWon = !!winner && myTeam === winner;
 
-  const goHome = () => {
+  const backHome = () => {
     void invalidateCurrentMatch();
-    router.replace('/');
+    goHome(router);
   };
 
   return (
-    <Screen scroll footer={<Button title="Back to home" onPress={goHome} />}>
+    <Screen scroll footer={<Button title="Back to home" onPress={backHome} />}>
       <Card>
         <AppText
           variant="title"

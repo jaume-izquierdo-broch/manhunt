@@ -88,7 +88,10 @@ export async function getCurrentPosition(): Promise<DevicePosition> {
   });
   try {
     const location = await Promise.race([
-      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
+      Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+        mayShowUserSettingsDialog: false,
+      }),
       timeout,
     ]);
     return toDevicePosition(location);
@@ -106,6 +109,9 @@ export async function watchPosition(
       accuracy: Location.Accuracy.High,
       timeInterval: 2_000,
       distanceInterval: 2,
+      // Otherwise Android asks for Google's "Location Accuracy" and, if the
+      // user says no, never delivers a position. GPS alone is enough.
+      mayShowUserSettingsDialog: false,
     },
     (location) => onChange(toDevicePosition(location)),
   );

@@ -1,4 +1,5 @@
 import { type PlayerDto, Team } from '@manhunt/types';
+import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import {
   AppText,
@@ -32,6 +33,7 @@ export interface TeamSectionProps {
   players: PlayerDto[];
   userId: string;
   hostId: string;
+  detailOf?: (player: PlayerDto) => ReactNode;
   /** Host-only actions. Without them, the list is read-only. */
   onSwitchTeam?: (player: PlayerDto) => void;
   onKick?: (player: PlayerDto) => void;
@@ -43,6 +45,7 @@ export function TeamSection({
   players,
   userId,
   hostId,
+  detailOf,
   onSwitchTeam,
   onKick,
 }: TeamSectionProps) {
@@ -81,6 +84,7 @@ export function TeamSection({
           player={player}
           isMe={player.userId === userId}
           isHost={player.userId === hostId}
+          detail={detailOf?.(player)}
           actions={
             onSwitchTeam || onKick ? (
               <>

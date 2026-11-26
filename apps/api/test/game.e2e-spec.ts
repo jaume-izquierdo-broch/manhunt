@@ -25,7 +25,7 @@ describe('live match', () => {
     const match = (
       await hunter.api
         .post('/matches', {
-          playArea: { ...ORIGIN, radiusMeters: 500 },
+          radiusMeters: 500,
           hidingSeconds: 0,
           durationSeconds: 600,
           pingIntervalSeconds,
@@ -45,13 +45,15 @@ describe('live match', () => {
       expect(ack.ok).toBe(true);
     }
 
+    await emit(runnerSocket, 'location:update', ORIGIN);
+
     const active = waitFor(
       runnerSocket,
       'match:updated',
       (m) => m.status === 'ACTIVE',
     );
     const started = await hunter.api
-      .post(`/matches/${match.id}/start`)
+      .post(`/matches/${match.id}/start`, ORIGIN)
       .expect(200);
     expect((started.body as MatchDto).status).toBe('HIDING');
     await active;
@@ -66,7 +68,7 @@ describe('live match', () => {
     const match = (
       await host.api
         .post('/matches', {
-          playArea: { ...ORIGIN, radiusMeters: 500 },
+          radiusMeters: 500,
           hidingSeconds: 0,
           durationSeconds: 600,
           pingIntervalSeconds: 60,
@@ -108,9 +110,9 @@ describe('live match', () => {
 
   it('only the host can start the match, and only once', async () => {
     const { match, hunter, runner } = await startedMatch();
-    await runner.api.post(`/matches/${match.id}/start`).expect(403);
+    await runner.api.post(`/matches/${match.id}/start`, ORIGIN).expect(403);
     const again = await hunter.api
-      .post(`/matches/${match.id}/start`)
+      .post(`/matches/${match.id}/start`, ORIGIN)
       .expect(409);
     expect(again.body.code).toBe('INVALID_MATCH_STATUS');
   });

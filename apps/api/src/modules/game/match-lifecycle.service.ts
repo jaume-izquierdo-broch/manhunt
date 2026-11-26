@@ -7,6 +7,7 @@ import {
 import {
   type MatchDto,
   MatchStatus,
+  type StartMatchInput,
   type PingRevealPayload,
   PlayerStatus,
   Team,
@@ -19,6 +20,7 @@ import {
 import { MatchReader } from '../matches/match-reader.service.js';
 import { MatchErrors } from '../matches/matches.errors.js';
 import { MatchesRepository } from '../matches/matches.repository.js';
+import { PositionsStore } from '../matches/positions.store.js';
 import { RealtimePublisher } from '../realtime/realtime.publisher.js';
 import {
   computeTimeline,
@@ -27,8 +29,12 @@ import {
   nextPingAfter,
   pingSlot,
 } from './domain/timeline.js';
+import {
+  findPlayersNotReady,
+  isHostAccurateEnough,
+} from './domain/start-rules.js';
+import { GameErrors } from './game.errors.js';
 import { MatchTimersQueue, type TimerJob } from './match-timers.queue.js';
-import { PositionsStore } from './positions.store.js';
 
 /**
  * The match state machine:
@@ -77,20 +83,48 @@ export class MatchLifecycleService
 
   // --- Transitions ---------------------------------------------------------
 
-  /** WAITING -> HIDING, requested by the host. */
-  async start(matchId: string, hostId: string): Promise<MatchDto> {
+  /**
+   * WAITING -> HIDING, requested by the host. The play area is centered on the
+   * host, and every other player must be inside it.
+   */
+  async start(
+    matchId: string,
+    hostId: string,
+    host: StartMatchInput,
+  ): Promise<MatchDto> {
     const match = await this.reader.getOrThrow(matchId);
     assertHostInLobby(match, hostId);
 
-    const players = await this.repo.listPlayers(matchId);
+    const players = await this.repo.listPlayerViews(matchId);
     if (!hasBalancedTeams(players)) throw MatchErrors.teamsUnbalanced();
+    if (!isHostAccurateEnough(host.accuracy)) {
+      throw GameErrors.hostLocationInaccurate();
+    }
+
+    const now = new Date();
+    const guests = players.filter((p) => p.userId !== hostId);
+    const positions = await this.positions.getMany(
+      matchId,
+      guests.map((p) => p.userId),
+    );
+    const notReady = findPlayersNotReady(
+      guests.map((p) => ({
+        userId: p.userId,
+        username: p.username,
+        position: positions.find((pos) => pos.userId === p.userId) ?? null,
+      })),
+      host,
+      match.radiusMeters,
+      now,
+    );
+    if (notReady.length > 0) throw GameErrors.playersNotReady(notReady);
 
     const timeline = computeTimeline(
-      new Date(),
+      now,
       match.hidingSeconds,
       match.durationSeconds,
     );
-    const started = await this.repo.markStarted(matchId, timeline);
+    const started = await this.repo.markStarted(matchId, host, timeline);
     if (!started) {
       throw MatchErrors.invalidStatus('The match has already started');
     }

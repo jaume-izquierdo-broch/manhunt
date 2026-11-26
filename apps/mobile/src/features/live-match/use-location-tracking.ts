@@ -1,4 +1,4 @@
-import { PlayerStatus } from '@manhunt/types';
+import { LOBBY_LOCATION, MatchStatus, PlayerStatus } from '@manhunt/types';
 import { useEffect, useRef } from 'react';
 import {
   canLocate,
@@ -11,30 +11,42 @@ import { watchPosition } from '@/lib/location/device-location';
 import { useLiveMatch } from './live-match.store';
 import { isLive } from './rules/players';
 import {
+  DEFAULT_REPORT_POLICY,
   type ReportedPosition,
+  type ReportPolicy,
   shouldReport,
 } from './rules/location-reporting';
 
 const CHECK_EVERY_MS = 1_000;
 
+/** In the lobby only the distance to the host matters: report less often. */
+const LOBBY_REPORT_POLICY: ReportPolicy = {
+  minIntervalMs: 5_000,
+  heartbeatMs: LOBBY_LOCATION.reportEveryMs,
+  minMoveMeters: 15,
+};
+
 /**
- * The phone's GPS during a match. Only runs while the match is live and I'm
- * still free, to save battery:
+ * The phone's GPS in the lobby (so everyone sees who is ready to start) and
+ * during the match while I'm still free. Off otherwise, to save battery:
  *
  * 1. Watches the position and keeps it in the store (`myPosition`).
  * 2. Sends it to the server when `shouldReport` says so: when I move, and every
  *    few seconds even if I stand still, so catches can be validated.
  */
 export function useLocationTracking() {
+  const inLobby = useLiveMatch((s) => s.match?.status === MatchStatus.WAITING);
   const tracking = useLiveMatch(
-    (s) => isLive(s.match?.status) && s.me?.status === PlayerStatus.ALIVE,
+    (s) =>
+      s.match?.status === MatchStatus.WAITING ||
+      (isLive(s.match?.status) && s.me?.status === PlayerStatus.ALIVE),
   );
   const access = useLocationAccess();
   const located = canLocate(access);
   const connected = useRealtime((s) => s.status === 'connected');
 
-  // When the match starts without permission, show the system dialog once.
-  // If it's refused, the play screen shows how to allow it.
+  // Show the system dialog once, as soon as it's needed. If it's refused, the
+  // lobby and the play screen show how to allow it.
   const asked = useRef(false);
   useEffect(() => {
     if (!tracking || access !== 'askable' || asked.current) return;
@@ -61,13 +73,18 @@ export function useLocationTracking() {
   // 2. Report the position to the server.
   useEffect(() => {
     if (!tracking || !connected) return;
+    const policy = inLobby ? LOBBY_REPORT_POLICY : DEFAULT_REPORT_POLICY;
     let lastReported: ReportedPosition | null = null;
 
     const tick = () => {
       const position = useLiveMatch.getState().myPosition;
       const { socket } = useRealtime.getState();
       const now = Date.now();
-      if (!position || !socket || !shouldReport(now, position, lastReported)) {
+      if (
+        !position ||
+        !socket ||
+        !shouldReport(now, position, lastReported, policy)
+      ) {
         return;
       }
       lastReported = { lat: position.lat, lng: position.lng, at: now };
@@ -83,5 +100,5 @@ export function useLocationTracking() {
     tick();
     const id = setInterval(tick, CHECK_EVERY_MS);
     return () => clearInterval(id);
-  }, [tracking, connected]);
+  }, [tracking, connected, inLobby]);
 }

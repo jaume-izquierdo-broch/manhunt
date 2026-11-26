@@ -1,69 +1,147 @@
-import type { MatchDto } from '@manhunt/types';
-import { StyleSheet, View } from 'react-native';
+import type { MatchDto, MatchSettings } from '@manhunt/types';
+import { useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import {
+  DURATION_OPTIONS,
+  HIDING_OPTIONS,
+  PING_OPTIONS,
+  RADIUS_OPTIONS,
+} from '@/features/matches/match-options';
 import { formatDistance, formatDuration } from '@/lib/format';
 import {
   AppText,
   Card,
+  Icon,
   IconBadge,
   type IconName,
+  type Option,
+  OptionSheet,
   spacing,
   type ThemeColors,
 } from '@/ui';
 
 interface Rule {
+  key: keyof MatchSettings;
   icon: IconName;
   color: keyof ThemeColors;
-  value: string;
   label: string;
+  /** Title of the sheet to change it. */
+  question: string;
+  options: readonly Option<number>[];
+  format: (value: number) => string;
 }
 
-/** The match settings as a 2×2 grid. */
-export function MatchRules({ match }: { match: MatchDto }) {
-  const rules: Rule[] = [
-    {
-      icon: 'locate-outline',
-      color: 'primary',
-      value: formatDistance(match.playArea.radiusMeters),
-      label: 'Area radius',
-    },
-    {
-      icon: 'eye-off-outline',
-      color: 'runner',
-      value: formatDuration(match.hidingSeconds),
-      label: 'To hide',
-    },
-    {
-      icon: 'timer-outline',
-      color: 'hunter',
-      value: formatDuration(match.durationSeconds),
-      label: 'Hunt',
-    },
-    {
-      icon: 'radio-outline',
-      color: 'warning',
-      value: formatDuration(match.pingIntervalSeconds),
-      label: 'Ping every',
-    },
-  ];
+const RULES: Rule[] = [
+  {
+    key: 'radiusMeters',
+    icon: 'locate-outline',
+    color: 'primary',
+    label: 'Area radius',
+    question: 'Play area radius',
+    options: RADIUS_OPTIONS,
+    format: formatDistance,
+  },
+  {
+    key: 'hidingSeconds',
+    icon: 'eye-off-outline',
+    color: 'runner',
+    label: 'To hide',
+    question: 'Time to hide',
+    options: HIDING_OPTIONS,
+    format: formatDuration,
+  },
+  {
+    key: 'durationSeconds',
+    icon: 'timer-outline',
+    color: 'hunter',
+    label: 'Hunt',
+    question: 'Hunt duration',
+    options: DURATION_OPTIONS,
+    format: formatDuration,
+  },
+  {
+    key: 'pingIntervalSeconds',
+    icon: 'radio-outline',
+    color: 'warning',
+    label: 'Ping every',
+    question: 'Ping the hunters every',
+    options: PING_OPTIONS,
+    format: formatDuration,
+  },
+];
+
+/**
+ * The match settings as a 2×2 grid. With `onChange` (the host), each rule
+ * opens a sheet to pick another value.
+ */
+export function MatchRules({
+  match,
+  onChange,
+}: {
+  match: MatchDto;
+  onChange?: (settings: MatchSettings) => void;
+}) {
+  const [picking, setPicking] = useState<Rule | null>(null);
+  const settings: MatchSettings = {
+    radiusMeters: match.radiusMeters,
+    hidingSeconds: match.hidingSeconds,
+    durationSeconds: match.durationSeconds,
+    pingIntervalSeconds: match.pingIntervalSeconds,
+  };
 
   return (
     <Card style={styles.grid}>
-      {rules.map((rule) => (
-        <View
-          key={rule.label}
-          style={styles.rule}
-          accessible
-          accessibilityLabel={`${rule.label}: ${rule.value}`}
-        >
-          <IconBadge name={rule.icon} color={rule.color} size={36} />
-          <View style={styles.text}>
-            <AppText variant="label">{rule.value}</AppText>
-            <AppText variant="caption" tone="muted">
-              {rule.label}
-            </AppText>
+      {RULES.map((rule) => {
+        const value = rule.format(settings[rule.key]);
+        const content = (
+          <>
+            <IconBadge name={rule.icon} color={rule.color} size={36} />
+            <View style={styles.text}>
+              <View style={styles.value}>
+                <AppText variant="label">{value}</AppText>
+                {onChange ? (
+                  <Icon name="chevron-down" size={14} color="textMuted" />
+                ) : null}
+              </View>
+              <AppText variant="caption" tone="muted">
+                {rule.label}
+              </AppText>
+            </View>
+          </>
+        );
+        return onChange ? (
+          <Pressable
+            key={rule.key}
+            style={({ pressed }) => [styles.rule, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel={`${rule.label}: ${value}`}
+            accessibilityHint="Change it"
+            onPress={() => setPicking(rule)}
+          >
+            {content}
+          </Pressable>
+        ) : (
+          <View
+            key={rule.key}
+            style={styles.rule}
+            accessible
+            accessibilityLabel={`${rule.label}: ${value}`}
+          >
+            {content}
           </View>
-        </View>
-      ))}
+        );
+      })}
+
+      {onChange && picking ? (
+        <OptionSheet
+          visible
+          title={picking.question}
+          options={picking.options}
+          value={settings[picking.key]}
+          onSelect={(value) => onChange({ ...settings, [picking.key]: value })}
+          onClose={() => setPicking(null)}
+        />
+      ) : null}
     </Card>
   );
 }
@@ -82,5 +160,7 @@ const styles = StyleSheet.create({
     flexBasis: '45%',
     flexGrow: 1,
   },
+  pressed: { opacity: 0.6 },
   text: { flexShrink: 1 },
+  value: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
 });

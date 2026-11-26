@@ -1,14 +1,17 @@
 import type { MatchDto } from '@manhunt/types';
 import { emit, waitFor } from './support/socket.js';
-import { ORIGIN, type TestPlayer, useTestApp } from './support/test-app.js';
+import {
+  metersNorth,
+  ORIGIN,
+  type TestPlayer,
+  useTestApp,
+} from './support/test-app.js';
 
 describe('lobby (WAITING)', () => {
   const t = useTestApp();
 
   async function createMatch(host: TestPlayer): Promise<MatchDto> {
-    const res = await host.api
-      .post('/matches', { playArea: { ...ORIGIN, radiusMeters: 300 } })
-      .expect(201);
+    const res = await host.api.post('/matches', {}).expect(201);
     return res.body as MatchDto;
   }
 
@@ -19,6 +22,8 @@ describe('lobby (WAITING)', () => {
     expect(match).toMatchObject({
       status: 'WAITING',
       hostId: host.user.id,
+      radiusMeters: 400,
+      playArea: null,
       hidingSeconds: 120,
       durationSeconds: 1800,
       pingIntervalSeconds: 120,
@@ -66,9 +71,7 @@ describe('lobby (WAITING)', () => {
   it('a user cannot be in two matches at once', async () => {
     const host = await t.register('host');
     await createMatch(host);
-    const res = await host.api
-      .post('/matches', { playArea: { ...ORIGIN, radiusMeters: 300 } })
-      .expect(409);
+    const res = await host.api.post('/matches', {}).expect(409);
     expect(res.body).toMatchObject({ code: 'ALREADY_IN_MATCH' });
   });
 
@@ -140,7 +143,123 @@ describe('lobby (WAITING)', () => {
   it('cannot start without at least one hunter and one runner', async () => {
     const host = await t.register('host');
     const match = await createMatch(host);
-    const res = await host.api.post(`/matches/${match.id}/start`).expect(409);
+    const res = await host.api
+      .post(`/matches/${match.id}/start`, ORIGIN)
+      .expect(409);
     expect(res.body.code).toBe('TEAMS_UNBALANCED');
+  });
+
+  it('only the host changes the settings, and everyone is told', async () => {
+    const host = await t.register('host');
+    const guest = await t.register('guest');
+    const match = await createMatch(host);
+    await guest.api
+      .post('/matches/join', { joinCode: match.joinCode })
+      .expect(200);
+    const socket = await guest.connect();
+    await emit(socket, 'match:subscribe', { matchId: match.id });
+
+    const settings = {
+      radiusMeters: 800,
+      hidingSeconds: 60,
+      durationSeconds: 1200,
+      pingIntervalSeconds: 30,
+    };
+    await guest.api
+      .patch(`/matches/${match.id}/settings`, settings)
+      .expect(403);
+    const updated = waitFor(
+      socket,
+      'match:updated',
+      (m) => m.radiusMeters === 800,
+    );
+    const res = await host.api
+      .patch(`/matches/${match.id}/settings`, settings)
+      .expect(200);
+
+    expect(res.body).toMatchObject(settings);
+    await updated;
+  });
+
+  describe('starting where the host is', () => {
+    async function lobbyWithGuest() {
+      const host = await t.register('host');
+      const guest = await t.register('guest');
+      const match = await createMatch(host);
+      await guest.api
+        .post('/matches/join', { joinCode: match.joinCode })
+        .expect(200);
+      const [hostSocket, guestSocket] = await Promise.all([
+        host.connect(),
+        guest.connect(),
+      ]);
+      for (const socket of [hostSocket, guestSocket]) {
+        await emit(socket, 'match:subscribe', { matchId: match.id });
+      }
+      return { host, guest, match, hostSocket, guestSocket };
+    }
+
+    it("shows each player's distance to the host in the lobby", async () => {
+      const { match, hostSocket, guestSocket } = await lobbyWithGuest();
+
+      await emit(hostSocket, 'location:update', ORIGIN);
+      const located = waitFor(hostSocket, 'match:updated', (m) =>
+        m.players.some((p) => p.lobbyLocation?.distanceFromHostMeters != null),
+      );
+      await emit(guestSocket, 'location:update', metersNorth(120));
+
+      const guest = (await located).players.find(
+        (p) => p.userId !== match.hostId,
+      );
+      expect(guest?.lobbyLocation?.distanceFromHostMeters).toBeCloseTo(120, -1);
+    });
+
+    it('refuses to start while a player has no location', async () => {
+      const { host, guest, match } = await lobbyWithGuest();
+
+      const res = await host.api
+        .post(`/matches/${match.id}/start`, ORIGIN)
+        .expect(409);
+      expect(res.body.code).toBe('PLAYERS_NOT_READY');
+      expect(res.body.message).toContain(
+        `${guest.user.username} has no location`,
+      );
+    });
+
+    it('refuses to start while a player is outside the area', async () => {
+      const { host, guest, match, guestSocket } = await lobbyWithGuest();
+      await emit(guestSocket, 'location:update', metersNorth(1000));
+
+      const res = await host.api
+        .post(`/matches/${match.id}/start`, ORIGIN)
+        .expect(409);
+      expect(res.body.code).toBe('PLAYERS_NOT_READY');
+      expect(res.body.message).toContain(
+        `${guest.user.username} is 1002 m away`,
+      );
+    });
+
+    it('refuses an imprecise host location', async () => {
+      const { host, match, guestSocket } = await lobbyWithGuest();
+      await emit(guestSocket, 'location:update', ORIGIN);
+
+      const res = await host.api
+        .post(`/matches/${match.id}/start`, { ...ORIGIN, accuracy: 500 })
+        .expect(409);
+      expect(res.body.code).toBe('LOCATION_INACCURATE');
+    });
+
+    it('centers the play area on the host', async () => {
+      const { host, match, guestSocket } = await lobbyWithGuest();
+      await emit(guestSocket, 'location:update', metersNorth(100));
+
+      const res = await host.api
+        .post(`/matches/${match.id}/start`, { ...ORIGIN, accuracy: 10 })
+        .expect(200);
+      expect((res.body as MatchDto).playArea).toEqual({
+        ...ORIGIN,
+        radiusMeters: 400,
+      });
+    });
   });
 });

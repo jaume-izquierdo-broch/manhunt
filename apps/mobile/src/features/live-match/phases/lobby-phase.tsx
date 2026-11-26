@@ -1,40 +1,56 @@
 import { type MatchDto, Team } from '@manhunt/types';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { useCurrentUser } from '@/features/auth/session.store';
 import { LocationAccessNotice } from '@/features/location/location-access-notice';
+import { goHome } from '@/features/matches/match-navigation';
 import {
   useCloseMatch,
   useKickPlayer,
   useLeaveMatch,
   useSetTeam,
   useStartMatch,
+  useUpdateSettings,
 } from '@/features/matches/matches.queries';
 import { errorMessage } from '@/lib/http/api-error';
+import { getCurrentPosition } from '@/lib/location/device-location';
 import { AppText, Button, Screen, SectionTitle, spacing } from '@/ui';
 import { InviteCodeCard } from '../components/invite-code-card';
+import { LobbyLocation } from '../components/lobby-location';
 import { MatchRules } from '../components/match-rules';
 import { TeamSection } from '../components/team-section';
 import { useLiveMatch, useLoadedMatch } from '../live-match.store';
+import { describeWaitingFor, playersNotReady } from '../rules/lobby';
 import { hasBalancedTeams, playersOfTeam } from '../rules/players';
+import { useServerNow } from '../use-server-clock';
 
 const otherTeam = (team: Team) =>
   team === Team.HUNTER ? Team.RUNNER : Team.HUNTER;
 
-/** The lobby: a code to invite players, the teams and the host's controls. */
+/**
+ * The lobby: a code to invite players, the teams with who is ready, and the
+ * rules. The host edits the rules and starts the match where they stand.
+ */
 export function LobbyPhase() {
   const userId = useCurrentUser().user.id;
   const match = useLoadedMatch();
   const updateMatch = useLiveMatch((s) => s.updateMatch);
+  const clockOffsetMs = useLiveMatch((s) => s.clockOffsetMs);
+  const now = useServerNow(clockOffsetMs, 5_000);
   const router = useRouter();
   const isHost = match.hostId === userId;
+  const [locating, setLocating] = useState(false);
+
   const balanced = hasBalancedTeams(match);
+  const notReady = playersNotReady(match, now);
 
   const setTeam = useSetTeam(match.id);
   const kick = useKickPlayer(match.id);
   const start = useStartMatch(match.id);
   const leave = useLeaveMatch(match.id);
   const close = useCloseMatch(match.id);
+  const updateSettings = useUpdateSettings(match.id);
 
   /** Runs a host action and shows the match it returns right away (the socket confirms it later). */
   const runHostAction = async (
@@ -45,6 +61,26 @@ export function LobbyPhase() {
       updateMatch(await action());
     } catch (error) {
       Alert.alert(failureTitle, errorMessage(error));
+    }
+  };
+
+  /** The play area is centered where the host is right now. */
+  const startHere = async () => {
+    setLocating(true);
+    try {
+      const position =
+        useLiveMatch.getState().myPosition ?? (await getCurrentPosition());
+      await runHostAction('Could not start the match', () =>
+        start.mutateAsync({
+          lat: position.lat,
+          lng: position.lng,
+          ...(position.accuracy !== null && { accuracy: position.accuracy }),
+        }),
+      );
+    } catch (error) {
+      Alert.alert('Could not start the match', errorMessage(error));
+    } finally {
+      setLocating(false);
     }
   };
 
@@ -62,7 +98,7 @@ export function LobbyPhase() {
         onPress: async () => {
           try {
             await action();
-            router.replace('/');
+            goHome(router);
           } catch (error) {
             Alert.alert('Something went wrong', errorMessage(error));
           }
@@ -70,20 +106,23 @@ export function LobbyPhase() {
       },
     ]);
 
+  const startHint = !balanced
+    ? 'You need at least one hunter and one runner'
+    : notReady.length > 0
+      ? describeWaitingFor(notReady)
+      : 'The play area will be centered where you are';
+
   const hostFooter = (
     <>
-      {!balanced ? (
-        <AppText variant="caption" tone="muted" center>
-          You need at least one hunter and one runner
-        </AppText>
-      ) : null}
+      <AppText variant="caption" tone="muted" center>
+        {startHint}
+      </AppText>
       <Button
         title="Start match"
-        disabled={!balanced}
-        loading={start.isPending}
-        onPress={() =>
-          runHostAction('Could not start the match', () => start.mutateAsync())
-        }
+        icon="flag-outline"
+        disabled={!balanced || notReady.length > 0}
+        loading={locating || start.isPending}
+        onPress={() => void startHere()}
       />
       <Button
         title="Close lobby"
@@ -118,7 +157,7 @@ export function LobbyPhase() {
     <Screen scroll footer={isHost ? hostFooter : guestFooter}>
       <InviteCodeCard code={match.joinCode} />
 
-      <LocationAccessNotice askMessage="You'll need location access to play. Allow it now so you don't lose time when the match starts." />
+      <LocationAccessNotice askMessage="Everyone shares their location in the lobby, so the match can start around the host." />
 
       <View style={styles.section}>
         <SectionTitle>{`Players · ${match.players.length}`}</SectionTitle>
@@ -129,6 +168,9 @@ export function LobbyPhase() {
             players={playersOfTeam(match, team)}
             userId={userId}
             hostId={match.hostId}
+            detailOf={(player) => (
+              <LobbyLocation match={match} player={player} now={now} />
+            )}
             onSwitchTeam={
               isHost
                 ? (player) =>
@@ -154,7 +196,22 @@ export function LobbyPhase() {
 
       <View style={styles.section}>
         <SectionTitle>Rules</SectionTitle>
-        <MatchRules match={match} />
+        <MatchRules
+          match={match}
+          onChange={
+            isHost
+              ? (settings) =>
+                  runHostAction('Could not change the rules', () =>
+                    updateSettings.mutateAsync(settings),
+                  )
+              : undefined
+          }
+        />
+        {isHost ? (
+          <AppText variant="caption" tone="muted" center>
+            Tap a rule to change it
+          </AppText>
+        ) : null}
       </View>
     </Screen>
   );

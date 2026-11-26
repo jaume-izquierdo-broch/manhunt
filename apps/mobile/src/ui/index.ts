@@ -18,6 +18,7 @@ export { IconButton, type IconButtonProps } from './icon-button';
 export { ListRow, type ListRowProps, ListSection } from './list';
 export { LoadingView } from './loading-view';
 export { OptionPicker, type Option } from './option-picker';
+export { OptionSheet, type OptionSheetProps } from './option-sheet';
 export { Screen } from './screen';
 export { SectionTitle } from './section-title';
 export { TextField } from './text-field';

@@ -1,12 +1,19 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 import { makeMatch } from '@/test-utils/fixtures';
-import { useCurrentMatch } from '@/features/matches/matches.queries';
+import {
+  useCreateMatch,
+  useCurrentMatch,
+} from '@/features/matches/matches.queries';
 import { HomeScreen } from './home-screen';
 
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: mockPush, replace: jest.fn() }),
+  useRouter: () => ({
+    push: mockPush,
+    replace: jest.fn(),
+    dismissTo: jest.fn(),
+  }),
   useFocusEffect: jest.fn(),
   // Renders the header button so it can be tested with the screen.
   Stack: {
@@ -16,6 +23,11 @@ jest.mock('expo-router', () => ({
 }));
 jest.mock('@/features/matches/matches.queries');
 const currentMatch = jest.mocked(useCurrentMatch);
+const createMatch = jest.fn();
+jest.mocked(useCreateMatch).mockReturnValue({
+  mutateAsync: createMatch,
+  isPending: false,
+} as unknown as ReturnType<typeof useCreateMatch>);
 
 function withCurrentMatch(data: ReturnType<typeof makeMatch> | null) {
   currentMatch.mockReturnValue({
@@ -34,10 +46,15 @@ describe('HomeScreen', () => {
     withCurrentMatch(null);
     await render(<HomeScreen />);
 
+    createMatch.mockResolvedValue(makeMatch());
     await fireEvent.press(
       screen.getByRole('button', { name: 'Create a match' }),
     );
-    expect(mockPush).toHaveBeenCalledWith('/create');
+    expect(createMatch).toHaveBeenCalled();
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/match/[id]',
+      params: { id: 'm1' },
+    });
     await fireEvent.press(screen.getByRole('button', { name: 'Join a match' }));
     expect(mockPush).toHaveBeenCalledWith('/join');
 

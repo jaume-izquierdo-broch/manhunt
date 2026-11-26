@@ -175,7 +175,7 @@ async function main() {
 
   step('The hunter creates the lobby (5 s to hide, a ping every 15 s)');
   const match = await http<MatchDto>('POST', '/matches', hunter.token, {
-    playArea: { ...ORIGIN, radiusMeters: 400 },
+    radiusMeters: 400,
     hidingSeconds: 5,
     durationSeconds: 120,
     pingIntervalSeconds: 15,
@@ -192,13 +192,16 @@ async function main() {
   });
   await send('runner', runnerSocket, 'match:subscribe', { matchId: match.id });
 
-  step('The match starts: 5 s of HIDING, then ACTIVE');
+  step('The runner shares their location from the lobby');
+  await send('runner', runnerSocket, 'location:update', ORIGIN);
+
+  step('The match starts around the hunter: 5 s of HIDING, then ACTIVE');
   const active = waitFor(
     runnerSocket,
     'match:updated',
     (m) => m.status === 'ACTIVE',
   );
-  await http('POST', `/matches/${match.id}/start`, hunter.token);
+  await http('POST', `/matches/${match.id}/start`, hunter.token, ORIGIN);
   await active;
 
   step('Both report their positions (the runner is ~150 m away)');

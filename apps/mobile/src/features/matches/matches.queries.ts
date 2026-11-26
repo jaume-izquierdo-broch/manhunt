@@ -1,4 +1,9 @@
-import type { CreateMatchInput, MatchDto, Team } from '@manhunt/types';
+import type {
+  MatchDto,
+  MatchSettings,
+  StartMatchInput,
+  Team,
+} from '@manhunt/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { matchesApi } from './matches.api';
 
@@ -31,7 +36,7 @@ export function useInvalidateCurrentMatch() {
 export function useCreateMatch() {
   const setCurrent = useSetCurrentMatch();
   return useMutation({
-    mutationFn: (input: CreateMatchInput) => matchesApi.create(input),
+    mutationFn: () => matchesApi.create(),
     onSuccess: setCurrent,
   });
 }
@@ -64,7 +69,16 @@ export function useCloseMatch(matchId: string) {
 // right away instead of waiting for the socket's `match:updated` event.
 
 export function useStartMatch(matchId: string) {
-  return useMutation({ mutationFn: () => matchesApi.start(matchId) });
+  return useMutation({
+    mutationFn: (host: StartMatchInput) => matchesApi.start(matchId, host),
+  });
+}
+
+export function useUpdateSettings(matchId: string) {
+  return useMutation({
+    mutationFn: (settings: MatchSettings) =>
+      matchesApi.updateSettings(matchId, settings),
+  });
 }
 
 export function useSetTeam(matchId: string) {

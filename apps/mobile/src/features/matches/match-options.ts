@@ -1,7 +1,6 @@
-import { MATCH_LIMITS } from '@manhunt/types';
 import type { Option } from '@/ui';
 
-// Choices offered by the "Create match" form. All within the server's limits.
+// Choices the host gets in the lobby. All within the server's limits.
 
 const minutes = (m: number) => m * 60;
 
@@ -32,17 +31,3 @@ export const PING_OPTIONS: readonly Option<number>[] = [
   { value: minutes(2), label: '2 min' },
   { value: minutes(5), label: '5 min' },
 ];
-
-export interface MatchSettings {
-  radiusMeters: number;
-  hidingSeconds: number;
-  durationSeconds: number;
-  pingIntervalSeconds: number;
-}
-
-export const DEFAULT_MATCH_SETTINGS: MatchSettings = {
-  radiusMeters: 400,
-  hidingSeconds: MATCH_LIMITS.hidingSeconds.default,
-  durationSeconds: MATCH_LIMITS.durationSeconds.default,
-  pingIntervalSeconds: MATCH_LIMITS.pingIntervalSeconds.default,
-};

@@ -9,7 +9,8 @@ export interface PlayerRowProps {
   isHost: boolean;
   /** Buttons on the right (host actions, catch...). */
   actions?: ReactNode;
-  detail?: string;
+  /** A line under the name: text, or a component such as the lobby location. */
+  detail?: ReactNode;
 }
 
 export function PlayerRow({
@@ -42,11 +43,13 @@ export function PlayerRow({
           {isHost ? <Badge label="Host" /> : null}
           {caught ? <Badge label="Caught" tone="hunter" /> : null}
         </View>
-        {detail ? (
+        {typeof detail === 'string' ? (
           <AppText variant="caption" tone="muted">
             {detail}
           </AppText>
-        ) : null}
+        ) : (
+          detail
+        )}
       </View>
       {actions ? <View style={styles.actions}>{actions}</View> : null}
     </View>

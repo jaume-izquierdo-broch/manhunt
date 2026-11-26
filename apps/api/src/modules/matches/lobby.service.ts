@@ -1,25 +1,30 @@
 import { Injectable } from '@nestjs/common';
 import {
-  type CreateMatchInput,
+  type LocationUpdatePayload,
   MATCH_LIMITS,
   type MatchDto,
+  type MatchSettings,
+  type PositionDto,
   Team,
 } from '@manhunt/types';
+import type { MatchRow } from '../../infrastructure/database/schema.js';
 import { RealtimePublisher } from '../realtime/realtime.publisher.js';
 import {
   assertHostInLobby,
   assertInLobby,
   generateJoinCode,
+  shouldPublishLobbyLocation,
 } from './domain/lobby-rules.js';
 import { MatchReader } from './match-reader.service.js';
 import { MatchErrors } from './matches.errors.js';
 import { MatchesRepository } from './matches.repository.js';
+import { PositionsStore } from './positions.store.js';
 
 const JOIN_CODE_ATTEMPTS = 5;
 
 /**
- * Lobby use cases (WAITING status): create, join, leave, close, change teams
- * and kick. Starting the match belongs to the `game` module.
+ * Lobby use cases (WAITING status): create, join, leave, close, settings,
+ * teams, kicks and players' locations. Starting belongs to the `game` module.
  */
 @Injectable()
 export class LobbyService {
@@ -27,23 +32,16 @@ export class LobbyService {
     private readonly repo: MatchesRepository,
     private readonly reader: MatchReader,
     private readonly realtime: RealtimePublisher,
+    private readonly positions: PositionsStore,
   ) {}
 
   /** The creator becomes the host and joins as a hunter. */
-  async create(hostId: string, input: CreateMatchInput): Promise<MatchDto> {
+  async create(hostId: string, settings: MatchSettings): Promise<MatchDto> {
     await this.assertNotInOpenMatch(hostId);
 
     for (let attempt = 0; attempt < JOIN_CODE_ATTEMPTS; attempt++) {
       const match = await this.repo.createWithHost(
-        {
-          joinCode: generateJoinCode(),
-          centerLat: input.playArea.lat,
-          centerLng: input.playArea.lng,
-          radiusMeters: input.playArea.radiusMeters,
-          hidingSeconds: input.hidingSeconds,
-          durationSeconds: input.durationSeconds,
-          pingIntervalSeconds: input.pingIntervalSeconds,
-        },
+        { joinCode: generateJoinCode(), ...settings },
         hostId,
       );
       // null means the join code collided with an existing one: try another.
@@ -101,9 +99,43 @@ export class LobbyService {
 
     const players = await this.repo.listPlayers(matchId);
     await this.repo.delete(matchId);
+    await this.positions.clear(matchId);
 
     this.realtime.toMatch(matchId, 'match:closed', { matchId });
     for (const p of players) this.realtime.removeFromMatch(matchId, p.userId);
+  }
+
+  async updateSettings(
+    matchId: string,
+    hostId: string,
+    settings: MatchSettings,
+  ): Promise<MatchDto> {
+    assertHostInLobby(await this.reader.getOrThrow(matchId), hostId);
+    if (!(await this.repo.updateSettings(matchId, settings))) {
+      throw MatchErrors.invalidStatus('The match has already started');
+    }
+    return this.reader.publishUpdate(matchId);
+  }
+
+  /** Keeps the player's location so everyone sees who is ready to start. */
+  async reportLocation(
+    match: MatchRow,
+    userId: string,
+    input: LocationUpdatePayload,
+  ): Promise<{ at: string }> {
+    const position: PositionDto = {
+      userId,
+      lat: input.lat,
+      lng: input.lng,
+      accuracy: input.accuracy ?? null,
+      at: new Date().toISOString(),
+    };
+    const previous = await this.positions.get(match.id, userId);
+    await this.positions.set(match.id, position);
+    if (shouldPublishLobbyLocation(previous, position)) {
+      await this.reader.publishUpdate(match.id);
+    }
+    return { at: position.at };
   }
 
   async setTeam(
@@ -122,6 +154,7 @@ export class LobbyService {
 
   private async removePlayer(matchId: string, userId: string) {
     await this.repo.removePlayer(matchId, userId);
+    await this.positions.remove(matchId, userId);
     this.realtime.removeFromMatch(matchId, userId);
     await this.reader.publishUpdate(matchId);
   }

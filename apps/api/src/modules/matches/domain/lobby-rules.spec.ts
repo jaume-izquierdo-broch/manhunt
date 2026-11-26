@@ -2,6 +2,7 @@ import {
   ErrorCode,
   JOIN_CODE_ALPHABET,
   JOIN_CODE_LENGTH,
+  type PositionDto,
   Team,
 } from '@manhunt/types';
 import type { MatchRow } from '../../../infrastructure/database/schema.js';
@@ -9,6 +10,7 @@ import {
   assertHostInLobby,
   generateJoinCode,
   hasBalancedTeams,
+  shouldPublishLobbyLocation,
 } from './lobby-rules.js';
 
 describe('generateJoinCode', () => {
@@ -52,5 +54,32 @@ describe('assertHostInLobby', () => {
     ).toThrow(
       expect.objectContaining({ code: ErrorCode.INVALID_MATCH_STATUS }),
     );
+  });
+});
+
+describe('shouldPublishLobbyLocation', () => {
+  const position = (secondsAfter: number, latOffset = 0): PositionDto => ({
+    userId: 'ana',
+    lat: 41.387 + latOffset,
+    lng: 2.17,
+    accuracy: 5,
+    at: new Date(Date.UTC(2026, 0, 1, 12, 0, secondsAfter)).toISOString(),
+  });
+
+  it('publishes the first location', () => {
+    expect(shouldPublishLobbyLocation(null, position(0))).toBe(true);
+  });
+
+  it('skips a small move shortly after the last one', () => {
+    expect(shouldPublishLobbyLocation(position(0), position(10, 0.00005))).toBe(
+      false,
+    );
+  });
+
+  it('publishes a real move, or after a while so it never looks stale', () => {
+    expect(shouldPublishLobbyLocation(position(0), position(10, 0.001))).toBe(
+      true,
+    );
+    expect(shouldPublishLobbyLocation(position(0), position(25))).toBe(true);
   });
 });
