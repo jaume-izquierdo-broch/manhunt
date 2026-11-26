@@ -9,10 +9,10 @@ export function formatDuration(totalSeconds: number): string {
   );
 }
 
-/** 12.4 -> "12 m", 1500 -> "1.5 km". */
+/** 12.4 -> "12 m", 1000 -> "1 km", 1500 -> "1.5 km". */
 export function formatDistance(meters: number): string {
   return meters >= 1000
-    ? `${(meters / 1000).toFixed(1)} km`
+    ? `${Number((meters / 1000).toFixed(1))} km`
     : `${Math.round(meters)} m`;
 }
 

@@ -22,11 +22,11 @@ describe('lobby (LOBBY)', () => {
     expect(match).toMatchObject({
       status: 'LOBBY',
       hostId: host.user.id,
-      radiusMeters: 400,
+      radiusMeters: 600,
       playArea: null,
-      hidingSeconds: 120,
-      durationSeconds: 1800,
-      pingIntervalSeconds: 120,
+      hidingSeconds: 180,
+      durationSeconds: 3600,
+      pingIntervalSeconds: 180,
     });
     expect(match.joinCode).toMatch(/^[A-Z2-9]{6}$/);
     expect(match.players).toEqual([
@@ -258,7 +258,7 @@ describe('lobby (LOBBY)', () => {
         .expect(200);
       expect((res.body as MatchDto).playArea).toEqual({
         ...ORIGIN,
-        radiusMeters: 400,
+        radiusMeters: 600,
       });
     });
   });

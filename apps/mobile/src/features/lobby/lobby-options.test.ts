@@ -18,4 +18,18 @@ describe('match options', () => {
     expect(within(DURATION_OPTIONS, MATCH_LIMITS.durationSeconds)).toBe(true);
     expect(within(PING_OPTIONS, MATCH_LIMITS.pingIntervalSeconds)).toBe(true);
   });
+
+  it('include the defaults, so a new lobby always has one selected', () => {
+    const has = (values: readonly { value: number }[], value: number) =>
+      values.some((o) => o.value === value);
+
+    expect(has(RADIUS_OPTIONS, MATCH_LIMITS.radiusMeters.default)).toBe(true);
+    expect(has(HIDING_OPTIONS, MATCH_LIMITS.hidingSeconds.default)).toBe(true);
+    expect(has(DURATION_OPTIONS, MATCH_LIMITS.durationSeconds.default)).toBe(
+      true,
+    );
+    expect(has(PING_OPTIONS, MATCH_LIMITS.pingIntervalSeconds.default)).toBe(
+      true,
+    );
+  });
 });

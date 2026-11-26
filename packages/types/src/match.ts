@@ -11,12 +11,17 @@ export interface PlayArea {
   radiusMeters: number;
 }
 
+/**
+ * The defaults are one coherent match: what depends on crossing the area
+ * (time to hide, time between pings) grows with the radius, and the hunt is
+ * long enough for about 20 pings.
+ */
 export const MATCH_LIMITS = {
   maxPlayers: 30,
-  radiusMeters: { min: 50, max: 5000, default: 400 },
-  hidingSeconds: { min: 0, max: 1800, default: 120 },
-  durationSeconds: { min: 60, max: 4 * 3600, default: 1800 },
-  pingIntervalSeconds: { min: 15, max: 1800, default: 120 },
+  radiusMeters: { min: 50, max: 5000, default: 600 },
+  hidingSeconds: { min: 0, max: 1800, default: 180 },
+  durationSeconds: { min: 60, max: 4 * 3600, default: 3600 },
+  pingIntervalSeconds: { min: 15, max: 1800, default: 180 },
 } as const;
 
 const bounded = (limits: { min: number; max: number; default: number }) =>

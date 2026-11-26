@@ -17,6 +17,7 @@ describe('formatDistance', () => {
   it('uses meters below 1 km and kilometers above', () => {
     expect(formatDistance(12.4)).toBe('12 m');
     expect(formatDistance(1500)).toBe('1.5 km');
+    expect(formatDistance(1000)).toBe('1 km');
   });
 });
 
