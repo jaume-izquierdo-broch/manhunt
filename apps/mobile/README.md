@@ -51,30 +51,31 @@ src/
 │   │   └── components/        The two forms
 │   │
 │   ├── home/                  Home: your match, create / join, how to play
-│   ├── matches/               The match itself: your current match, start, navigation
-│   │   ├── matches.api.ts     /matches endpoints
-│   │   └── matches.queries.ts React Query hooks (useCurrentMatch, useStartMatch)
 │   │
-│   ├── lobby/                 Before the match: code, teams, rules, who is ready
-│   │   ├── lobby-screen.tsx   ★ The lobby (shown by the match screen while LOBBY)
+│   ├── match/                 One match, from the lobby to the results
+│   │   ├── match-screen.tsx   ★ match/[id]: follows the match and shows the lobby,
+│   │   │                        PlayScreen or ResultsScreen depending on the status
+│   │   ├── match.store.ts     ★ Everything about the match on screen + its actions
+│   │   ├── use-match-connection.ts  Subscribes; server event → store action
+│   │   ├── use-location-tracking.ts GPS → store, and position → server
+│   │   ├── play-screen.tsx    Hiding and hunt: map, HUD, catches
+│   │   ├── results-screen.tsx Who won
+│   │   ├── match.api.ts       /matches endpoints, and their hooks in match.queries.ts
+│   │   ├── match-navigation.ts  Open a match, back home
+│   │   ├── components/        Map, HUD, catch panel, player row…
+│   │   └── rules/             Pure match logic: distances, timers, players
+│   │
+│   ├── lobby/                 What only happens before the match starts
+│   │   ├── lobby-screen.tsx   ★ Code, teams, rules, who is ready, Start
+│   │   ├── join-lobby-screen.tsx  Join with a code
 │   │   ├── lobby.api.ts       /lobbies endpoints, and their hooks in lobby.queries.ts
 │   │   ├── readiness.ts       Who can start from where they are
-│   │   ├── join-lobby-screen.tsx  Join with a code
 │   │   └── components/        Invite code, teams, rules grid
 │   │
 │   ├── realtime/              The socket to the server, open for the whole session
 │   │   ├── use-realtime-connection.ts ★ Opens/closes it, background, session ended
 │   │   ├── realtime.store.ts  The socket and its status (connected, reconnecting…)
 │   │   └── socket.ts          Typed Socket.IO client
-│   │
-│   ├── live-match/            The match on screen, over the realtime socket
-│   │   ├── match-screen.tsx   ★ Entry point: follows the match and picks the screen
-│   │   ├── live-match.store.ts★ Everything about the match on screen + its actions
-│   │   ├── use-match-connection.ts  Subscribes; server event → store action
-│   │   ├── use-location-tracking.ts GPS → store, and position → server
-│   │   ├── phases/            Play (hiding + hunt) and results
-│   │   ├── components/        Map, HUD, catch panel, player row…
-│   │   └── rules/             Pure match logic: distances, timers, players
 │   │
 │   ├── location/              Location access: allowed, blocked, GPS off, approximate…
 │   │   ├── location-access.store.ts  Read on use and on returning to the app; `fix()`
@@ -109,7 +110,7 @@ A store is a plain object with data and functions. Components read only the part
 
 ```ts
 useSession.getState().expire(); // e.g. from the HTTP client on a 401
-useLiveMatch.getState().updateMatch(m); // e.g. from a socket event
+useMatch.getState().updateMatch(m); // e.g. from a socket event
 ```
 
 ### The socket
@@ -135,7 +136,7 @@ match/[id] opens  →  MatchScreen
                        ├─ useLocationTracking  in the lobby, and while live and free: GPS → myPosition,
                        │                       and sends it to the server every few seconds
                        └─ picks what to show from match.status:
-                            LOBBY → LobbyScreen · HIDING/ACTIVE → PlayPhase · FINISHED → ResultsPhase
+                            LOBBY → LobbyScreen · HIDING/ACTIVE → PlayScreen · FINISHED → ResultsScreen
 leaving the screen →  match:unsubscribe, store emptied (the socket stays open)
 ```
 
@@ -148,13 +149,13 @@ leaving the screen →  match:unsubscribe, store emptied (the socket stays open)
 
 | I want to change…                        | File                                          |
 | ---------------------------------------- | --------------------------------------------- |
-| What happens when a server event arrives | `live-match/live-match.store.ts` (the action) |
-| Which events the app listens to          | `live-match/use-match-connection.ts`          |
+| What happens when a server event arrives | `match/match.store.ts` (the action)           |
+| Which events the app listens to          | `match/use-match-connection.ts`               |
 | When the socket connects or disconnects  | `realtime/use-realtime-connection.ts`         |
 | How location access is asked or fixed    | `location/location-access.store.ts`           |
-| How often the position is sent           | `live-match/rules/location-reporting.ts`      |
+| How often the position is sent           | `match/rules/location-reporting.ts`           |
 | The lobby                                | `lobby/lobby-screen.tsx`                      |
-| The play / results screens               | `live-match/phases/`                          |
+| The play / results screens               | `match/play-screen.tsx`, `results-screen.tsx` |
 | Login, logout, what happens on a 401     | `auth/session.store.ts`                       |
 | A REST call                              | `*/…api.ts`, and its hook in `*.queries.ts`   |
 | Colors, spacing, fonts                   | `ui/theme.ts`                                 |

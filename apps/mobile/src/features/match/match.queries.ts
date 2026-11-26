@@ -1,6 +1,6 @@
 import type { MatchDto, StartMatchInput } from '@manhunt/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { matchesApi } from './matches.api';
+import { matchApi } from './match.api';
 
 export const matchKeys = {
   current: ['matches', 'current'] as const,
@@ -10,7 +10,7 @@ export const matchKeys = {
 export function useCurrentMatch() {
   return useQuery({
     queryKey: matchKeys.current,
-    queryFn: matchesApi.current,
+    queryFn: matchApi.current,
     select: (data) => data.match,
   });
 }
@@ -31,6 +31,6 @@ export function useInvalidateCurrentMatch() {
 /** Returns the started match. The lobby shows it right away instead of waiting for the socket. */
 export function useStartMatch(matchId: string) {
   return useMutation({
-    mutationFn: (host: StartMatchInput) => matchesApi.start(matchId, host),
+    mutationFn: (host: StartMatchInput) => matchApi.start(matchId, host),
   });
 }

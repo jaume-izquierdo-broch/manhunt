@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 import { makeMatch } from '@/test-utils/fixtures';
 import { useCreateLobby } from '@/features/lobby/lobby.queries';
-import { useCurrentMatch } from '@/features/matches/matches.queries';
+import { useCurrentMatch } from '@/features/match/match.queries';
 import { HomeScreen } from './home-screen';
 
 const mockPush = jest.fn();
@@ -19,7 +19,7 @@ jest.mock('expo-router', () => ({
       options.headerRight?.() ?? null,
   },
 }));
-jest.mock('@/features/matches/matches.queries');
+jest.mock('@/features/match/match.queries');
 jest.mock('@/features/lobby/lobby.queries');
 const currentMatch = jest.mocked(useCurrentMatch);
 const createLobby = jest.fn();

@@ -1,4 +1,5 @@
 import { type MatchDto, MatchStatus } from '@manhunt/types';
+import { countOf } from '@/lib/format';
 import { AppText, Badge, type BadgeTone, Button, Card } from '@/ui';
 
 const STATUS: Record<MatchStatus, { label: string; tone: BadgeTone }> = {
@@ -21,7 +22,7 @@ export function CurrentMatchCard({
       <Badge label={status.label} tone={status.tone} />
       <AppText variant="subtitle">You have an open match</AppText>
       <AppText tone="muted">
-        Code {match.joinCode} · {match.players.length} players
+        Code {match.joinCode} · {countOf(match.players.length, 'player')}
       </AppText>
       <Button
         title={

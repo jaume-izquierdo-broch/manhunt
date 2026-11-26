@@ -30,7 +30,8 @@ src/
     ├── realtime/              Socket.IO rooms and RealtimePublisher (sending events)
     ├── matches/               The match itself: repository, queries, positions (shared)
     ├── lobby/                 Before the match: create, join, rules, teams, who is ready
-    └── live-match/            The match being played: start, timers, catches, gateway
+    └── live-match/            The match being played: start, timers, catches, and the
+                               socket's MatchGateway (it follows lobbies too)
 ```
 
 ### Inside a module

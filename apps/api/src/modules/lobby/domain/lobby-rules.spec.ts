@@ -3,13 +3,11 @@ import {
   JOIN_CODE_ALPHABET,
   JOIN_CODE_LENGTH,
   type PositionDto,
-  Team,
 } from '@manhunt/types';
 import type { MatchRow } from '../../../infrastructure/database/schema.js';
 import {
   assertHostInLobby,
   generateJoinCode,
-  hasBalancedTeams,
   shouldPublishLobbyLocation,
 } from './lobby-rules.js';
 
@@ -20,18 +18,6 @@ describe('generateJoinCode', () => {
       expect(code).toHaveLength(JOIN_CODE_LENGTH);
       for (const ch of code) expect(JOIN_CODE_ALPHABET).toContain(ch);
     }
-  });
-});
-
-describe('hasBalancedTeams', () => {
-  it('requires at least one hunter and one runner', () => {
-    expect(hasBalancedTeams([{ team: Team.HUNTER }])).toBe(false);
-    expect(
-      hasBalancedTeams([{ team: Team.RUNNER }, { team: Team.RUNNER }]),
-    ).toBe(false);
-    expect(
-      hasBalancedTeams([{ team: Team.HUNTER }, { team: Team.RUNNER }]),
-    ).toBe(true);
   });
 });
 

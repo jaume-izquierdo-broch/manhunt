@@ -32,16 +32,3 @@ export function playersNotReady(
     return readiness === 'ready' ? [] : [{ player, readiness }];
   });
 }
-
-/** "Waiting for ana (no location) and marc (too far)". */
-export function describeWaitingFor(notReady: PlayerNotReady[]): string {
-  const names = notReady.map(
-    ({ player, readiness }) =>
-      `${player.username} (${readiness === 'far' ? 'too far' : 'no location'})`,
-  );
-  const list =
-    names.length > 1
-      ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
-      : names[0];
-  return `Waiting for ${list}`;
-}

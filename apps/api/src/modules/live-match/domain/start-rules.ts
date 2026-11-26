@@ -3,6 +3,7 @@ import {
   LOBBY_LOCATION,
   lobbyReadiness,
   type PositionDto,
+  Team,
 } from '@manhunt/types';
 import { distanceMeters, type LatLng } from '../../../common/geo/geo.js';
 
@@ -16,6 +17,14 @@ export interface PlayerNotReady {
   username: string;
   reason: 'noLocation' | 'far';
   distanceMeters: number | null;
+}
+
+/** A match needs at least one hunter and one runner to start. */
+export function hasBalancedTeams(players: { team: Team }[]): boolean {
+  return (
+    players.some((p) => p.team === Team.HUNTER) &&
+    players.some((p) => p.team === Team.RUNNER)
+  );
 }
 
 export function isHostAccurateEnough(accuracy: number | undefined): boolean {

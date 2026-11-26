@@ -1,5 +1,5 @@
 import type { MatchDto, MatchSnapshot, PlayerDto } from '@manhunt/types';
-import { useLiveMatch } from './live-match.store';
+import { useMatch } from './match.store';
 
 const player = (
   userId: string,
@@ -59,16 +59,16 @@ const snapshot = (overrides: Partial<MatchSnapshot> = {}): MatchSnapshot => ({
 
 /** The store after receiving the snapshot (seen by runner1). */
 function loaded(overrides?: Partial<MatchSnapshot>) {
-  const store = useLiveMatch.getState();
+  const store = useMatch.getState();
   store.reset();
   store.loadSnapshot(
     snapshot(overrides),
     Date.parse('2026-01-01T10:01:28.000Z'),
   );
-  return useLiveMatch.getState();
+  return useMatch.getState();
 }
 
-const state = () => useLiveMatch.getState();
+const state = () => useMatch.getState();
 
 describe('live match store', () => {
   it('loadSnapshot: loads the match, teammates and clock offset', () => {

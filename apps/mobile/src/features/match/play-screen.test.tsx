@@ -6,8 +6,8 @@ import {
 } from '@testing-library/react-native';
 import { useRealtime } from '@/features/realtime/realtime.store';
 import { makeMatch, player } from '@/test-utils/fixtures';
-import { showLiveMatch } from '@/test-utils/stores';
-import { PlayPhase } from './play-phase';
+import { showMatch } from '@/test-utils/stores';
+import { PlayScreen } from './play-screen';
 
 const fromNow = (ms: number) => new Date(Date.now() + ms).toISOString();
 
@@ -29,13 +29,13 @@ const liveMatch = (
 function renderAs(
   userId: string,
   match: ReturnType<typeof liveMatch>,
-  extra: Parameters<typeof showLiveMatch>[2] = {},
+  extra: Parameters<typeof showMatch>[2] = {},
 ) {
-  showLiveMatch(match, userId, extra);
-  return render(<PlayPhase />);
+  showMatch(match, userId, extra);
+  return render(<PlayScreen />);
 }
 
-describe('PlayPhase', () => {
+describe('PlayScreen', () => {
   it('hides the map from hunters during the hiding phase', async () => {
     await renderAs('host', liveMatch('HIDING'));
 
@@ -79,9 +79,9 @@ describe('PlayPhase', () => {
   });
 
   it('warns when the connection drops', async () => {
-    showLiveMatch(liveMatch('ACTIVE'), 'ana');
+    showMatch(liveMatch('ACTIVE'), 'ana');
     useRealtime.setState({ status: 'reconnecting' });
-    await render(<PlayPhase />);
+    await render(<PlayScreen />);
 
     expect(
       screen.getByText('Connection lost. Reconnecting…'),

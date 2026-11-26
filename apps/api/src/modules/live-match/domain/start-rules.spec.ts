@@ -1,7 +1,8 @@
-import type { PositionDto } from '@manhunt/types';
+import { type PositionDto, Team } from '@manhunt/types';
 import {
   describePlayersNotReady,
   findPlayersNotReady,
+  hasBalancedTeams,
   isHostAccurateEnough,
 } from './start-rules.js';
 
@@ -69,5 +70,17 @@ describe('describePlayersNotReady', () => {
         { username: 'marc', reason: 'far', distanceMeters: 1200 },
       ]),
     ).toBe('ana has no location; marc is 1200 m away');
+  });
+});
+
+describe('hasBalancedTeams', () => {
+  it('requires at least one hunter and one runner', () => {
+    expect(hasBalancedTeams([{ team: Team.HUNTER }])).toBe(false);
+    expect(
+      hasBalancedTeams([{ team: Team.RUNNER }, { team: Team.RUNNER }]),
+    ).toBe(false);
+    expect(
+      hasBalancedTeams([{ team: Team.HUNTER }, { team: Team.RUNNER }]),
+    ).toBe(true);
   });
 });

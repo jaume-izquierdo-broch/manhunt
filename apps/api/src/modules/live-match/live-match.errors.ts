@@ -70,6 +70,15 @@ export const LiveMatchErrors = {
       { distanceMeters },
     ),
 
+  // Starting the match
+
+  teamsUnbalanced: () =>
+    new AppError(
+      ErrorCode.TEAMS_UNBALANCED,
+      'You need at least one hunter and one runner',
+      HttpStatus.CONFLICT,
+    ),
+
   playersNotReady: (players: PlayerNotReady[]) =>
     new AppError(
       ErrorCode.PLAYERS_NOT_READY,

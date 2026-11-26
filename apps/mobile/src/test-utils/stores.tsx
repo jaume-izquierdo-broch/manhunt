@@ -5,10 +5,10 @@ import { render } from '@testing-library/react-native';
 import type { ReactElement } from 'react';
 import { useSession } from '@/features/auth/session.store';
 import {
-  type LiveMatchActions,
-  type LiveMatchState,
-  useLiveMatch,
-} from '@/features/live-match/live-match.store';
+  type MatchActions,
+  type MatchState,
+  useMatch,
+} from '@/features/match/match.store';
 import { useLocationAccessStore } from '@/features/location/location-access.store';
 import { useRealtime } from '@/features/realtime/realtime.store';
 
@@ -30,17 +30,17 @@ export function signInAs(userId: string) {
  * Shows `match` as seen by `userId`, connected and loaded. `extra` overrides any
  * state or action, e.g. `{ catchRunner: jest.fn() }`.
  */
-export function showLiveMatch(
+export function showMatch(
   match: MatchDto,
   userId: string,
-  extra: Partial<LiveMatchState & LiveMatchActions> = {},
+  extra: Partial<MatchState & MatchActions> = {},
 ) {
   signInAs(userId);
   const mine = match.players.find((p) => p.userId === userId)!;
   useRealtime.setState({ status: 'connected' });
   useLocationAccessStore.setState({ access: 'granted' });
-  useLiveMatch.getState().reset();
-  useLiveMatch.setState({
+  useMatch.getState().reset();
+  useMatch.setState({
     match,
     me: { userId, team: mine.team, status: mine.status },
     ...extra,

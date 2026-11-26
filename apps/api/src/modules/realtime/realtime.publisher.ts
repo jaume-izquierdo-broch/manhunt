@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { ServerToClientEvents, Team } from '@manhunt/types';
-import type { GameNamespace } from './realtime.types.js';
+import type { RealtimeNamespace } from './realtime.types.js';
 import { Rooms } from './rooms.js';
 
 type EventArgs<E extends keyof ServerToClientEvents> = Parameters<
@@ -16,9 +16,9 @@ type EventArgs<E extends keyof ServerToClientEvents> = Parameters<
  */
 @Injectable()
 export class RealtimePublisher {
-  private ns?: GameNamespace;
+  private ns?: RealtimeNamespace;
 
-  attach(ns: GameNamespace) {
+  attach(ns: RealtimeNamespace) {
     this.ns = ns;
   }
 

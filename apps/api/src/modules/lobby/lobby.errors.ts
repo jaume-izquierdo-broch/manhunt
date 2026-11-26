@@ -24,13 +24,6 @@ export const LobbyErrors = {
       HttpStatus.CONFLICT,
     ),
 
-  teamsUnbalanced: () =>
-    new AppError(
-      ErrorCode.TEAMS_UNBALANCED,
-      'You need at least one hunter and one runner',
-      HttpStatus.CONFLICT,
-    ),
-
   hostCannotLeave: () =>
     new AppError(
       ErrorCode.HOST_CANNOT_LEAVE,

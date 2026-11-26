@@ -13,7 +13,7 @@ export interface SocketData extends AuthUser {
 
 type InterServerEvents = Record<string, never>;
 
-export type GameNamespace = Namespace<
+export type RealtimeNamespace = Namespace<
   ClientToServerEvents,
   ServerToClientEvents,
   InterServerEvents,

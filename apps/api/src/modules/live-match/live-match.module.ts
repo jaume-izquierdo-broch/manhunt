@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { LobbyModule } from '../lobby/lobby.module.js';
 import { MatchesModule } from '../matches/matches.module.js';
 import { LiveMatchController } from './live-match.controller.js';
-import { LiveMatchGateway } from './live-match.gateway.js';
+import { MatchGateway } from './match.gateway.js';
 import { PlayService } from './play.service.js';
 import { MatchLifecycleService } from './match-lifecycle.service.js';
 import { MatchTimersQueue } from './match-timers.queue.js';
@@ -12,7 +12,7 @@ import { MatchTimersQueue } from './match-timers.queue.js';
   imports: [MatchesModule, LobbyModule],
   controllers: [LiveMatchController],
   providers: [
-    LiveMatchGateway,
+    MatchGateway,
     PlayService,
     MatchLifecycleService,
     MatchTimersQueue,

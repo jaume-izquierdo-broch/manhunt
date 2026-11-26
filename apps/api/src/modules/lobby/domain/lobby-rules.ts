@@ -5,7 +5,6 @@ import {
   LOBBY_LOCATION,
   MatchStatus,
   type PositionDto,
-  Team,
 } from '@manhunt/types';
 import { randomInt } from 'node:crypto';
 import { distanceMeters } from '../../../common/geo/geo.js';
@@ -20,14 +19,6 @@ export function generateJoinCode(): string {
     code += JOIN_CODE_ALPHABET[randomInt(JOIN_CODE_ALPHABET.length)];
   }
   return code;
-}
-
-/** A match needs at least one hunter and one runner to start. */
-export function hasBalancedTeams(players: { team: Team }[]): boolean {
-  return (
-    players.some((p) => p.team === Team.HUNTER) &&
-    players.some((p) => p.team === Team.RUNNER)
-  );
 }
 
 /** Throws unless the user is the host and the match is still in the lobby. */

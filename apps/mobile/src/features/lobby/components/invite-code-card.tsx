@@ -13,7 +13,6 @@ import {
 
 const COPIED_FOR_MS = 2_000;
 
-/** The lobby's code, with copy and share. */
 export function InviteCodeCard({ code }: { code: string }) {
   const c = useThemeColors();
   const [copied, setCopied] = useState(false);
@@ -35,10 +34,6 @@ export function InviteCodeCard({ code }: { code: string }) {
 
   return (
     <Card style={styles.card}>
-      <AppText variant="caption" tone="muted" style={styles.label}>
-        INVITE CODE
-      </AppText>
-
       <Pressable
         onPress={copy}
         accessibilityRole="button"
@@ -75,7 +70,6 @@ export function InviteCodeCard({ code }: { code: string }) {
 
 const styles = StyleSheet.create({
   card: { alignItems: 'center', gap: spacing.lg },
-  label: { letterSpacing: 1.2, fontWeight: '700' },
   code: { fontSize: 44, lineHeight: 54, letterSpacing: 8, paddingLeft: 8 },
   actions: { flexDirection: 'row', gap: spacing.sm, alignSelf: 'stretch' },
   action: { flex: 1 },

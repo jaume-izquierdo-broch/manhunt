@@ -6,7 +6,7 @@ import { AppText, Banner, Button, Screen, TextField } from '@/ui';
 import {
   goToMatch,
   handleMatchEntryError,
-} from '@/features/matches/match-navigation';
+} from '@/features/match/match-navigation';
 import { useJoinLobby } from './lobby.queries';
 
 export function JoinLobbyScreen() {

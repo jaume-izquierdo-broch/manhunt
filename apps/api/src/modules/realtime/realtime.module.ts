@@ -3,7 +3,7 @@ import { RealtimePublisher } from './realtime.publisher.js';
 
 /**
  * Global, so any module can emit events by injecting RealtimePublisher.
- * The gateway that receives client events lives in the `live-match` module.
+ * The gateway that receives client events is `MatchGateway`, in `live-match`.
  */
 @Global()
 @Module({

@@ -27,9 +27,9 @@ import { CurrentMatchCard } from './components/current-match-card';
 import {
   goToMatch,
   handleMatchEntryError,
-} from '@/features/matches/match-navigation';
+} from '@/features/match/match-navigation';
 import { useCreateLobby } from '@/features/lobby/lobby.queries';
-import { useCurrentMatch } from '@/features/matches/matches.queries';
+import { useCurrentMatch } from '@/features/match/match.queries';
 
 const HOW_TO_PLAY: {
   icon: IconName;

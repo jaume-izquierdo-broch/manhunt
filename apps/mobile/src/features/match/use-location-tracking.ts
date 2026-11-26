@@ -8,7 +8,7 @@ import {
 import { useRealtime } from '@/features/realtime/realtime.store';
 import { emitWithAck } from '@/features/realtime/socket';
 import { watchPosition } from '@/lib/location/device-location';
-import { useLiveMatch } from './live-match.store';
+import { useMatch } from './match.store';
 import { isLive } from './rules/players';
 import {
   DEFAULT_REPORT_POLICY,
@@ -35,8 +35,8 @@ const LOBBY_REPORT_POLICY: ReportPolicy = {
  *    few seconds even if I stand still, so catches can be validated.
  */
 export function useLocationTracking() {
-  const inLobby = useLiveMatch((s) => s.match?.status === MatchStatus.LOBBY);
-  const tracking = useLiveMatch(
+  const inLobby = useMatch((s) => s.match?.status === MatchStatus.LOBBY);
+  const tracking = useMatch(
     (s) =>
       s.match?.status === MatchStatus.LOBBY ||
       (isLive(s.match?.status) && s.me?.status === PlayerStatus.ALIVE),
@@ -57,7 +57,7 @@ export function useLocationTracking() {
   // 1. Watch the GPS.
   useEffect(() => {
     if (!tracking || !located) return;
-    const { setMyPosition } = useLiveMatch.getState();
+    const { setMyPosition } = useMatch.getState();
     let stop: (() => void) | null = null;
     let cancelled = false;
     watchPosition(setMyPosition)
@@ -77,7 +77,7 @@ export function useLocationTracking() {
     let lastReported: ReportedPosition | null = null;
 
     const tick = () => {
-      const position = useLiveMatch.getState().myPosition;
+      const position = useMatch.getState().myPosition;
       const { socket } = useRealtime.getState();
       const now = Date.now();
       if (

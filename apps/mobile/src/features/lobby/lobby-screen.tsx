@@ -4,20 +4,17 @@ import { useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { useCurrentUser } from '@/features/auth/session.store';
 import { LocationAccessNotice } from '@/features/location/location-access-notice';
-import { goHome } from '@/features/matches/match-navigation';
-import { useStartMatch } from '@/features/matches/matches.queries';
+import { goHome } from '@/features/match/match-navigation';
+import { useStartMatch } from '@/features/match/match.queries';
 import { errorMessage } from '@/lib/http/api-error';
 import { getCurrentPosition } from '@/lib/location/device-location';
 import { AppText, Button, Screen, SectionTitle, spacing } from '@/ui';
-import {
-  useLiveMatch,
-  useLoadedMatch,
-} from '@/features/live-match/live-match.store';
+import { useMatch, useLoadedMatch } from '@/features/match/match.store';
 import {
   hasBalancedTeams,
   playersOfTeam,
-} from '@/features/live-match/rules/players';
-import { useServerNow } from '@/features/live-match/use-server-clock';
+} from '@/features/match/rules/players';
+import { useServerNow } from '@/features/match/use-server-clock';
 import { InviteCodeCard } from './components/invite-code-card';
 import { LobbyLocation } from './components/lobby-location';
 import { MatchRules } from './components/match-rules';
@@ -29,7 +26,7 @@ import {
   useSetTeam,
   useUpdateSettings,
 } from './lobby.queries';
-import { describeWaitingFor, playersNotReady } from './readiness';
+import { playersNotReady } from './readiness';
 
 const otherTeam = (team: Team) =>
   team === Team.HUNTER ? Team.RUNNER : Team.HUNTER;
@@ -41,8 +38,8 @@ const otherTeam = (team: Team) =>
 export function LobbyScreen() {
   const userId = useCurrentUser().user.id;
   const match = useLoadedMatch();
-  const updateMatch = useLiveMatch((s) => s.updateMatch);
-  const clockOffsetMs = useLiveMatch((s) => s.clockOffsetMs);
+  const updateMatch = useMatch((s) => s.updateMatch);
+  const clockOffsetMs = useMatch((s) => s.clockOffsetMs);
   const now = useServerNow(clockOffsetMs, 5_000);
   const router = useRouter();
   const isHost = match.hostId === userId;
@@ -75,7 +72,7 @@ export function LobbyScreen() {
     setLocating(true);
     try {
       const position =
-        useLiveMatch.getState().myPosition ?? (await getCurrentPosition());
+        useMatch.getState().myPosition ?? (await getCurrentPosition());
       await runHostAction('Could not start the match', () =>
         start.mutateAsync({
           lat: position.lat,
@@ -112,17 +109,8 @@ export function LobbyScreen() {
       },
     ]);
 
-  const startHint = !balanced
-    ? 'You need at least one hunter and one runner'
-    : notReady.length > 0
-      ? describeWaitingFor(notReady)
-      : 'The play area will be centered where you are';
-
   const hostFooter = (
     <>
-      <AppText variant="caption" tone="muted" center>
-        {startHint}
-      </AppText>
       <Button
         title="Start match"
         icon="flag-outline"
@@ -213,11 +201,6 @@ export function LobbyScreen() {
               : undefined
           }
         />
-        {isHost ? (
-          <AppText variant="caption" tone="muted" center>
-            Tap a rule to change it
-          </AppText>
-        ) : null}
       </View>
     </Screen>
   );

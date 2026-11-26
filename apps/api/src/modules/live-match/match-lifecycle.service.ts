@@ -13,11 +13,7 @@ import {
   Team,
 } from '@manhunt/types';
 import type { MatchRow } from '../../infrastructure/database/schema.js';
-import {
-  assertHostInLobby,
-  hasBalancedTeams,
-} from '../lobby/domain/lobby-rules.js';
-import { LobbyErrors } from '../lobby/lobby.errors.js';
+import { assertHostInLobby } from '../lobby/domain/lobby-rules.js';
 import { MatchReader } from '../matches/match-reader.service.js';
 import { MatchErrors } from '../matches/matches.errors.js';
 import { MatchesRepository } from '../matches/matches.repository.js';
@@ -32,6 +28,7 @@ import {
 } from './domain/timeline.js';
 import {
   findPlayersNotReady,
+  hasBalancedTeams,
   isHostAccurateEnough,
 } from './domain/start-rules.js';
 import { LiveMatchErrors } from './live-match.errors.js';
@@ -97,7 +94,7 @@ export class MatchLifecycleService
     assertHostInLobby(match, hostId);
 
     const players = await this.repo.listPlayerViews(matchId);
-    if (!hasBalancedTeams(players)) throw LobbyErrors.teamsUnbalanced();
+    if (!hasBalancedTeams(players)) throw LiveMatchErrors.teamsUnbalanced();
     if (!isHostAccurateEnough(host.accuracy)) {
       throw LiveMatchErrors.hostLocationInaccurate();
     }

@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
-import { MatchScreen } from '@/features/live-match/match-screen';
+import { MatchScreen } from '@/features/match/match-screen';
 
 export default function MatchRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();

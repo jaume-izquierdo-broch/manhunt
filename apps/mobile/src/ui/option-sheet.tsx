@@ -2,9 +2,13 @@ import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText } from './app-text';
 import { Icon } from './icon';
-import type { Option } from './option-picker';
 import { radius, spacing } from './theme';
 import { useThemeColors } from './use-theme';
+
+export interface Option<T> {
+  value: T;
+  label: string;
+}
 
 export interface OptionSheetProps<T> {
   visible: boolean;

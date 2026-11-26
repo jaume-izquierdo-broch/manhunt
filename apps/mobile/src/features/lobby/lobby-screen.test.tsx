@@ -1,10 +1,10 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as Location from 'expo-location';
-import { useLiveMatch } from '@/features/live-match/live-match.store';
-import { matchesApi } from '@/features/matches/matches.api';
+import { useMatch } from '@/features/match/match.store';
+import { matchApi } from '@/features/match/match.api';
 import { makeMatch, player } from '@/test-utils/fixtures';
-import { renderWithQueryClient, showLiveMatch } from '@/test-utils/stores';
+import { renderWithQueryClient, showMatch } from '@/test-utils/stores';
 import { lobbyApi } from './lobby.api';
 import { LobbyScreen } from './lobby-screen';
 
@@ -15,9 +15,9 @@ jest.mock('expo-router', () => ({
     dismissTo: jest.fn(),
   }),
 }));
-jest.mock('@/features/matches/matches.api');
+jest.mock('@/features/match/match.api');
 jest.mock('./lobby.api');
-const api = jest.mocked(matchesApi);
+const api = jest.mocked(matchApi);
 const lobby = jest.mocked(lobbyApi);
 
 const here = (distanceFromHostMeters: number | null) => ({
@@ -36,9 +36,9 @@ const balanced = makeMatch({
 function renderAs(
   userId: string,
   match = balanced,
-  extra: Parameters<typeof showLiveMatch>[2] = {},
+  extra: Parameters<typeof showMatch>[2] = {},
 ) {
-  showLiveMatch(match, userId, extra);
+  showMatch(match, userId, extra);
   return renderWithQueryClient(<LobbyScreen />);
 }
 
@@ -70,9 +70,6 @@ describe('LobbyScreen', () => {
     await renderAs('host', makeMatch());
 
     expect(screen.getByRole('button', { name: 'Start match' })).toBeDisabled();
-    expect(
-      screen.getByText('You need at least one hunter and one runner'),
-    ).toBeOnTheScreen();
   });
 
   it('the host starts the match where they are', async () => {
@@ -82,13 +79,10 @@ describe('LobbyScreen', () => {
       myPosition: { lat: 41.4, lng: 2.18, accuracy: 8, at: Date.now() },
     });
 
-    expect(
-      screen.getByText('The play area will be centered where you are'),
-    ).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('button', { name: 'Start match' }));
 
     await waitFor(() =>
-      expect(useLiveMatch.getState().match?.status).toBe('HIDING'),
+      expect(useMatch.getState().match?.status).toBe('HIDING'),
     );
     expect(api.start).toHaveBeenCalledWith('m1', {
       lat: 41.4,
@@ -115,9 +109,6 @@ describe('LobbyScreen', () => {
       screen.getByText('1.5 km away · outside the area'),
     ).toBeOnTheScreen();
     expect(screen.getByText('No location yet')).toBeOnTheScreen();
-    expect(
-      screen.getByText('Waiting for marc (too far) and lia (no location)'),
-    ).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Start match' })).toBeDisabled();
   });
 
@@ -139,7 +130,7 @@ describe('LobbyScreen', () => {
       }),
     );
     await waitFor(() =>
-      expect(useLiveMatch.getState().match?.radiusMeters).toBe(800),
+      expect(useMatch.getState().match?.radiusMeters).toBe(800),
     );
   });
 

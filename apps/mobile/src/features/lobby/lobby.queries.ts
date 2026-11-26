@@ -1,6 +1,6 @@
 import type { MatchSettings, Team } from '@manhunt/types';
 import { useMutation } from '@tanstack/react-query';
-import { useSetCurrentMatch } from '@/features/matches/matches.queries';
+import { useSetCurrentMatch } from '@/features/match/match.queries';
 import { lobbyApi } from './lobby.api';
 
 export function useCreateLobby() {

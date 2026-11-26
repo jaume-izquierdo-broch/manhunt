@@ -23,7 +23,7 @@ import { withAck } from '../../common/websocket/with-ack.js';
 import { SessionStore } from '../auth/session.store.js';
 import { RealtimePublisher } from '../realtime/realtime.publisher.js';
 import type {
-  GameNamespace,
+  RealtimeNamespace,
   RealtimeSocket,
 } from '../realtime/realtime.types.js';
 import { Rooms } from '../realtime/rooms.js';
@@ -32,15 +32,17 @@ import { LiveMatchErrors } from './live-match.errors.js';
 import { PlayService } from './play.service.js';
 
 /**
- * WebSocket entry point for live matches (namespace `/realtime`).
+ * Entry point of the realtime connection (namespace `/realtime`): authenticates
+ * each socket, puts it in its personal rooms and handles the match events, for
+ * a lobby or a live match.
  *
  * It only translates: validates payloads, reads the user and match from the
  * socket, manages rooms and delegates to PlayService. Every handler replies
  * with an acknowledgement.
  */
 @WebSocketGateway({ namespace: REALTIME_NAMESPACE })
-export class LiveMatchGateway implements OnGatewayInit, OnGatewayConnection {
-  private readonly logger = new Logger(LiveMatchGateway.name);
+export class MatchGateway implements OnGatewayInit, OnGatewayConnection {
+  private readonly logger = new Logger(MatchGateway.name);
 
   constructor(
     private readonly sessions: SessionStore,
@@ -48,7 +50,7 @@ export class LiveMatchGateway implements OnGatewayInit, OnGatewayConnection {
     private readonly play: PlayService,
   ) {}
 
-  afterInit(ns: GameNamespace) {
+  afterInit(ns: RealtimeNamespace) {
     ns.use(createWsAuthMiddleware(this.sessions));
     this.realtime.attach(ns);
   }

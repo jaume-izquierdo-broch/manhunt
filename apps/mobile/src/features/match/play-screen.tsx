@@ -4,19 +4,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LocationAccessNotice } from '@/features/location/location-access-notice';
 import { useRealtime } from '@/features/realtime/realtime.store';
 import { Banner, type BannerTone, spacing, useThemeColors } from '@/ui';
-import { CatchPanel } from '../components/catch-panel';
-import { MatchHud } from '../components/match-hud';
-import { MatchMap, type MapMarkerData } from '../components/match-map';
-import { HidingOverlay } from '../components/hiding-overlay';
-import {
-  type LiveMatchState,
-  useLiveMatch,
-  useLoadedMatch,
-} from '../live-match.store';
-import { isInsideArea } from '../rules/geo';
-import { playerName } from '../rules/players';
-import { msUntil } from '../rules/time';
-import { useServerNow } from '../use-server-clock';
+import { CatchPanel } from './components/catch-panel';
+import { MatchHud } from './components/match-hud';
+import { MatchMap, type MapMarkerData } from './components/match-map';
+import { HidingOverlay } from './components/hiding-overlay';
+import { type MatchState, useMatch, useLoadedMatch } from './match.store';
+import { isInsideArea } from './rules/geo';
+import { playerName } from './rules/players';
+import { msUntil } from './rules/time';
+import { useServerNow } from './use-server-clock';
 
 /** How long one-off notices (a ping, a catch) stay on screen. */
 const NOTICE_DURATION_MS = 8_000;
@@ -28,9 +24,9 @@ interface Notice {
 }
 
 /** The match being played (HIDING / ACTIVE): map, countdown, notices and catches. */
-export function PlayPhase() {
+export function PlayScreen() {
   // The whole state: this screen shows most of it, and redraws every second anyway.
-  const state = useLiveMatch();
+  const state = useMatch();
   const match = useLoadedMatch();
   const connected = useRealtime((s) => s.status === 'connected');
   const now = useServerNow(state.clockOffsetMs);
@@ -98,7 +94,7 @@ export function PlayPhase() {
 
 /** Teammates for everyone, plus the latest ping for hunters. */
 function buildMarkers(
-  state: LiveMatchState,
+  state: MatchState,
   match: MatchDto,
   isHunter: boolean,
 ): MapMarkerData[] {
@@ -126,7 +122,7 @@ function buildMarkers(
 
 /** One-off and ongoing warnings shown under the HUD. */
 function buildNotices(
-  state: LiveMatchState,
+  state: MatchState,
   match: MatchDto,
   now: number,
   connected: boolean,

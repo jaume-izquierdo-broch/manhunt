@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useRealtime } from '@/features/realtime/realtime.store';
 import { emitWithAck } from '@/features/realtime/socket';
-import { useLiveMatch } from './live-match.store';
+import { useMatch } from './match.store';
 
 /**
  * Follows one match over the app's socket while its screen is open: subscribes
@@ -13,7 +13,7 @@ export function useMatchConnection(matchId: string) {
 
   useEffect(() => {
     if (!socket) return;
-    const store = useLiveMatch.getState();
+    const store = useMatch.getState();
     store.reset();
 
     const subscribe = async () => {
@@ -51,7 +51,7 @@ export function useMatchConnection(matchId: string) {
           () => undefined,
         );
       }
-      useLiveMatch.getState().reset();
+      useMatch.getState().reset();
     };
   }, [socket, matchId]);
 }

@@ -15,3 +15,8 @@ export function formatDistance(meters: number): string {
     ? `${(meters / 1000).toFixed(1)} km`
     : `${Math.round(meters)} m`;
 }
+
+/** 1 -> "1 player", 3 -> "3 players". */
+export function countOf(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? '' : 's'}`;
+}

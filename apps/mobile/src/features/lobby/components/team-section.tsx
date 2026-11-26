@@ -11,7 +11,8 @@ import {
   spacing,
   useThemeColors,
 } from '@/ui';
-import { PlayerRow } from '@/features/live-match/components/player-row';
+import { PlayerRow } from '@/features/match/components/player-row';
+import { countOf } from '@/lib/format';
 
 const TEAMS = {
   [Team.HUNTER]: {
@@ -63,7 +64,7 @@ export function TeamSection({
           <AppText
             variant="caption"
             tone="muted"
-            accessibilityLabel={`${players.length} players`}
+            accessibilityLabel={countOf(players.length, 'player')}
           >
             {players.length}
           </AppText>
