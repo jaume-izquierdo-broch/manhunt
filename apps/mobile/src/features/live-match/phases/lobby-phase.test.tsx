@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import * as Clipboard from 'expo-clipboard';
 import * as Location from 'expo-location';
 import { matchesApi } from '@/features/matches/matches.api';
 import { makeMatch, player } from '@/test-utils/fixtures';
@@ -31,10 +32,22 @@ describe('LobbyPhase', () => {
   it('shows the code, the rules and both teams', async () => {
     await renderAs('host');
 
-    expect(screen.getByText('ABC234')).toBeOnTheScreen();
-    expect(screen.getByText('Duration: 30 min')).toBeOnTheScreen();
-    expect(screen.getByText('Hunters (1)')).toBeOnTheScreen();
-    expect(screen.getByText('Runners (1)')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Code ABC234. Tap to copy')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Hunt: 30 min')).toBeOnTheScreen();
+    expect(screen.getByText('Hunters')).toBeOnTheScreen();
+    expect(screen.getByText('Runners')).toBeOnTheScreen();
+    expect(screen.getByText('PLAYERS · 2')).toBeOnTheScreen();
+  });
+
+  it('copies the code', async () => {
+    await renderAs('ana');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Copy code' }));
+
+    expect(Clipboard.setStringAsync).toHaveBeenCalledWith('ABC234');
+    expect(
+      await screen.findByRole('button', { name: 'Copied' }),
+    ).toBeOnTheScreen();
   });
 
   it('the host cannot start without runners', async () => {
@@ -63,8 +76,9 @@ describe('LobbyPhase', () => {
     api.setTeam.mockResolvedValue(balanced);
     await renderAs('host');
 
-    // Only "ana" is a runner, so there is a single "→ Hunter" button.
-    await fireEvent.press(screen.getByRole('button', { name: '→ Hunter' }));
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Move to hunters: ana' }),
+    );
     await waitFor(() =>
       expect(api.setTeam).toHaveBeenCalledWith('m1', 'ana', 'HUNTER'),
     );
@@ -77,7 +91,8 @@ describe('LobbyPhase', () => {
       screen.getByRole('button', { name: 'Leave lobby' }),
     ).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Start match' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Kick' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Kick/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Move to/ })).toBeNull();
     expect(
       screen.getByText('Waiting for the host to start the match…'),
     ).toBeOnTheScreen();

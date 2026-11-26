@@ -7,6 +7,7 @@
     "@manhunt/types": "workspace:*",
     "@tanstack/react-query": "^5.108.3",
     "expo": "~58.0.16",
+    "expo-clipboard": "~58.0.4",
     "expo-constants": "~58.0.12",
     "expo-font": "~58.0.9",
     "expo-haptics": "~58.0.8",

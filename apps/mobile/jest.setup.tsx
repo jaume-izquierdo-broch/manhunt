@@ -24,6 +24,10 @@ jest.mock('expo-haptics', () => ({
   ImpactFeedbackStyle: { Light: 'light', Medium: 'medium', Heavy: 'heavy' },
 }));
 
+jest.mock('expo-clipboard', () => ({
+  setStringAsync: jest.fn(async () => true),
+}));
+
 jest.mock('expo-location', () => {
   const granted = { status: 'granted', canAskAgain: true };
   return {

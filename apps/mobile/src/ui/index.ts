@@ -14,6 +14,7 @@ export { Card } from './card';
 export { Checkbox } from './checkbox';
 export { Icon, type IconName } from './icon';
 export { IconBadge } from './icon-badge';
+export { IconButton, type IconButtonProps } from './icon-button';
 export { ListRow, type ListRowProps, ListSection } from './list';
 export { LoadingView } from './loading-view';
 export { OptionPicker, type Option } from './option-picker';

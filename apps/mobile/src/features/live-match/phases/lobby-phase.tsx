@@ -1,6 +1,6 @@
 import { type MatchDto, Team } from '@manhunt/types';
 import { useRouter } from 'expo-router';
-import { Alert, Share, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { useCurrentUser } from '@/features/auth/session.store';
 import { LocationAccessNotice } from '@/features/location/location-access-notice';
 import {
@@ -10,9 +10,10 @@ import {
   useSetTeam,
   useStartMatch,
 } from '@/features/matches/matches.queries';
-import { formatDistance, formatDuration } from '@/lib/format';
 import { errorMessage } from '@/lib/http/api-error';
-import { AppText, Button, Card, Screen, spacing, typography } from '@/ui';
+import { AppText, Button, Screen, SectionTitle, spacing } from '@/ui';
+import { InviteCodeCard } from '../components/invite-code-card';
+import { MatchRules } from '../components/match-rules';
 import { TeamSection } from '../components/team-section';
 import { useLiveMatch, useLoadedMatch } from '../live-match.store';
 import { hasBalancedTeams, playersOfTeam } from '../rules/players';
@@ -69,11 +70,6 @@ export function LobbyPhase() {
       },
     ]);
 
-  const shareCode = () =>
-    Share.share({
-      message: `Join my Manhunt match! Code: ${match.joinCode}`,
-    });
-
   const hostFooter = (
     <>
       {!balanced ? (
@@ -120,78 +116,50 @@ export function LobbyPhase() {
 
   return (
     <Screen scroll footer={isHost ? hostFooter : guestFooter}>
-      <Card style={styles.codeCard}>
-        <AppText variant="caption" tone="muted">
-          Lobby code
-        </AppText>
-        <AppText
-          style={typography.mono}
-          accessibilityLabel={`Code ${match.joinCode}`}
-          selectable
-        >
-          {match.joinCode}
-        </AppText>
-        <Button
-          title="Share code"
-          variant="secondary"
-          compact
-          onPress={shareCode}
-        />
-      </Card>
-
-      <Card>
-        <AppText variant="label">Match rules</AppText>
-        <View style={styles.rules}>
-          <AppText variant="caption">
-            {`Play area: ${formatDistance(match.playArea.radiusMeters)} radius`}
-          </AppText>
-          <AppText variant="caption">
-            {`Hiding time: ${formatDuration(match.hidingSeconds)}`}
-          </AppText>
-          <AppText variant="caption">
-            {`Duration: ${formatDuration(match.durationSeconds)}`}
-          </AppText>
-          <AppText variant="caption">
-            {`Hunters get a ping every ${formatDuration(match.pingIntervalSeconds)}`}
-          </AppText>
-        </View>
-      </Card>
+      <InviteCodeCard code={match.joinCode} />
 
       <LocationAccessNotice askMessage="You'll need location access to play. Allow it now so you don't lose time when the match starts." />
 
-      {[Team.HUNTER, Team.RUNNER].map((team) => (
-        <TeamSection
-          key={team}
-          team={team}
-          players={playersOfTeam(match, team)}
-          userId={userId}
-          hostId={match.hostId}
-          onSwitchTeam={
-            isHost
-              ? (player) =>
-                  runHostAction('Could not change the team', () =>
-                    setTeam.mutateAsync({
-                      userId: player.userId,
-                      team: otherTeam(player.team),
-                    }),
-                  )
-              : undefined
-          }
-          onKick={
-            isHost
-              ? (player) =>
-                  runHostAction('Could not kick the player', () =>
-                    kick.mutateAsync(player.userId),
-                  )
-              : undefined
-          }
-        />
-      ))}
+      <View style={styles.section}>
+        <SectionTitle>{`Players · ${match.players.length}`}</SectionTitle>
+        {[Team.HUNTER, Team.RUNNER].map((team) => (
+          <TeamSection
+            key={team}
+            team={team}
+            players={playersOfTeam(match, team)}
+            userId={userId}
+            hostId={match.hostId}
+            onSwitchTeam={
+              isHost
+                ? (player) =>
+                    runHostAction('Could not change the team', () =>
+                      setTeam.mutateAsync({
+                        userId: player.userId,
+                        team: otherTeam(player.team),
+                      }),
+                    )
+                : undefined
+            }
+            onKick={
+              isHost
+                ? (player) =>
+                    runHostAction('Could not kick the player', () =>
+                      kick.mutateAsync(player.userId),
+                    )
+                : undefined
+            }
+          />
+        ))}
+      </View>
+
+      <View style={styles.section}>
+        <SectionTitle>Rules</SectionTitle>
+        <MatchRules match={match} />
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  codeCard: { alignItems: 'center' },
-  rules: { gap: spacing.xs },
+  section: { gap: spacing.sm },
 });

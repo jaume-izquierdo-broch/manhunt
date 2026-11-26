@@ -1,7 +1,7 @@
-import type { PlayerDto } from '@manhunt/types';
+import { type PlayerDto, Team } from '@manhunt/types';
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { AppText, Badge, spacing } from '@/ui';
+import { AppText, Avatar, Badge, spacing } from '@/ui';
 
 export interface PlayerRowProps {
   player: PlayerDto;
@@ -22,9 +22,20 @@ export function PlayerRow({
   const caught = player.status === 'CAUGHT';
   return (
     <View style={styles.row} accessibilityLabel={`Player ${player.username}`}>
+      <View style={caught && styles.faded}>
+        <Avatar
+          name={player.username}
+          size={36}
+          color={player.team === Team.HUNTER ? 'hunter' : 'runner'}
+        />
+      </View>
       <View style={styles.info}>
         <View style={styles.name}>
-          <AppText variant="label" style={caught && styles.caught}>
+          <AppText
+            variant="label"
+            numberOfLines={1}
+            style={[styles.username, caught && styles.caught]}
+          >
             {player.username}
           </AppText>
           {isMe ? <Badge label="You" tone="accent" /> : null}
@@ -46,16 +57,13 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    minHeight: 44,
+    gap: spacing.md,
+    minHeight: 48,
   },
   info: { flex: 1, gap: 2 },
-  name: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-  },
-  caught: { textDecorationLine: 'line-through', opacity: 0.6 },
-  actions: { flexDirection: 'row', gap: spacing.xs },
+  name: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  username: { flexShrink: 1 },
+  caught: { textDecorationLine: 'line-through' },
+  faded: { opacity: 0.4 },
+  actions: { flexDirection: 'row', gap: spacing.sm },
 });

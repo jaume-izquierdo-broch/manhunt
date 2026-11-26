@@ -5,6 +5,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { AppText } from './app-text';
+import { Icon, type IconName } from './icon';
 import { radius, spacing } from './theme';
 import { useThemeColors } from './use-theme';
 
@@ -18,6 +19,8 @@ export interface ButtonProps {
   loading?: boolean;
   disabled?: boolean;
   compact?: boolean;
+  /** An icon before the title. */
+  icon?: IconName;
   style?: ViewStyle;
   accessibilityHint?: string;
 }
@@ -29,6 +32,7 @@ export function Button({
   loading = false,
   disabled = false,
   compact = false,
+  icon,
   style,
   accessibilityHint,
 }: ButtonProps) {
@@ -71,9 +75,20 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={filled ? c.onPrimary : c.text} />
       ) : (
-        <AppText variant="label" tone={tone}>
-          {title}
-        </AppText>
+        <>
+          {icon ? (
+            <Icon
+              name={icon}
+              size={18}
+              color={
+                filled ? 'onPrimary' : tone === 'primary' ? 'primary' : 'text'
+              }
+            />
+          ) : null}
+          <AppText variant="label" tone={tone}>
+            {title}
+          </AppText>
+        </>
       )}
     </Pressable>
   );
@@ -84,8 +99,10 @@ const styles = StyleSheet.create({
     minHeight: 50,
     borderRadius: radius.md,
     paddingHorizontal: spacing.lg,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: spacing.sm,
   },
   compact: {
     minHeight: 36,

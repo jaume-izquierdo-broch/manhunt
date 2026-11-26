@@ -1,10 +1,30 @@
 import { type PlayerDto, Team } from '@manhunt/types';
-import { AppText, Button, Card } from '@/ui';
+import { StyleSheet, View } from 'react-native';
+import {
+  AppText,
+  Card,
+  IconBadge,
+  IconButton,
+  type IconName,
+  radius,
+  spacing,
+  useThemeColors,
+} from '@/ui';
 import { PlayerRow } from './player-row';
 
-const TEAM_COPY = {
-  [Team.HUNTER]: { title: 'Hunters', switchTo: '→ Runner', tone: 'hunter' },
-  [Team.RUNNER]: { title: 'Runners', switchTo: '→ Hunter', tone: 'runner' },
+const TEAMS = {
+  [Team.HUNTER]: {
+    title: 'Hunters',
+    icon: 'eye-outline' as IconName,
+    color: 'hunter',
+    moveTo: 'Move to runners',
+  },
+  [Team.RUNNER]: {
+    title: 'Runners',
+    icon: 'footsteps-outline' as IconName,
+    color: 'runner',
+    moveTo: 'Move to hunters',
+  },
 } as const;
 
 export interface TeamSectionProps {
@@ -26,17 +46,35 @@ export function TeamSection({
   onSwitchTeam,
   onKick,
 }: TeamSectionProps) {
-  const copy = TEAM_COPY[team];
+  const c = useThemeColors();
+  const info = TEAMS[team];
+
   return (
     <Card>
-      <AppText variant="label" tone={copy.tone}>
-        {`${copy.title} (${players.length})`}
-      </AppText>
-      {players.length === 0 ? (
-        <AppText variant="caption" tone="muted">
-          Nobody yet
+      <View style={styles.header}>
+        <IconBadge name={info.icon} color={info.color} size={32} />
+        <AppText variant="label" style={styles.title}>
+          {info.title}
         </AppText>
+        <View style={[styles.count, { backgroundColor: c.surfaceAlt }]}>
+          <AppText
+            variant="caption"
+            tone="muted"
+            accessibilityLabel={`${players.length} players`}
+          >
+            {players.length}
+          </AppText>
+        </View>
+      </View>
+
+      {players.length === 0 ? (
+        <View style={[styles.empty, { borderColor: c.border }]}>
+          <AppText variant="caption" tone="muted">
+            Nobody yet
+          </AppText>
+        </View>
       ) : null}
+
       {players.map((player) => (
         <PlayerRow
           key={player.userId}
@@ -47,18 +85,17 @@ export function TeamSection({
             onSwitchTeam || onKick ? (
               <>
                 {onSwitchTeam ? (
-                  <Button
-                    title={copy.switchTo}
-                    variant="secondary"
-                    compact
+                  <IconButton
+                    icon="swap-horizontal"
+                    label={`${info.moveTo}: ${player.username}`}
                     onPress={() => onSwitchTeam(player)}
                   />
                 ) : null}
                 {onKick && player.userId !== userId ? (
-                  <Button
-                    title="Kick"
-                    variant="ghost"
-                    compact
+                  <IconButton
+                    icon="close"
+                    color="danger"
+                    label={`Kick ${player.username}`}
                     onPress={() => onKick(player)}
                   />
                 ) : null}
@@ -70,3 +107,22 @@ export function TeamSection({
     </Card>
   );
 }
+
+const styles = StyleSheet.create({
+  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  title: { flex: 1, fontSize: 16 },
+  count: {
+    minWidth: 28,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+  },
+  empty: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+  },
+});

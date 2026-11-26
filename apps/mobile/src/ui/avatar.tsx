@@ -1,16 +1,24 @@
 import { StyleSheet, View } from 'react-native';
 import { AppText } from './app-text';
-import { radius } from './theme';
+import { radius, type ThemeColors } from './theme';
 import { useThemeColors } from './use-theme';
 
 /** A round avatar with the first letter of the name. */
-export function Avatar({ name, size = 40 }: { name: string; size?: number }) {
+export function Avatar({
+  name,
+  size = 40,
+  color = 'primary',
+}: {
+  name: string;
+  size?: number;
+  color?: keyof ThemeColors;
+}) {
   const c = useThemeColors();
   return (
     <View
       style={[
         styles.circle,
-        { width: size, height: size, backgroundColor: c.primary },
+        { width: size, height: size, backgroundColor: c[color] },
       ]}
     >
       <AppText
