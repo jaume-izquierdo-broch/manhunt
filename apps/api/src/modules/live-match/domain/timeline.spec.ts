@@ -1,7 +1,7 @@
 import {
   computeTimeline,
   huntWindowOf,
-  nextPingAfter,
+  nextPingFrom,
   pingSlot,
   pingTime,
 } from './timeline.js';
@@ -18,34 +18,44 @@ describe('timeline', () => {
     expect(timeline.endsAt.toISOString()).toBe('2026-01-01T10:12:00.000Z');
   });
 
-  it('fires the first ping one interval after the hunt starts', () => {
+  it('fires the first ping as the hunt begins, then one every interval', () => {
     expect(pingTime(timeline.hidingEndsAt, 180, 1).toISOString()).toBe(
+      '2026-01-01T10:02:00.000Z',
+    );
+    expect(pingTime(timeline.hidingEndsAt, 180, 2).toISOString()).toBe(
       '2026-01-01T10:05:00.000Z',
     );
   });
 
   it('pingSlot returns null for a ping after the end of the match', () => {
-    expect(pingSlot(timeline, 180, 3)?.at.toISOString()).toBe(
+    expect(pingSlot(timeline, 180, 4)?.at.toISOString()).toBe(
       '2026-01-01T10:11:00.000Z',
     );
-    expect(pingSlot(timeline, 180, 4)).toBeNull();
+    expect(pingSlot(timeline, 180, 5)).toBeNull();
   });
 
   it('during the hiding phase, the next ping is the first one', () => {
-    expect(nextPingAfter(now, timeline, 180)?.seq).toBe(1);
+    expect(nextPingFrom(now, timeline, 180)).toEqual({
+      seq: 1,
+      at: timeline.hidingEndsAt,
+    });
+  });
+
+  it('a ping due right now is still the next one', () => {
+    expect(nextPingFrom(timeline.hidingEndsAt, timeline, 180)?.seq).toBe(1);
   });
 
   it('mid-hunt, returns the next ping after now', () => {
     const at = new Date('2026-01-01T10:06:00.000Z');
-    expect(nextPingAfter(at, timeline, 180)).toEqual({
-      seq: 2,
+    expect(nextPingFrom(at, timeline, 180)).toEqual({
+      seq: 3,
       at: new Date('2026-01-01T10:08:00.000Z'),
     });
   });
 
   it('returns null when no ping fits before the end', () => {
     const at = new Date('2026-01-01T10:11:30.000Z');
-    expect(nextPingAfter(at, timeline, 180)).toBeNull();
+    expect(nextPingFrom(at, timeline, 180)).toBeNull();
   });
 
   it('huntWindowOf is null until the match starts', () => {

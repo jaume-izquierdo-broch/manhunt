@@ -36,7 +36,7 @@ describe('SETTING_STEPS', () => {
 describe('stepsFor', () => {
   it('only offers pings that fire at least three times in the hunt', () => {
     const tenMinutes = { ...defaults, durationSeconds: 600 };
-    expect(stepsFor('pingIntervalSeconds', tenMinutes).at(-1)).toBe(180);
+    expect(stepsFor('pingIntervalSeconds', tenMinutes).at(-1)).toBe(240);
     expect(stepsFor('pingIntervalSeconds', defaults).at(-1)).toBe(900);
   });
 });
@@ -53,7 +53,7 @@ describe('fitSettings', () => {
       pingIntervalSeconds: 600,
     };
     const fitted = fitSettings(settings);
-    expect(fitted.pingIntervalSeconds).toBe(360);
+    expect(fitted.pingIntervalSeconds).toBe(540);
     expect(matchSettingsSchema.safeParse(fitted).success).toBe(true);
   });
 

@@ -1,8 +1,9 @@
 // Match timing. Everything is an absolute date; clients compute their own countdowns.
 //
 //   startedAt ── HIDING ── hidingEndsAt ── ACTIVE (a ping every N s) ── endsAt
-//                               ping 1 = hidingEndsAt + N
-//                               ping 2 = hidingEndsAt + 2N ...
+//                               ping 1 = hidingEndsAt (the hunters start with a trail)
+//                               ping 2 = hidingEndsAt + N
+//                               ping 3 = hidingEndsAt + 2N ...
 
 export interface Timeline {
   startedAt: Date;
@@ -38,13 +39,15 @@ export function huntWindowOf(match: {
     : null;
 }
 
-/** When ping number `seq` (1, 2, 3...) fires. */
+/** When ping number `seq` (1, 2, 3...) fires: the first one as the hunt begins. */
 export function pingTime(
   hidingEndsAt: Date,
   pingIntervalSeconds: number,
   seq: number,
 ): Date {
-  return new Date(hidingEndsAt.getTime() + seq * pingIntervalSeconds * 1000);
+  return new Date(
+    hidingEndsAt.getTime() + (seq - 1) * pingIntervalSeconds * 1000,
+  );
 }
 
 /** Ping number `seq`, or `null` if it would fire after the match ends. */
@@ -57,8 +60,11 @@ export function pingSlot(
   return at < window.endsAt ? { seq, at } : null;
 }
 
-/** The first ping strictly after `now`, or `null` if none is left. */
-export function nextPingAfter(
+/**
+ * The first ping from `now` on (one due right now counts, as at the start of a
+ * match without hiding), or `null` if none is left.
+ */
+export function nextPingFrom(
   now: Date,
   window: HuntWindow,
   pingIntervalSeconds: number,
@@ -66,7 +72,7 @@ export function nextPingAfter(
   const elapsed = now.getTime() - window.hidingEndsAt.getTime();
   const seq = Math.max(
     1,
-    Math.floor(elapsed / (pingIntervalSeconds * 1000)) + 1,
+    Math.ceil(elapsed / (pingIntervalSeconds * 1000)) + 1,
   );
   return pingSlot(window, pingIntervalSeconds, seq);
 }

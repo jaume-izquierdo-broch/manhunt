@@ -23,7 +23,7 @@ import {
   computeTimeline,
   type HuntWindow,
   huntWindowOf,
-  nextPingAfter,
+  nextPingFrom,
   pingSlot,
 } from './domain/timeline.js';
 import {
@@ -159,7 +159,7 @@ export class MatchLifecycleService
       case 'hiding-end':
         return this.beginHunt(job.matchId);
       case 'ping':
-        // In case the ping fires before the hiding-end job has been processed.
+        // The first ping is due with the end of hiding: it may run before that job.
         await this.beginHunt(job.matchId);
         return this.sendPing(job.matchId, job.seq);
       case 'match-end':
@@ -226,7 +226,7 @@ export class MatchLifecycleService
   /** Schedules the end of hiding, the end of the match and the next ping. Idempotent. */
   private async scheduleTimers(match: MatchRow, now: Date): Promise<void> {
     const window = requireHuntWindow(match);
-    const nextPing = nextPingAfter(now, window, match.pingIntervalSeconds);
+    const nextPing = nextPingFrom(now, window, match.pingIntervalSeconds);
     await Promise.all([
       this.timers.schedule(
         { matchId: match.id, kind: 'hiding-end', seq: 0 },

@@ -9,7 +9,7 @@ describe('nextPingTime', () => {
   };
   const at = (iso: string) => Date.parse(iso);
 
-  it('fires the first ping one interval after the hunt starts', () => {
+  it('after the ping at the start of the hunt, the next comes one interval later', () => {
     expect(nextPingTime(match, at('2026-01-01T10:02:10.000Z'))).toBe(
       at('2026-01-01T10:05:00.000Z'),
     );

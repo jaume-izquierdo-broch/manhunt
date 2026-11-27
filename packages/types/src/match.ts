@@ -16,7 +16,7 @@ export interface PlayArea {
  * the rest is for tests and the simulator, which need matches of seconds.
  *
  * The defaults are one coherent match on foot: a 600 m radius, 3 min to hide,
- * and a 1 h hunt with a ping every 3 min.
+ * and a 1 h hunt with a ping as it begins and every 3 min after.
  */
 export const MATCH_LIMITS = {
   maxPlayers: 30,
@@ -28,12 +28,12 @@ export const MATCH_LIMITS = {
   minPings: 3,
 } as const;
 
-/** How many pings fire during the hunt: one every interval, none at the very end. */
+/** How many pings fire during the hunt: one as it begins, then one every interval before the end. */
 export function pingsDuringHunt(
   durationSeconds: number,
   pingIntervalSeconds: number,
 ): number {
-  return Math.ceil(durationSeconds / pingIntervalSeconds) - 1;
+  return Math.ceil(durationSeconds / pingIntervalSeconds);
 }
 
 const bounded = (limits: { min: number; max: number; default: number }) =>

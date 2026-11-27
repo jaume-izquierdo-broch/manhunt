@@ -195,7 +195,9 @@ async function main() {
   step('The runner shares their location from the lobby');
   await send('runner', runnerSocket, 'location:update', ORIGIN);
 
-  step('The match starts around the hunter: 5 s of HIDING, then ACTIVE');
+  step(
+    'The match starts around the hunter: 5 s of HIDING, then ACTIVE with a first ping',
+  );
   const active = waitFor(
     runnerSocket,
     'match:updated',
@@ -217,7 +219,7 @@ async function main() {
   step('A catch from too far away (should fail with TOO_FAR)');
   await send('hunter', hunterSocket, 'catch:attempt', { runnerId: runner.id });
 
-  step('Waiting for the first ping (~15 s after the hunt starts)…');
+  step('Waiting for the next ping (15 s after the first)…');
   await waitFor(hunterSocket, 'ping:reveal');
 
   step('The hunter moves within ~5 m and catches the runner');

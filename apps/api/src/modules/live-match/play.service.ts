@@ -17,7 +17,7 @@ import { MatchesRepository } from '../matches/matches.repository.js';
 import { PositionsStore } from '../matches/positions.store.js';
 import { RealtimePublisher } from '../realtime/realtime.publisher.js';
 import { checkCatch } from './domain/catch-rules.js';
-import { huntWindowOf, nextPingAfter } from './domain/timeline.js';
+import { huntWindowOf, nextPingFrom } from './domain/timeline.js';
 import { LiveMatchErrors } from './live-match.errors.js';
 import { MatchLifecycleService } from './match-lifecycle.service.js';
 
@@ -54,7 +54,7 @@ export class PlayService {
     const window = huntWindowOf(match);
     const nextPing =
       live && window
-        ? nextPingAfter(now, window, match.pingIntervalSeconds)
+        ? nextPingFrom(now, window, match.pingIntervalSeconds)
         : null;
 
     return {

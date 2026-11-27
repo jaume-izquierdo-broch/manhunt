@@ -49,7 +49,7 @@ const HOW_TO_PLAY: {
     icon: 'radio-outline',
     color: 'primary',
     title: 'Ping',
-    text: 'Every few minutes, the hunters see where the runners are.',
+    text: 'When the hunt starts and every few minutes after, the hunters see where the runners are.',
   },
   {
     icon: 'hand-left-outline',

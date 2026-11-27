@@ -25,8 +25,9 @@ export interface PingSchedule {
 }
 
 /**
- * The next ping (epoch ms), or null. Same schedule as the server:
- * ping n = end of hiding + n × interval, as long as it's before the end.
+ * The next ping (epoch ms), or null. Same schedule as the server: one as the
+ * hunt begins, then one every interval, as long as it's before the end. During
+ * the hunt the first one has already fired, so the next is always a later one.
  */
 export function nextPingTime(
   match: PingSchedule,

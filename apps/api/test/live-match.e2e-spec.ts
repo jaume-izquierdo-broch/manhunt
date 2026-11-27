@@ -1,4 +1,4 @@
-import type { MatchDto } from '@manhunt/types';
+import type { MatchDto, PingRevealPayload } from '@manhunt/types';
 import { type ClientSocket, emit, waitFor } from './support/socket.js';
 import {
   metersNorth,
@@ -16,6 +16,8 @@ describe('live match', () => {
     runner: TestPlayer;
     hunterSocket: ClientSocket;
     runnerSocket: ClientSocket;
+    /** Every ping the hunter gets, from the start (the first comes as the hunt begins). */
+    reveals: PingRevealPayload[];
   }
 
   /** A hunter and a runner, both subscribed, with the match already ACTIVE (no hiding phase). */
@@ -47,6 +49,8 @@ describe('live match', () => {
 
     await emit(runnerSocket, 'location:update', ORIGIN);
 
+    const reveals: PingRevealPayload[] = [];
+    hunterSocket.on('ping:reveal', (ping) => reveals.push(ping));
     const active = waitFor(
       runnerSocket,
       'match:updated',
@@ -58,7 +62,7 @@ describe('live match', () => {
     expect((started.body as MatchDto).status).toBe('HIDING');
     await active;
 
-    return { match, hunter, runner, hunterSocket, runnerSocket };
+    return { match, hunter, runner, hunterSocket, runnerSocket, reveals };
   }
 
   it('unsubscribing stops the match events but keeps the socket open', async () => {
@@ -203,23 +207,26 @@ describe('live match', () => {
     await runner.api.get('/matches/current').expect(200, { match: null });
   });
 
-  it('pings reveal the runners to the hunters', async () => {
-    const { runner, hunterSocket, runnerSocket, match } =
+  it('pings reveal the runners to the hunters, the first as the hunt begins', async () => {
+    const { runner, hunterSocket, runnerSocket, match, reveals } =
       await startedMatch(15);
+
+    await vi.waitFor(() => expect(reveals).toHaveLength(1));
+    expect(reveals[0]?.runners).toEqual([
+      expect.objectContaining({ userId: runner.user.id, ...ORIGIN }),
+    ]);
+
     const hidden = metersNorth(120);
     await emit(runnerSocket, 'location:update', hidden);
-
     const notice = waitFor(runnerSocket, 'ping:notice', () => true, 25_000);
-    const reveal = await waitFor(
-      hunterSocket,
-      'ping:reveal',
-      () => true,
-      25_000,
-    );
-    expect(reveal.runners).toEqual([
+    await vi.waitFor(() => expect(reveals).toHaveLength(2), {
+      timeout: 25_000,
+      interval: 200,
+    });
+    expect(reveals[1]?.runners).toEqual([
       expect.objectContaining({ userId: runner.user.id, ...hidden }),
     ]);
-    expect(reveal.nextPingAt).not.toBeNull();
+    expect(reveals[1]?.nextPingAt).not.toBeNull();
     await notice;
 
     // Subscribing again (as after a reconnection) restores the latest ping.

@@ -57,7 +57,7 @@ The mobile app finds the API on its own (it uses your computer's IP). Details in
 2. **Hiding (`HIDING`)**: runners get a `hidingSeconds` head start.
 3. **Hunt (`ACTIVE`)**: lasts `durationSeconds`.
    - Each team sees its own members live.
-   - Every `pingIntervalSeconds` (at least 3 times per hunt), hunters receive the free runners' positions (`ping:reveal`) and runners are told they were seen (`ping:notice`).
+   - As the hunt begins and then every `pingIntervalSeconds` (at least 3 pings per hunt), hunters receive the free runners' positions (`ping:reveal`) and runners are told they were seen (`ping:notice`).
    - **Catching**: a hunter sends `catch:attempt`. It counts if both players have a position younger than 30 s and are less than 25 m apart (configurable with `CATCH_RADIUS_METERS` and `POSITION_MAX_AGE_SECONDS`). Caught runners become spectators.
 4. **End (`FINISHED`)**: hunters win if they catch everyone; runners win if time runs out.
 
