@@ -1,6 +1,7 @@
 import type { useRouter } from 'expo-router';
 import { Alert } from 'react-native';
 import { ApiError, errorMessage } from '@/lib/http/api-error';
+import { ensurePreciseLocation } from '@/features/location/location-access.store';
 
 type Router = ReturnType<typeof useRouter>;
 
@@ -8,6 +9,11 @@ type Router = ReturnType<typeof useRouter>;
 export function goToMatch(router: Router, matchId: string) {
   router.dismissTo('/');
   router.push({ pathname: '/match/[id]', params: { id: matchId } });
+}
+
+/** Opens a match you're already in, only with the precise location on. */
+export async function enterMatch(router: Router, matchId: string) {
+  if (await ensurePreciseLocation()) goToMatch(router, matchId);
 }
 
 /** Back to the home screen that is already under the match. */
@@ -32,7 +38,10 @@ export function handleMatchEntryError(
     'You can only be in one match at a time.',
     [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Go to my match', onPress: () => goToMatch(router, openMatchId) },
+      {
+        text: 'Go to my match',
+        onPress: () => void enterMatch(router, openMatchId),
+      },
     ],
   );
   return null;

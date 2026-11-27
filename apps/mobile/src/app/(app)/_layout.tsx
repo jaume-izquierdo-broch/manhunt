@@ -1,8 +1,14 @@
 import { Stack } from 'expo-router';
+import { useEffect } from 'react';
+import { offerLocation } from '@/features/location/location-access.store';
 import { useRealtimeConnection } from '@/features/realtime/use-realtime-connection';
 
 export default function AppLayout() {
   useRealtimeConnection();
+
+  useEffect(() => {
+    void offerLocation();
+  }, []);
 
   return (
     <Stack screenOptions={{ headerBackButtonDisplayMode: 'minimal' }}>

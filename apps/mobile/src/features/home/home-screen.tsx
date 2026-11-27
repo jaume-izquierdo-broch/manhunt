@@ -25,10 +25,12 @@ import {
 } from '@/ui';
 import { CurrentMatchCard } from './components/current-match-card';
 import {
+  enterMatch,
   goToMatch,
   handleMatchEntryError,
 } from '@/features/match/match-navigation';
 import { useCreateLobby } from '@/features/lobby/lobby.queries';
+import { ensurePreciseLocation } from '@/features/location/location-access.store';
 import { useCurrentMatch } from '@/features/match/match.queries';
 
 const HOW_TO_PLAY: {
@@ -72,6 +74,7 @@ export function HomeScreen() {
   const create = useCreateLobby();
 
   const createLobby = async () => {
+    if (!(await ensurePreciseLocation())) return;
     try {
       const match = await create.mutateAsync();
       goToMatch(router, match.id);
@@ -124,7 +127,7 @@ export function HomeScreen() {
             <>
               <CurrentMatchCard
                 match={openMatch}
-                onOpen={() => goToMatch(router, openMatch.id)}
+                onOpen={() => void enterMatch(router, openMatch.id)}
               />
             </>
           ) : (

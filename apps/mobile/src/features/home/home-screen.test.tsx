@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import * as Location from 'expo-location';
 import type { ReactNode } from 'react';
 import { makeMatch } from '@/test-utils/fixtures';
 import { useCreateLobby } from '@/features/lobby/lobby.queries';
@@ -38,8 +39,17 @@ function withCurrentMatch(data: ReturnType<typeof makeMatch> | null) {
   } as unknown as ReturnType<typeof useCurrentMatch>);
 }
 
+const permission = jest.mocked(Location.getForegroundPermissionsAsync);
+const request = jest.mocked(Location.requestForegroundPermissionsAsync);
+const locationAnswer = (status: string) =>
+  ({ status, canAskAgain: true }) as never;
+
 describe('HomeScreen', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    permission.mockResolvedValue(locationAnswer('granted'));
+    request.mockResolvedValue(locationAnswer('granted'));
+  });
 
   it('offers to create or join a match and explains the rules', async () => {
     withCurrentMatch(null);
@@ -60,6 +70,41 @@ describe('HomeScreen', () => {
     for (const step of ['Hide', 'Ping', 'Catch', 'Win']) {
       expect(screen.getByText(step)).toBeOnTheScreen();
     }
+  });
+
+  it('does not create a match without the location', async () => {
+    permission.mockResolvedValue(locationAnswer('undetermined'));
+    request.mockResolvedValue(locationAnswer('denied'));
+    withCurrentMatch(null);
+    await render(<HomeScreen />);
+
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Create a match' }),
+    );
+
+    expect(request).toHaveBeenCalled();
+    expect(createLobby).not.toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it('reopens the open match only with the location', async () => {
+    withCurrentMatch(makeMatch());
+    await render(<HomeScreen />);
+    const backToLobby = screen.getByRole('button', {
+      name: 'Back to the lobby',
+    });
+
+    permission.mockResolvedValue(locationAnswer('undetermined'));
+    request.mockResolvedValue(locationAnswer('denied'));
+    await fireEvent.press(backToLobby);
+    expect(mockPush).not.toHaveBeenCalled();
+
+    request.mockResolvedValue(locationAnswer('granted'));
+    await fireEvent.press(backToLobby);
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/match/[id]',
+      params: { id: 'm1' },
+    });
   });
 
   it('shows the open match instead of the create and join actions', async () => {

@@ -7,6 +7,7 @@ import {
   goToMatch,
   handleMatchEntryError,
 } from '@/features/match/match-navigation';
+import { ensurePreciseLocation } from '@/features/location/location-access.store';
 import { useJoinLobby } from './lobby.queries';
 
 export function JoinLobbyScreen() {
@@ -20,6 +21,7 @@ export function JoinLobbyScreen() {
     const result = validateForm(joinLobbySchema, { joinCode: code });
     setFieldError(result.errors.joinCode);
     if (!result.ok) return;
+    if (!(await ensurePreciseLocation())) return;
 
     setError(null);
     try {
