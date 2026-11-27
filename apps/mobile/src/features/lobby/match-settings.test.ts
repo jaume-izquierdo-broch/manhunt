@@ -4,7 +4,6 @@ import {
   matchSettingsSchema,
 } from '@manhunt/types';
 import {
-  describeSetting,
   fitSettings,
   SETTING_STEPS,
   type SettingKey,
@@ -69,28 +68,5 @@ describe('fitSettings', () => {
         expect(matchSettingsSchema.safeParse(fitted).success).toBe(true);
       }
     }
-  });
-});
-
-describe('describeSetting', () => {
-  it('says what the default rules mean on foot', () => {
-    expect(describeSetting('radiusMeters', defaults)).toBe(
-      'About 15 min to walk across.',
-    );
-    expect(describeSetting('hidingSeconds', defaults)).toBe(
-      'Jogging, runners get about 450 m away. The edge is 600 m from the start.',
-    );
-    expect(describeSetting('durationSeconds', defaults)).toBe(
-      '19 pings, one every 3 min.',
-    );
-    expect(describeSetting('pingIntervalSeconds', defaults)).toBe(
-      '19 pings during the hunt. In between, a runner can jog about 450 m.',
-    );
-  });
-
-  it('shows when an area is too big to walk', () => {
-    expect(
-      describeSetting('radiusMeters', { ...defaults, radiusMeters: 10_000 }),
-    ).toBe('About 4 h 10 min to walk across.');
   });
 });

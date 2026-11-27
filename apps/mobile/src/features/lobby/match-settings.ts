@@ -3,13 +3,8 @@ import {
   type MatchSettings,
   pingsDuringHunt,
 } from '@manhunt/types';
-import { countOf, formatDistance, formatDuration } from '@/lib/format';
 
 export type SettingKey = keyof MatchSettings;
-
-/** Paces on foot, to say what each value means on the street. */
-const WALK_METERS_PER_MINUTE = 80; // about 5 km/h
-const JOG_METERS_PER_MINUTE = 150; // about 9 km/h
 
 const minutes = (m: number) => m * 60;
 
@@ -73,30 +68,4 @@ export function fitSettings(settings: MatchSettings): MatchSettings {
     ...settings,
     pingIntervalSeconds: pings.at(-1) ?? MATCH_LIMITS.pingIntervalSeconds.min,
   };
-}
-
-const roundTo = (value: number, step: number) =>
-  Math.max(step, Math.round(value / step) * step);
-
-const jogged = (seconds: number) =>
-  formatDistance(roundTo((seconds / 60) * JOG_METERS_PER_MINUTE, 50));
-
-/** What a value means in practice, so the host can tell if the rules fit together. */
-export function describeSetting(key: SettingKey, s: MatchSettings): string {
-  const pings = countOf(
-    pingsDuringHunt(s.durationSeconds, s.pingIntervalSeconds),
-    'ping',
-  );
-  switch (key) {
-    case 'radiusMeters': {
-      const crossing = (s.radiusMeters * 2) / WALK_METERS_PER_MINUTE;
-      return `About ${formatDuration(minutes(roundTo(crossing, crossing > 60 ? 5 : 1)))} to walk across.`;
-    }
-    case 'hidingSeconds':
-      return `Jogging, runners get about ${jogged(s.hidingSeconds)} away. The edge is ${formatDistance(s.radiusMeters)} from the start.`;
-    case 'durationSeconds':
-      return `${pings}, one every ${formatDuration(s.pingIntervalSeconds)}.`;
-    case 'pingIntervalSeconds':
-      return `${pings} during the hunt. In between, a runner can jog about ${jogged(s.pingIntervalSeconds)}.`;
-  }
 }

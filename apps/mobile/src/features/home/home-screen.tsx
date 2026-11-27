@@ -81,7 +81,6 @@ export function HomeScreen() {
     }
   };
 
-  // Refresh whenever the screen gains focus (e.g. coming back from a match).
   const { refetch } = current;
   useFocusEffect(
     useCallback(() => {
@@ -120,9 +119,9 @@ export function HomeScreen() {
         ) : null}
 
         <View style={styles.section}>
+          <SectionTitle>Play</SectionTitle>
           {openMatch ? (
             <>
-              <SectionTitle>Your match</SectionTitle>
               <CurrentMatchCard
                 match={openMatch}
                 onOpen={() => goToMatch(router, openMatch.id)}
@@ -130,7 +129,6 @@ export function HomeScreen() {
             </>
           ) : (
             <>
-              <SectionTitle>Play</SectionTitle>
               <ActionCard
                 prominent
                 icon="add"

@@ -66,7 +66,8 @@ describe('HomeScreen', () => {
     withCurrentMatch(makeMatch());
     await render(<HomeScreen />);
 
-    expect(screen.getByText('YOUR MATCH')).toBeOnTheScreen();
+    expect(screen.getByText('PLAY')).toBeOnTheScreen();
+    expect(screen.getByText('You have an open match')).toBeOnTheScreen();
     expect(
       screen.queryByRole('button', { name: 'Create a match' }),
     ).not.toBeOnTheScreen();

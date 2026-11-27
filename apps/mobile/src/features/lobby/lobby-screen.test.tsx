@@ -121,7 +121,7 @@ describe('LobbyScreen', () => {
     );
     await fireEvent.press(screen.getByRole('button', { name: 'More' }));
     await fireEvent.press(screen.getByRole('button', { name: 'More' }));
-    expect(screen.getByText('About 13 min to walk across.')).toBeOnTheScreen();
+    expect(screen.getByText('500 m')).toBeOnTheScreen();
     expect(lobby.updateSettings).not.toHaveBeenCalled();
     await fireEvent.press(screen.getByRole('button', { name: 'Done' }));
 

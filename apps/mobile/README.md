@@ -70,7 +70,7 @@ src/
 │   │   ├── join-lobby-screen.tsx  Join with a code
 │   │   ├── lobby.api.ts       /lobbies endpoints, and their hooks in lobby.queries.ts
 │   │   ├── readiness.ts       Who can start from where they are
-│   │   ├── match-settings.ts  Rule ranges, how they fit together, what they mean
+│   │   ├── match-settings.ts  Rule ranges and how they fit together
 │   │   └── components/        Invite code, teams, rules grid
 │   │
 │   ├── realtime/              The socket to the server, open for the whole session

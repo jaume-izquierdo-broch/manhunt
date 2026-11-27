@@ -1,12 +1,7 @@
 import type { MatchSettings } from '@manhunt/types';
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
-import {
-  describeSetting,
-  fitSettings,
-  type SettingKey,
-  stepsFor,
-} from '../match-settings';
+import { fitSettings, type SettingKey, stepsFor } from '../match-settings';
 import { AppText, Button, Sheet, spacing, StepSlider } from '@/ui';
 
 /**
@@ -30,13 +25,14 @@ export function RuleSheet({
   onClose: () => void;
 }) {
   const [value, setValue] = useState(settings[setting]);
-  const next = fitSettings({ ...settings, [setting]: value });
 
   return (
     <Sheet
       title={title}
       onClose={() => {
-        if (value !== settings[setting]) onChange(next);
+        if (value !== settings[setting]) {
+          onChange(fitSettings({ ...settings, [setting]: value }));
+        }
         onClose();
       }}
     >
@@ -52,9 +48,6 @@ export function RuleSheet({
             label={title}
             format={format}
           />
-          <AppText variant="body" tone="muted" center>
-            {describeSetting(setting, next)}
-          </AppText>
           <Button title="Done" onPress={close} />
         </>
       )}

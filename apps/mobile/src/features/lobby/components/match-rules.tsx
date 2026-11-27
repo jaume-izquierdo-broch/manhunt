@@ -19,7 +19,6 @@ interface Rule {
   icon: IconName;
   color: keyof ThemeColors;
   label: string;
-  /** Title of the sheet to change it. */
   question: string;
   format: (value: number) => string;
 }
