@@ -137,7 +137,7 @@ export interface ClientToServerEvents {
 export interface ServerToClientEvents {
   /** Any change to the match (players, teams, phase, catches). Full payload. */
   'match:updated': (match: MatchDto) => void;
-  /** The host closed the lobby, or you were kicked. */
+  /** The host closed the lobby (to everyone but the host), or you were kicked. */
   'match:closed': (payload: MatchClosedPayload) => void;
   /** Live position of a teammate. */
   'player:position': (payload: PositionDto) => void;

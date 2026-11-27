@@ -140,6 +140,28 @@ describe('lobby (LOBBY)', () => {
     await host.api.get(`/matches/${match.id}`).expect(404);
   });
 
+  it('closing the lobby tells the players, not the host who closed it', async () => {
+    const host = await t.register('host');
+    const guest = await t.register('guest');
+    const match = await createMatch(host);
+    await guest.api
+      .post('/lobbies/join', { joinCode: match.joinCode })
+      .expect(200);
+
+    const hostSocket = await host.connect();
+    const guestSocket = await guest.connect();
+    await emit(hostSocket, 'match:subscribe', { matchId: match.id });
+    await emit(guestSocket, 'match:subscribe', { matchId: match.id });
+    let hostTold = false;
+    hostSocket.on('match:closed', () => (hostTold = true));
+
+    const closed = waitFor(guestSocket, 'match:closed');
+    await host.api.delete(`/lobbies/${match.id}`).expect(204);
+
+    expect(await closed).toEqual({ matchId: match.id });
+    expect(hostTold).toBe(false);
+  });
+
   it('cannot start without at least one hunter and one runner', async () => {
     const host = await t.register('host');
     const match = await createMatch(host);

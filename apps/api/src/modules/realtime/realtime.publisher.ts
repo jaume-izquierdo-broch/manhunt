@@ -32,6 +32,19 @@ export class RealtimePublisher {
     this.ns?.to(Rooms.match(matchId)).emit(event, ...args);
   }
 
+  /** To everyone in the match except the user, e.g. the one who caused it. */
+  toOthersInMatch<E extends keyof ServerToClientEvents>(
+    matchId: string,
+    userId: string,
+    event: E,
+    ...args: EventArgs<E>
+  ) {
+    this.ns
+      ?.to(Rooms.match(matchId))
+      .except(Rooms.user(userId))
+      .emit(event, ...args);
+  }
+
   toTeam<E extends keyof ServerToClientEvents>(
     matchId: string,
     team: Team,

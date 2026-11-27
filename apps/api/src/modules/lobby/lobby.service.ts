@@ -102,7 +102,8 @@ export class LobbyService {
     await this.repo.delete(matchId);
     await this.positions.clear(matchId);
 
-    this.realtime.toMatch(matchId, 'match:closed', { matchId });
+    // The host already knows: they closed it.
+    this.realtime.toOthersInMatch(matchId, hostId, 'match:closed', { matchId });
     for (const p of players) this.realtime.removeFromMatch(matchId, p.userId);
   }
 
