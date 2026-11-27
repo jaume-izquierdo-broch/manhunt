@@ -5,6 +5,8 @@ import {
   type OnModuleInit,
 } from '@nestjs/common';
 import {
+  type CatchClaim,
+  LIVE_MATCH_STATUSES,
   type MatchDto,
   MatchStatus,
   type StartMatchInput,
@@ -14,6 +16,7 @@ import {
 } from '@manhunt/types';
 import type { MatchRow } from '../../infrastructure/database/schema.js';
 import { assertHostInLobby } from '../lobby/domain/lobby-rules.js';
+import { LobbyErrors } from '../lobby/lobby.errors.js';
 import { MatchReader } from '../matches/match-reader.service.js';
 import { MatchErrors } from '../matches/matches.errors.js';
 import { MatchesRepository } from '../matches/matches.repository.js';
@@ -31,6 +34,7 @@ import {
   hasBalancedTeams,
   isHostAccurateEnough,
 } from './domain/start-rules.js';
+import { CatchClaimsStore } from './catch-claims.store.js';
 import { LiveMatchErrors } from './live-match.errors.js';
 import { MatchTimersQueue, type TimerJob } from './match-timers.queue.js';
 
@@ -38,8 +42,10 @@ import { MatchTimersQueue, type TimerJob } from './match-timers.queue.js';
  * The match state machine:
  *
  *   LOBBY ──start()──▶ HIDING ──[hiding-end]──▶ ACTIVE ──[match-end]──▶ FINISHED (runners win)
- *                                                   │  └─[ping] × N (reveals runners to hunters)
- *                                                   └──finish(HUNTER) when the last runner is caught
+ *                        │                          │  ├─[ping] × N (reveals runners to hunters)
+ *                        │                          │  └─catchRunner() when a catch is confirmed
+ *                        │                          └──finish(HUNTER) when the last runner is caught
+ *                        └── end() by the host, at any point ──▶ FINISHED (nobody wins)
  *
  * Every transition is idempotent (a conditional UPDATE in the repository), so a
  * duplicated or late timer is harmless.
@@ -56,6 +62,7 @@ export class MatchLifecycleService
     private readonly timers: MatchTimersQueue,
     private readonly positions: PositionsStore,
     private readonly realtime: RealtimePublisher,
+    private readonly claims: CatchClaimsStore,
   ) {}
 
   onModuleInit() {
@@ -134,13 +141,58 @@ export class MatchLifecycleService
     return this.reader.publishUpdate(matchId);
   }
 
-  /** HIDING/ACTIVE -> FINISHED. Only the first call has any effect. */
-  async finish(matchId: string, winnerTeam: Team): Promise<void> {
+  /** HIDING/ACTIVE -> FINISHED with no winner, when the host calls it off. */
+  async end(matchId: string, hostId: string): Promise<MatchDto> {
+    const match = await this.reader.getOrThrow(matchId);
+    if (match.hostId !== hostId) throw LobbyErrors.notHost();
+    if (
+      !(LIVE_MATCH_STATUSES as readonly MatchStatus[]).includes(match.status)
+    ) {
+      throw MatchErrors.invalidStatus('The match is not being played');
+    }
+    await this.finish(matchId, null);
+    return this.reader.toDto(await this.reader.getOrThrow(matchId));
+  }
+
+  /** A confirmed catch. Catching the last free runner wins the match. */
+  async catchRunner(claim: CatchClaim): Promise<void> {
+    const { matchId, runnerId, hunterId } = claim;
+    const match = await this.repo.findById(matchId);
+    if (match?.status !== MatchStatus.ACTIVE) return;
+
+    const now = new Date();
+    // If two catches of the same runner are confirmed at once, only the first counts.
+    if (!(await this.repo.markCaught(matchId, runnerId, hunterId, now))) return;
+    await this.positions.remove(matchId, runnerId);
+
+    const runnersRemaining = await this.repo.countAliveRunners(matchId);
+    this.realtime.toMatch(matchId, 'player:caught', {
+      matchId,
+      runnerId,
+      hunterId,
+      at: now.toISOString(),
+      runnersRemaining,
+    });
+    this.logger.log(
+      `Match ${matchId}: catch confirmed, ${runnersRemaining} runner(s) left`,
+    );
+
+    if (runnersRemaining === 0) {
+      await this.finish(matchId, Team.HUNTER);
+    } else {
+      await this.reader.publishUpdate(matchId);
+    }
+  }
+
+  /** HIDING/ACTIVE -> FINISHED. `null`: nobody wins (the host ended it). Only the first call has any effect. */
+  async finish(matchId: string, winnerTeam: Team | null): Promise<void> {
     const endedAt = new Date();
     const finished = await this.repo.markFinished(matchId, winnerTeam, endedAt);
     if (!finished) return;
 
-    this.logger.log(`Match ${matchId} finished: ${winnerTeam} team wins`);
+    this.logger.log(
+      `Match ${matchId} finished: ${winnerTeam ? `${winnerTeam} team wins` : 'ended by the host'}`,
+    );
     await this.timers.cancel({ matchId, kind: 'match-end', seq: 0 });
     await this.positions.clear(matchId);
 
@@ -164,7 +216,19 @@ export class MatchLifecycleService
         return this.sendPing(job.matchId, job.seq);
       case 'match-end':
         return this.finish(job.matchId, Team.RUNNER);
+      case 'catch-confirm':
+        return this.confirmUnanswered(job);
     }
+  }
+
+  /** The runner didn't answer in time: the catch counts. */
+  private async confirmUnanswered(job: TimerJob): Promise<void> {
+    if (!job.runnerId) return;
+    const claim = await this.claims.get(job.matchId, job.runnerId);
+    // Only the claim this timer was set for (not a later one on the same runner).
+    if (!claim || Date.parse(claim.expiresAt) !== job.seq) return;
+    const taken = await this.claims.take(job.matchId, job.runnerId);
+    if (taken) await this.catchRunner(taken);
   }
 
   /** HIDING -> ACTIVE. */

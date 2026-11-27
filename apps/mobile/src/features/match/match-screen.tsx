@@ -7,11 +7,15 @@ import { goHome } from '@/features/match/match-navigation';
 import { useInvalidateCurrentMatch } from '@/features/match/match.queries';
 import { useRealtime } from '@/features/realtime/realtime.store';
 import { Banner, Button, LoadingView, Screen } from '@/ui';
+import { EndMatchButton } from './components/end-match-button';
 import { useMatch } from './match.store';
 import { PlayScreen } from './play-screen';
 import { ResultsScreen } from './results-screen';
 import { useLocationTracking } from './use-location-tracking';
 import { useMatchConnection } from './use-match-connection';
+
+const isLive = (status: MatchStatus) =>
+  status === MatchStatus.HIDING || status === MatchStatus.ACTIVE;
 
 const TITLES: Record<MatchStatus, string> = {
   LOBBY: 'Lobby',
@@ -31,6 +35,7 @@ export function MatchScreen({ matchId }: { matchId: string }) {
   const status = useMatch((s) => s.match?.status);
   const error = useMatch((s) => s.error);
   const closed = useMatch((s) => s.closed);
+  const isHost = useMatch((s) => !!s.me && s.match?.hostId === s.me.userId);
   const connected = useRealtime((s) => s.status === 'connected');
   const router = useRouter();
   const invalidateCurrentMatch = useInvalidateCurrentMatch();
@@ -63,11 +68,17 @@ export function MatchScreen({ matchId }: { matchId: string }) {
 
   return (
     <>
-      <Stack.Screen options={{ title: TITLES[status] }} />
+      <Stack.Screen
+        options={{
+          title: TITLES[status],
+          headerRight:
+            isHost && isLive(status)
+              ? () => <EndMatchButton matchId={matchId} />
+              : undefined,
+        }}
+      />
       {status === MatchStatus.LOBBY ? <LobbyScreen /> : null}
-      {status === MatchStatus.HIDING || status === MatchStatus.ACTIVE ? (
-        <PlayScreen />
-      ) : null}
+      {isLive(status) ? <PlayScreen /> : null}
       {status === MatchStatus.FINISHED ? <ResultsScreen /> : null}
     </>
   );

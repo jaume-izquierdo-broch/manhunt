@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import {
-  type CatchResult,
+  CATCH_CONFIRM_MS,
+  type CatchClaim,
   LIVE_MATCH_STATUSES,
   type LocationUpdatePayload,
   type MatchSnapshot,
@@ -16,10 +17,12 @@ import { MatchReader } from '../matches/match-reader.service.js';
 import { MatchesRepository } from '../matches/matches.repository.js';
 import { PositionsStore } from '../matches/positions.store.js';
 import { RealtimePublisher } from '../realtime/realtime.publisher.js';
+import { CatchClaimsStore } from './catch-claims.store.js';
 import { checkCatch } from './domain/catch-rules.js';
 import { huntWindowOf, nextPingFrom } from './domain/timeline.js';
 import { LiveMatchErrors } from './live-match.errors.js';
 import { MatchLifecycleService } from './match-lifecycle.service.js';
+import { MatchTimersQueue } from './match-timers.queue.js';
 
 const isLive = (match: MatchRow) =>
   (LIVE_MATCH_STATUSES as readonly MatchStatus[]).includes(match.status);
@@ -27,8 +30,6 @@ const isLive = (match: MatchRow) =>
 /** Player actions during a match (they arrive over WebSocket). */
 @Injectable()
 export class PlayService {
-  private readonly logger = new Logger(PlayService.name);
-
   constructor(
     @InjectEnv() private readonly env: Env,
     private readonly repo: MatchesRepository,
@@ -37,6 +38,8 @@ export class PlayService {
     private readonly realtime: RealtimePublisher,
     private readonly lifecycle: MatchLifecycleService,
     private readonly lobby: LobbyService,
+    private readonly claims: CatchClaimsStore,
+    private readonly timers: MatchTimersQueue,
   ) {}
 
   /** Everything a client needs to render the match, on first load or after reconnecting. */
@@ -64,6 +67,10 @@ export class PlayService {
       lastPing:
         live && player.team === Team.HUNTER
           ? await this.positions.getLastPing(matchId)
+          : null,
+      pendingCatch:
+        live && player.team === Team.RUNNER
+          ? await this.claims.get(matchId, userId)
           : null,
       nextPingAt: nextPing?.at.toISOString() ?? null,
       serverTime: now.toISOString(),
@@ -105,12 +112,15 @@ export class PlayService {
     return { at: position.at };
   }
 
-  /** A hunter tries to catch a runner. Catching the last free runner wins the match. */
+  /**
+   * A hunter says they caught a runner. If they are close enough, the runner
+   * is asked to confirm; it counts if they do, or if they don't answer in time.
+   */
   async attemptCatch(
     hunterId: string,
     matchId: string,
     runnerId: string,
-  ): Promise<CatchResult> {
+  ): Promise<CatchClaim> {
     const { match, player: hunter } = await this.reader.getMembershipOrThrow(
       matchId,
       hunterId,
@@ -144,29 +154,47 @@ export class PlayService {
         : LiveMatchErrors.positionUnknown();
     }
 
-    // If two hunters catch the same runner at once, only the first one counts.
-    if (!(await this.repo.markCaught(matchId, runnerId, hunterId, now))) {
-      throw LiveMatchErrors.runnerAlreadyCaught();
-    }
-    await this.positions.remove(matchId, runnerId);
-
-    const runnersRemaining = await this.repo.countAliveRunners(matchId);
-    this.realtime.toMatch(matchId, 'player:caught', {
+    const expiresAt = new Date(now.getTime() + CATCH_CONFIRM_MS);
+    const claim: CatchClaim = {
       matchId,
       runnerId,
       hunterId,
-      at: now.toISOString(),
-      runnersRemaining,
-    });
-    this.logger.log(
-      `Match ${matchId}: catch at ${Math.round(check.distanceMeters)} m, ${runnersRemaining} runner(s) left`,
-    );
+      expiresAt: expiresAt.toISOString(),
+    };
+    if (!(await this.claims.create(claim)))
+      throw LiveMatchErrors.catchPending();
+    await this.timers.schedule(confirmTimer(claim), expiresAt);
+    this.realtime.toUser(runnerId, 'catch:claimed', claim);
+    return claim;
+  }
 
-    if (runnersRemaining === 0) {
-      await this.lifecycle.finish(matchId, Team.HUNTER);
+  /** The runner answers the catch waiting for them. */
+  async answerCatch(
+    runnerId: string,
+    matchId: string,
+    caught: boolean,
+  ): Promise<null> {
+    await this.reader.getMembershipOrThrow(matchId, runnerId);
+    const claim = await this.claims.take(matchId, runnerId);
+    if (!claim) throw LiveMatchErrors.noCatchToAnswer();
+    await this.timers.cancel(confirmTimer(claim));
+
+    if (caught) {
+      await this.lifecycle.catchRunner(claim);
     } else {
-      await this.reader.publishUpdate(matchId);
+      this.realtime.toUser(claim.hunterId, 'catch:rejected', {
+        matchId,
+        runnerId,
+      });
     }
-    return { runnerId, distanceMeters: check.distanceMeters, runnersRemaining };
+    return null;
   }
 }
+
+/** The timer that confirms the catch if the runner doesn't answer. */
+const confirmTimer = (claim: CatchClaim) => ({
+  matchId: claim.matchId,
+  kind: 'catch-confirm' as const,
+  runnerId: claim.runnerId,
+  seq: Date.parse(claim.expiresAt),
+});

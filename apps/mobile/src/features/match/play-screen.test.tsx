@@ -60,6 +60,41 @@ describe('PlayScreen', () => {
     await waitFor(() => expect(catchRunner).toHaveBeenCalledWith('ana'));
   });
 
+  it('shows the hunter that the runner has to confirm the catch', async () => {
+    await renderAs('host', liveMatch('ACTIVE'), {
+      myCatch: {
+        matchId: 'm1',
+        runnerId: 'ana',
+        hunterId: 'host',
+        expiresAt: fromNow(15_000),
+      },
+    });
+
+    expect(screen.getByText('Waiting for them to confirm…')).toBeOnTheScreen();
+  });
+
+  it('asks the runner to confirm a catch', async () => {
+    const answerCatch = jest.fn().mockResolvedValue(undefined);
+    await renderAs('ana', liveMatch('ACTIVE'), {
+      answerCatch,
+      catchOnMe: {
+        matchId: 'm1',
+        runnerId: 'ana',
+        hunterId: 'host',
+        expiresAt: fromNow(15_000),
+      },
+    });
+
+    expect(screen.getByText('host says they caught you')).toBeOnTheScreen();
+    expect(
+      screen.getByText("If you don't answer, it counts in 15 s."),
+    ).toBeOnTheScreen();
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'No, I got away' }),
+    );
+    await waitFor(() => expect(answerCatch).toHaveBeenCalledWith(false));
+  });
+
   it('turns a caught runner into a spectator', async () => {
     await renderAs('ana', liveMatch('ACTIVE', 'CAUGHT'));
 

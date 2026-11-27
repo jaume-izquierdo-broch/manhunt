@@ -30,6 +30,8 @@ export const ErrorCode = {
   NOT_ALIVE: 'NOT_ALIVE',
   POSITION_UNKNOWN: 'POSITION_UNKNOWN',
   TOO_FAR: 'TOO_FAR',
+  CATCH_PENDING: 'CATCH_PENDING',
+  NO_CATCH_TO_ANSWER: 'NO_CATCH_TO_ANSWER',
 } as const;
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
 

@@ -32,6 +32,18 @@ export const catchAttemptSchema = z.object({
 });
 export type CatchAttemptPayload = z.infer<typeof catchAttemptSchema>;
 
+/** The runner's answer to a catch: whether they were really caught. */
+export const catchAnswerSchema = z.object({
+  caught: z.boolean(),
+});
+export type CatchAnswerPayload = z.infer<typeof catchAnswerSchema>;
+
+/**
+ * A catch counts once the runner confirms it. If they don't answer in time it
+ * counts anyway: the hunter was already checked to be within a few meters.
+ */
+export const CATCH_CONFIRM_MS = 20_000;
+
 // ---------------------------------------------------------------------------
 // Server -> client payloads
 // ---------------------------------------------------------------------------
@@ -70,8 +82,24 @@ export interface PlayerCaughtPayload {
 
 export interface MatchFinishedPayload {
   matchId: string;
-  winnerTeam: Team;
+  /** Null when the host ended the match early. */
+  winnerTeam: Team | null;
   endedAt: string;
+}
+
+/** A hunter says they caught a runner; it waits for the runner's answer. */
+export interface CatchClaim {
+  matchId: string;
+  runnerId: string;
+  hunterId: string;
+  /** Counts as caught after this unless the runner says otherwise. */
+  expiresAt: string;
+}
+
+/** Sent to the hunter when the runner says they weren't caught. */
+export interface CatchRejectedPayload {
+  matchId: string;
+  runnerId: string;
 }
 
 export interface MatchClosedPayload {
@@ -89,15 +117,11 @@ export interface MatchSnapshot {
   teammates: PositionDto[];
   /** Latest ping (hunters only). */
   lastPing: PingRevealPayload | null;
+  /** A hunter's catch waiting for my answer (runners only). */
+  pendingCatch: CatchClaim | null;
   nextPingAt: string | null;
   /** Lets clients correct for a phone clock that is off. */
   serverTime: string;
-}
-
-export interface CatchResult {
-  runnerId: string;
-  distanceMeters: number;
-  runnersRemaining: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -128,9 +152,15 @@ export interface ClientToServerEvents {
     payload: LocationUpdatePayload,
     ack: (res: Ack<{ at: string }>) => void,
   ) => void;
+  /** A hunter claims a catch; the runner has to confirm it. */
   'catch:attempt': (
     payload: CatchAttemptPayload,
-    ack: (res: Ack<CatchResult>) => void,
+    ack: (res: Ack<CatchClaim>) => void,
+  ) => void;
+  /** The runner answers the catch waiting for them. */
+  'catch:answer': (
+    payload: CatchAnswerPayload,
+    ack: (res: Ack<null>) => void,
   ) => void;
 }
 
@@ -143,6 +173,11 @@ export interface ServerToClientEvents {
   'player:position': (payload: PositionDto) => void;
   'ping:reveal': (payload: PingRevealPayload) => void;
   'ping:notice': (payload: PingNoticePayload) => void;
+  /** To the runner: a hunter says they caught you. */
+  'catch:claimed': (payload: CatchClaim) => void;
+  /** To the hunter: the runner says they weren't caught. */
+  'catch:rejected': (payload: CatchRejectedPayload) => void;
+  /** To everyone: a catch was confirmed. */
   'player:caught': (payload: PlayerCaughtPayload) => void;
   'match:finished': (payload: MatchFinishedPayload) => void;
 }

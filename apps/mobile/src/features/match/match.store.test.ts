@@ -52,6 +52,7 @@ const snapshot = (overrides: Partial<MatchSnapshot> = {}): MatchSnapshot => ({
     },
   ],
   lastPing: null,
+  pendingCatch: null,
   nextPingAt: '2026-01-01T10:02:00.000Z',
   serverTime: '2026-01-01T10:01:30.000Z',
   ...overrides,
@@ -175,6 +176,56 @@ describe('live match store', () => {
       status: 'FINISHED',
       winnerTeam: 'HUNTER',
       endedAt: 'T',
+    });
+  });
+
+  it('a catch waits for my answer and goes away once confirmed', () => {
+    const claim = {
+      matchId: 'm1',
+      runnerId: 'runner1',
+      hunterId: 'hunter',
+      expiresAt: 'T',
+    };
+    loaded().catchClaimed(claim);
+    expect(state().catchOnMe).toEqual(claim);
+
+    state().playerCaught({ ...claim, at: 'T', runnersRemaining: 1 });
+    expect(state().catchOnMe).toBeNull();
+  });
+
+  it('a reconnection brings back the catch waiting for my answer', () => {
+    const claim = {
+      matchId: 'm1',
+      runnerId: 'runner1',
+      hunterId: 'hunter',
+      expiresAt: 'T',
+    };
+    expect(loaded({ pendingCatch: claim }).catchOnMe).toEqual(claim);
+  });
+
+  it('catchRejected: stops waiting and remembers it, only for my catch', () => {
+    const claim = {
+      matchId: 'm1',
+      runnerId: 'runner2',
+      hunterId: 'runner1',
+      expiresAt: 'T',
+    };
+    loaded();
+    useMatch.setState({ myCatch: claim });
+
+    state().catchRejected({ matchId: 'm1', runnerId: 'someone-else' });
+    expect(state().myCatch).toEqual(claim);
+
+    state().catchRejected({ matchId: 'm1', runnerId: 'runner2' });
+    expect(state().myCatch).toBeNull();
+    expect(state().lastRejectedCatch?.runnerId).toBe('runner2');
+  });
+
+  it('matchFinished without a winner: the host ended it', () => {
+    loaded().matchFinished({ matchId: 'm1', winnerTeam: null, endedAt: 'T' });
+    expect(state().match).toMatchObject({
+      status: 'FINISHED',
+      winnerTeam: null,
     });
   });
 

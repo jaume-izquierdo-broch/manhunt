@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { LobbyModule } from '../lobby/lobby.module.js';
 import { MatchesModule } from '../matches/matches.module.js';
+import { CatchClaimsStore } from './catch-claims.store.js';
 import { LiveMatchController } from './live-match.controller.js';
 import { MatchGateway } from './match.gateway.js';
 import { PlayService } from './play.service.js';
@@ -16,6 +17,7 @@ import { MatchTimersQueue } from './match-timers.queue.js';
     PlayService,
     MatchLifecycleService,
     MatchTimersQueue,
+    CatchClaimsStore,
   ],
 })
 export class LiveMatchModule {}

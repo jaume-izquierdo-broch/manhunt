@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LocationAccessNotice } from '@/features/location/location-access-notice';
 import { useRealtime } from '@/features/realtime/realtime.store';
 import { Banner, type BannerTone, spacing, useThemeColors } from '@/ui';
+import { CatchConfirmCard } from './components/catch-confirm-card';
 import { CatchPanel } from './components/catch-panel';
 import { MatchHud } from './components/match-hud';
 import { MatchMap, type MapMarkerData } from './components/match-map';
@@ -79,9 +80,21 @@ export function PlayScreen() {
               match={match}
               lastPing={state.lastPing}
               myPosition={state.myPosition}
+              waitingFor={waitingFor(state, now)}
               onCatch={state.catchRunner}
             />
           </ScrollView>
+        ) : null}
+
+        {!isHunter && !caught && state.catchOnMe ? (
+          <View style={styles.bottomContent}>
+            <CatchConfirmCard
+              claim={state.catchOnMe}
+              hunterName={playerName(match, state.catchOnMe.hunterId)}
+              now={now}
+              onAnswer={state.answerCatch}
+            />
+          </View>
         ) : null}
       </SafeAreaView>
 
@@ -90,6 +103,16 @@ export function PlayScreen() {
       ) : null}
     </View>
   );
+}
+
+/**
+ * The runner I'm waiting on to confirm my catch. If their answer never comes
+ * (it should arrive within seconds of the deadline), stop waiting.
+ */
+function waitingFor(state: MatchState, now: number): string | null {
+  const claim = state.myCatch;
+  if (!claim) return null;
+  return now - Date.parse(claim.expiresAt) < 10_000 ? claim.runnerId : null;
 }
 
 /** Teammates for everyone, plus the latest ping for hunters. */
@@ -139,6 +162,14 @@ function buildNotices(
       key: 'connection',
       tone: 'warning',
       message: 'Connection lost. Reconnecting…',
+    });
+  }
+  const rejected = state.lastRejectedCatch;
+  if (rejected && now - rejected.at < NOTICE_DURATION_MS) {
+    notices.push({
+      key: `rejected-${rejected.at}`,
+      tone: 'warning',
+      message: `${playerName(match, rejected.runnerId)} says you didn't catch them.`,
     });
   }
   if (caught) {

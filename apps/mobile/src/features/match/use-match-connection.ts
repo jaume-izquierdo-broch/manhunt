@@ -33,6 +33,8 @@ export function useMatchConnection(matchId: string) {
     socket.on('player:position', store.teammateMoved);
     socket.on('ping:reveal', store.pingRevealed);
     socket.on('ping:notice', store.spottedByHunters);
+    socket.on('catch:claimed', store.catchClaimed);
+    socket.on('catch:rejected', store.catchRejected);
     socket.on('player:caught', store.playerCaught);
     socket.on('match:finished', store.matchFinished);
     if (socket.connected) void subscribe();
@@ -44,6 +46,8 @@ export function useMatchConnection(matchId: string) {
       socket.off('player:position', store.teammateMoved);
       socket.off('ping:reveal', store.pingRevealed);
       socket.off('ping:notice', store.spottedByHunters);
+      socket.off('catch:claimed', store.catchClaimed);
+      socket.off('catch:rejected', store.catchRejected);
       socket.off('player:caught', store.playerCaught);
       socket.off('match:finished', store.matchFinished);
       if (socket.connected) {

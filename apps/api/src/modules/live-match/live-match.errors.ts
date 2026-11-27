@@ -70,6 +70,20 @@ export const LiveMatchErrors = {
       { distanceMeters },
     ),
 
+  catchPending: () =>
+    new AppError(
+      ErrorCode.CATCH_PENDING,
+      'That runner is already answering a catch',
+      HttpStatus.CONFLICT,
+    ),
+
+  noCatchToAnswer: () =>
+    new AppError(
+      ErrorCode.NO_CATCH_TO_ANSWER,
+      'There is no catch waiting for your answer',
+      HttpStatus.CONFLICT,
+    ),
+
   // Starting the match
 
   teamsUnbalanced: () =>

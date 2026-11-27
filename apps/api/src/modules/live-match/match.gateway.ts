@@ -10,7 +10,8 @@ import {
 import {
   type Ack,
   catchAttemptSchema,
-  type CatchResult,
+  type CatchClaim,
+  catchAnswerSchema,
   REALTIME_NAMESPACE,
   locationUpdateSchema,
   type MatchSnapshot,
@@ -120,12 +121,26 @@ export class MatchGateway implements OnGatewayInit, OnGatewayConnection {
   onCatch(
     @ConnectedSocket() socket: RealtimeSocket,
     @MessageBody() body: unknown,
-  ): Promise<Ack<CatchResult>> {
+  ): Promise<Ack<CatchClaim>> {
     return withAck(this.logger, () =>
       this.play.attemptCatch(
         socket.data.userId,
         subscribedMatchId(socket),
         parseOrThrow(catchAttemptSchema, body).runnerId,
+      ),
+    );
+  }
+
+  @SubscribeMessage('catch:answer')
+  onCatchAnswer(
+    @ConnectedSocket() socket: RealtimeSocket,
+    @MessageBody() body: unknown,
+  ): Promise<Ack<null>> {
+    return withAck(this.logger, () =>
+      this.play.answerCatch(
+        socket.data.userId,
+        subscribedMatchId(socket),
+        parseOrThrow(catchAnswerSchema, body).caught,
       ),
     );
   }

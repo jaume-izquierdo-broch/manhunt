@@ -3,10 +3,16 @@ import { useRouter } from 'expo-router';
 import { useCurrentUser } from '@/features/auth/session.store';
 import { goHome } from '@/features/match/match-navigation';
 import { useInvalidateCurrentMatch } from '@/features/match/match.queries';
-import { AppText, Button, Card, Screen } from '@/ui';
+import { AppText, Button, Card, Screen, type TextTone } from '@/ui';
 import { PlayerRow } from './components/player-row';
 import { useMatch, useLoadedMatch } from './match.store';
 import { playerName, playersOfTeam } from './rules/players';
+
+const HEADLINES: Record<Team | 'none', { title: string; tone: TextTone }> = {
+  [Team.HUNTER]: { title: 'Hunters win!', tone: 'hunter' },
+  [Team.RUNNER]: { title: 'Runners win!', tone: 'runner' },
+  none: { title: 'Match ended', tone: 'default' },
+};
 
 /** End of the match: who won, and what happened to each runner. */
 export function ResultsScreen() {
@@ -27,15 +33,15 @@ export function ResultsScreen() {
   return (
     <Screen scroll footer={<Button title="Back to home" onPress={backHome} />}>
       <Card>
-        <AppText
-          variant="title"
-          tone={winner === Team.HUNTER ? 'hunter' : 'runner'}
-          center
-        >
-          {winner === Team.HUNTER ? 'Hunters win!' : 'Runners win!'}
+        <AppText variant="title" tone={HEADLINES[winner ?? 'none'].tone} center>
+          {HEADLINES[winner ?? 'none'].title}
         </AppText>
         <AppText center tone="muted">
-          {myTeamWon ? 'Your team won 🎉' : 'Better luck next time.'}
+          {!winner
+            ? 'The host ended the match.'
+            : myTeamWon
+              ? 'Your team won 🎉'
+              : 'Better luck next time.'}
         </AppText>
       </Card>
 
@@ -64,7 +70,6 @@ export function ResultsScreen() {
 
 function runnerOutcome(match: MatchDto, player: PlayerDto): string | undefined {
   if (player.team !== Team.RUNNER) return undefined;
-  return player.caughtBy
-    ? `Caught by ${playerName(match, player.caughtBy)}`
-    : 'Survived';
+  if (player.caughtBy) return `Caught by ${playerName(match, player.caughtBy)}`;
+  return match.winnerTeam ? 'Survived' : 'Not caught';
 }

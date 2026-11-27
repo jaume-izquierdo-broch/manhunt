@@ -8,13 +8,18 @@ import { type ConnectionOptions, type Job, Queue, Worker } from 'bullmq';
 import type { RedisOptions } from 'ioredis';
 import { InjectRedisOptions } from '../../infrastructure/redis/redis.tokens.js';
 
-export type TimerKind = 'hiding-end' | 'ping' | 'match-end';
+export type TimerKind = 'hiding-end' | 'ping' | 'match-end' | 'catch-confirm';
 
 export interface TimerJob {
   matchId: string;
   kind: TimerKind;
-  /** Ping number for `ping` jobs; 0 for the others. */
+  /**
+   * Ping number for `ping` jobs; for `catch-confirm`, the claim's expiry (epoch
+   * ms), so a later claim on the same runner gets its own timer; 0 otherwise.
+   */
   seq: number;
+  /** The runner of a `catch-confirm` job. */
+  runnerId?: string;
 }
 
 export type TimerHandler = (job: TimerJob) => Promise<void>;
@@ -47,7 +52,10 @@ function createQueue(options: RedisOptions) {
 }
 
 /** Deterministic job id: scheduling the same timer twice creates a single job. */
-const jobId = (job: TimerJob) => `${job.kind}-${job.matchId}-${job.seq}`;
+const jobId = (job: TimerJob) =>
+  [job.kind, job.matchId, job.runnerId, job.seq]
+    .filter((part) => part !== undefined)
+    .join('-');
 
 /**
  * Match timers on top of BullMQ (delayed jobs stored in Redis):

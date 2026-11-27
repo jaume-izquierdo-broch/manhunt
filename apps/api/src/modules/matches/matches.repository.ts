@@ -167,10 +167,10 @@ export class MatchesRepository {
     return row ?? null;
   }
 
-  /** HIDING/ACTIVE -> FINISHED, with the winning team. */
+  /** HIDING/ACTIVE -> FINISHED, with the winning team (null: nobody won). */
   async markFinished(
     matchId: string,
-    winnerTeam: Team,
+    winnerTeam: Team | null,
     endedAt: Date,
   ): Promise<MatchRow | null> {
     const [row] = await this.db

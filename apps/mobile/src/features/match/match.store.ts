@@ -1,5 +1,6 @@
 import {
-  type CatchResult,
+  type CatchClaim,
+  type CatchRejectedPayload,
   type MatchDto,
   type MatchFinishedPayload,
   type MatchSnapshot,
@@ -38,6 +39,12 @@ export interface MatchState {
   /** When the hunters last saw me (runners only). */
   lastSpottedAt: string | null;
   lastCatch: PlayerCaughtPayload | null;
+  /** My catch waiting for the runner to confirm it (hunters). */
+  myCatch: CatchClaim | null;
+  /** My last catch the runner turned down, and when (hunters). */
+  lastRejectedCatch: { runnerId: string; at: number } | null;
+  /** A hunter says they caught me: waiting for my answer (runners). */
+  catchOnMe: CatchClaim | null;
   /** The host closed the lobby, or kicked me. */
   closed: boolean;
   /** Server clock minus local clock (ms), for countdowns. */
@@ -59,6 +66,8 @@ export interface MatchActions {
   teammateMoved: (position: PositionDto) => void;
   pingRevealed: (ping: PingRevealPayload) => void;
   spottedByHunters: (notice: PingNoticePayload) => void;
+  catchClaimed: (claim: CatchClaim) => void;
+  catchRejected: (rejected: CatchRejectedPayload) => void;
   playerCaught: (caught: PlayerCaughtPayload) => void;
   matchFinished: (finished: MatchFinishedPayload) => void;
   matchClosed: () => void;
@@ -67,7 +76,10 @@ export interface MatchActions {
   setMyPosition: (position: DevicePosition | null) => void;
 
   // --- What the player can do ---
-  catchRunner: (runnerId: string) => Promise<CatchResult>;
+  /** Claims a catch; it counts once the runner confirms it (or doesn't answer). */
+  catchRunner: (runnerId: string) => Promise<CatchClaim>;
+  /** The runner's answer to `catchOnMe`. */
+  answerCatch: (caught: boolean) => Promise<void>;
 }
 
 const initialState: MatchState = {
@@ -78,6 +90,9 @@ const initialState: MatchState = {
   lastPing: null,
   lastSpottedAt: null,
   lastCatch: null,
+  myCatch: null,
+  lastRejectedCatch: null,
+  catchOnMe: null,
   closed: false,
   clockOffsetMs: 0,
   myPosition: null,
@@ -100,6 +115,7 @@ export const useMatch = create<MatchState & MatchActions>()((set, get) => ({
         snapshot.teammates.map((p) => [p.userId, p]),
       ),
       lastPing: snapshot.lastPing,
+      catchOnMe: snapshot.pendingCatch,
       clockOffsetMs: clockOffsetMs(snapshot.serverTime, receivedAt),
     }),
 
@@ -123,9 +139,27 @@ export const useMatch = create<MatchState & MatchActions>()((set, get) => ({
     set({ lastSpottedAt: notice.at });
   },
 
+  catchClaimed: (claim) => {
+    haptics.warning();
+    set({ catchOnMe: claim });
+  },
+
+  catchRejected: (rejected) => {
+    if (get().myCatch?.runnerId !== rejected.runnerId) return;
+    haptics.error();
+    set({
+      myCatch: null,
+      lastRejectedCatch: {
+        runnerId: rejected.runnerId,
+        at: Date.now() + get().clockOffsetMs,
+      },
+    });
+  },
+
   playerCaught: (caught) => {
     const state = get();
     if (caught.runnerId === state.me?.userId) haptics.error();
+    if (caught.hunterId === state.me?.userId) haptics.success();
 
     // A caught runner is no longer on the map.
     const { [caught.runnerId]: _caught, ...teammates } = state.teammates;
@@ -146,20 +180,25 @@ export const useMatch = create<MatchState & MatchActions>()((set, get) => ({
       ...(match ? withMatch(state, match) : {}),
       teammates,
       lastCatch: caught,
+      myCatch:
+        state.myCatch?.runnerId === caught.runnerId ? null : state.myCatch,
+      catchOnMe: caught.runnerId === state.me?.userId ? null : state.catchOnMe,
     });
   },
 
   matchFinished: (finished) => {
     const { match } = get();
     if (!match) return;
-    set(
-      withMatch(get(), {
+    set({
+      ...withMatch(get(), {
         ...match,
         status: MatchStatus.FINISHED,
         winnerTeam: finished.winnerTeam,
         endedAt: finished.endedAt,
       }),
-    );
+      myCatch: null,
+      catchOnMe: null,
+    });
   },
 
   matchClosed: () => set({ closed: true }),
@@ -169,13 +208,24 @@ export const useMatch = create<MatchState & MatchActions>()((set, get) => ({
 
   // --- What the player can do ---------------------------------------------
   catchRunner: async (runnerId) => {
-    const { socket } = useRealtime.getState();
-    if (!socket?.connected) throw new Error('Not connected to the server');
-    const result = await emitWithAck(socket, 'catch:attempt', { runnerId });
-    haptics.success();
-    return result;
+    const claim = await emitWithAck(connectedSocket(), 'catch:attempt', {
+      runnerId,
+    });
+    set({ myCatch: claim });
+    return claim;
+  },
+
+  answerCatch: async (caught) => {
+    await emitWithAck(connectedSocket(), 'catch:answer', { caught });
+    set({ catchOnMe: null });
   },
 }));
+
+function connectedSocket() {
+  const { socket } = useRealtime.getState();
+  if (!socket?.connected) throw new Error('Not connected to the server');
+  return socket;
+}
 
 /** The loaded match. Only for the screens MatchScreen shows once it exists. */
 export function useLoadedMatch(): MatchDto {

@@ -5,7 +5,7 @@
 //
 // Registers a hunter and a runner, sets up the lobby, starts the match, moves
 // the runner, waits for a ping, tries a catch from too far away (fails), moves
-// closer and catches. Takes about 20 seconds.
+// closer and catches, and the runner confirms it. Takes about 20 seconds.
 import type {
   Ack,
   ClientToServerEvents,
@@ -117,11 +117,17 @@ async function connect(actor: Actor, token: string): Promise<RealtimeSocket> {
   socket.on('ping:notice', () =>
     log(actor, '📡 ping:notice: the hunters saw you!'),
   );
+  socket.on('catch:claimed', () =>
+    log(actor, '✋ catch:claimed: a hunter says they caught you'),
+  );
   socket.on('player:caught', (p) =>
     log(actor, '🫳 player:caught', { runnersLeft: p.runnersRemaining }),
   );
   socket.on('match:finished', (p) =>
-    log(actor, `🏁 match:finished → ${p.winnerTeam} team wins`),
+    log(
+      actor,
+      `🏁 match:finished → ${p.winnerTeam ? `${p.winnerTeam} team wins` : 'ended by the host'}`,
+    ),
   );
   return socket;
 }
@@ -225,8 +231,13 @@ async function main() {
   step('The hunter moves within ~5 m and catches the runner');
   await send('hunter', hunterSocket, 'location:update', metersNorth(145));
   await send('runner', runnerSocket, 'location:update', metersNorth(150));
+  const claimed = waitFor(runnerSocket, 'catch:claimed');
   const finished = waitFor(runnerSocket, 'match:finished');
   await send('hunter', hunterSocket, 'catch:attempt', { runnerId: runner.id });
+  await claimed;
+
+  step('The runner confirms they were caught');
+  await send('runner', runnerSocket, 'catch:answer', { caught: true });
   await finished;
 
   await new Promise((r) => setTimeout(r, 300));

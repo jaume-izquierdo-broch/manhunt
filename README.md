@@ -58,8 +58,8 @@ The mobile app finds the API on its own (it uses your computer's IP). Details in
 3. **Hunt (`ACTIVE`)**: lasts `durationSeconds`.
    - Each team sees its own members live.
    - As the hunt begins and then every `pingIntervalSeconds` (at least 3 pings per hunt), hunters receive the free runners' positions (`ping:reveal`) and runners are told they were seen (`ping:notice`).
-   - **Catching**: a hunter sends `catch:attempt`. It counts if both players have a position younger than 30 s and are less than 25 m apart (configurable with `CATCH_RADIUS_METERS` and `POSITION_MAX_AGE_SECONDS`). Caught runners become spectators.
-4. **End (`FINISHED`)**: hunters win if they catch everyone; runners win if time runs out.
+   - **Catching**: a hunter sends `catch:attempt`. The server checks that both players have a position younger than 30 s and are less than 25 m apart (configurable with `CATCH_RADIUS_METERS` and `POSITION_MAX_AGE_SECONDS`), then asks the runner (`catch:claimed`). The runner answers with `catch:answer`: if they confirm, or don't answer within 20 s, the catch counts (`player:caught`); if they say they got away, the hunter is told (`catch:rejected`) and can try again. Caught runners become spectators.
+4. **End (`FINISHED`)**: hunters win if they catch everyone; runners win if time runs out. The host can also end the match at any point: nobody wins.
 
 A user can only be in one unfinished match at a time.
 
@@ -83,6 +83,7 @@ Every route requires `Authorization: Bearer <token>`, except those marked 🌐. 
 | GET     | `/matches/current`             | `{ match }` with your unfinished match (lobby or live), or `null`                                                                       |
 | GET     | `/matches/:id`                 | Match details (participants only)                                                                                                       |
 | POST    | `/matches/:id/start`           | `{ lat, lng, accuracy? }`, the host's position: `LOBBY → HIDING` (host)                                                                 |
+| POST    | `/matches/:id/end`             | `HIDING/ACTIVE → FINISHED` with no winner (host)                                                                                        |
 | 🌐 GET  | `/health` · `/health/live`     | Readiness (Postgres + Redis) · liveness                                                                                                 |
 
 ## WebSocket (Socket.IO, namespace `/realtime`)
@@ -91,11 +92,12 @@ The app keeps one connection for the whole session: `io(URL + '/realtime', { aut
 
 **Client → server**
 
-| Event             | Payload                                                     | Ack `data`                                                                          |
-| ----------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `match:subscribe` | `{ matchId }`                                               | `MatchSnapshot`: the match, your team and status, teammates, latest ping, next ping |
-| `location:update` | `{ lat, lng, accuracy? }` (every 3-10 s; also in the lobby) | `{ at }`                                                                            |
-| `catch:attempt`   | `{ runnerId }`                                              | `{ runnerId, distanceMeters, runnersRemaining }`                                    |
+| Event             | Payload                                                     | Ack `data`                                                                                                             |
+| ----------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `match:subscribe` | `{ matchId }`                                               | `MatchSnapshot`: the match, your team and status, teammates, latest ping, next ping, the catch waiting for your answer |
+| `location:update` | `{ lat, lng, accuracy? }` (every 3-10 s; also in the lobby) | `{ at }`                                                                                                               |
+| `catch:attempt`   | `{ runnerId }` (hunters)                                    | The `CatchClaim`: `{ runnerId, hunterId, expiresAt }`                                                                  |
+| `catch:answer`    | `{ caught }` (the runner of a claim)                        | `null`                                                                                                                 |
 
 **Server → client**
 
@@ -106,8 +108,10 @@ The app keeps one connection for the whole session: `io(URL + '/realtime', { aut
 | `player:position` | your team                 | A teammate reported their position                                        |
 | `ping:reveal`     | hunters                   | The free runners' positions + `nextPingAt`                                |
 | `ping:notice`     | runners                   | "The hunters just saw you" + `nextPingAt`                                 |
-| `player:caught`   | the lobby                 | A catch (`runnerId`, `hunterId`, `runnersRemaining`)                      |
-| `match:finished`  | the lobby                 | `winnerTeam`                                                              |
+| `catch:claimed`   | the runner                | A hunter says they caught you: answer before `expiresAt`                  |
+| `catch:rejected`  | the hunter                | The runner says they got away                                             |
+| `player:caught`   | the lobby                 | A confirmed catch (`runnerId`, `hunterId`, `runnersRemaining`)            |
+| `match:finished`  | the lobby                 | `winnerTeam` (`null` if the host ended it)                                |
 
 Times always travel as absolute ISO dates (`hidingEndsAt`, `endsAt`, `nextPingAt`); clients compute their own countdowns.
 

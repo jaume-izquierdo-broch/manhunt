@@ -174,13 +174,23 @@ describe('live match', () => {
     await emit(hunterSocket, 'location:update', ORIGIN);
     await emit(runnerSocket, 'location:update', metersNorth(5));
 
+    const claimed = waitFor(runnerSocket, 'catch:claimed');
     const caught = waitFor(runnerSocket, 'player:caught');
     const finished = waitFor(runnerSocket, 'match:finished');
     const result = await emit(hunterSocket, 'catch:attempt', {
       runnerId: runner.user.id,
     });
+    expect(result).toMatchObject({
+      ok: true,
+      data: { runnerId: runner.user.id, hunterId: hunter.user.id },
+    });
 
-    expect(result).toMatchObject({ ok: true, data: { runnersRemaining: 0 } });
+    // The catch waits for the runner, who confirms it.
+    expect(await claimed).toMatchObject({ hunterId: hunter.user.id });
+    expect(await emit(runnerSocket, 'catch:answer', { caught: true })).toEqual({
+      ok: true,
+      data: null,
+    });
     expect(await caught).toMatchObject({
       runnerId: runner.user.id,
       hunterId: hunter.user.id,
@@ -205,6 +215,83 @@ describe('live match', () => {
       ok: false,
     });
     await runner.api.get('/matches/current').expect(200, { match: null });
+  });
+
+  it('a runner can say they were not caught', async () => {
+    const { match, hunter, runner, hunterSocket, runnerSocket } =
+      await startedMatch();
+    await emit(hunterSocket, 'location:update', ORIGIN);
+    await emit(runnerSocket, 'location:update', metersNorth(5));
+    const attempt = () =>
+      emit(hunterSocket, 'catch:attempt', { runnerId: runner.user.id });
+
+    // Nothing to answer yet
+    expect(
+      await emit(runnerSocket, 'catch:answer', { caught: false }),
+    ).toMatchObject({ ok: false, error: { code: 'NO_CATCH_TO_ANSWER' } });
+
+    expect(await attempt()).toMatchObject({ ok: true });
+    // One catch at a time per runner
+    expect(await attempt()).toMatchObject({
+      ok: false,
+      error: { code: 'CATCH_PENDING' },
+    });
+
+    const rejected = waitFor(hunterSocket, 'catch:rejected');
+    await emit(runnerSocket, 'catch:answer', { caught: false });
+    expect(await rejected).toEqual({
+      matchId: match.id,
+      runnerId: runner.user.id,
+    });
+    const after = (await hunter.api.get(`/matches/${match.id}`).expect(200))
+      .body as MatchDto;
+    expect(after.players.find((p) => p.userId === runner.user.id)?.status).toBe(
+      'ALIVE',
+    );
+
+    // The hunter can try again
+    expect(await attempt()).toMatchObject({ ok: true });
+  });
+
+  it('a catch the runner does not answer counts after a while', async () => {
+    const { match, runner, hunterSocket, runnerSocket } = await startedMatch();
+    await emit(hunterSocket, 'location:update', ORIGIN);
+    await emit(runnerSocket, 'location:update', metersNorth(5));
+
+    const caught = waitFor(hunterSocket, 'player:caught', () => true, 30_000);
+    const claim = await emit(hunterSocket, 'catch:attempt', {
+      runnerId: runner.user.id,
+    });
+    expect(claim.ok).toBe(true);
+
+    // Reconnecting brings the question back.
+    const snapshot = await emit(runnerSocket, 'match:subscribe', {
+      matchId: match.id,
+    });
+    expect(snapshot.ok && snapshot.data.pendingCatch).toEqual(
+      claim.ok && claim.data,
+    );
+
+    expect(await caught).toMatchObject({ runnerId: runner.user.id });
+  }, 40_000);
+
+  it('the host can end the match; nobody wins', async () => {
+    const { match, hunter, runner, runnerSocket } = await startedMatch();
+
+    const forbidden = await runner.api
+      .post(`/matches/${match.id}/end`)
+      .expect(403);
+    expect(forbidden.body.code).toBe('NOT_HOST');
+
+    const finished = waitFor(runnerSocket, 'match:finished');
+    const ended = await hunter.api.post(`/matches/${match.id}/end`).expect(200);
+    expect(ended.body).toMatchObject({ status: 'FINISHED', winnerTeam: null });
+    expect(await finished).toMatchObject({
+      matchId: match.id,
+      winnerTeam: null,
+    });
+
+    await hunter.api.post(`/matches/${match.id}/end`).expect(409);
   });
 
   it('pings reveal the runners to the hunters, the first as the hunt begins', async () => {

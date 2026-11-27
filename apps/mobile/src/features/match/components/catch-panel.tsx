@@ -13,34 +13,39 @@ export interface CatchPanelProps {
   match: MatchDto;
   lastPing: PingRevealPayload | null;
   myPosition: DevicePosition | null;
+  /** The runner whose answer to my catch I'm waiting for. */
+  waitingFor: string | null;
   onCatch: (runnerId: string) => Promise<unknown>;
 }
 
 /**
- * The free runners and how far their last ping was. The server is the one that
- * validates a catch (real distance and recent positions).
+ * The free runners and how far their last ping was. The server checks the real
+ * distance, then the runner confirms the catch.
  */
 export function CatchPanel({
   match,
   lastPing,
   myPosition,
+  waitingFor,
   onCatch,
 }: CatchPanelProps) {
-  const [pendingRunnerId, setPendingRunnerId] = useState<string | null>(null);
+  const [sending, setSending] = useState<string | null>(null);
+  const busyWith = sending ?? waitingFor;
   const runners = aliveRunners(match);
 
   const tryCatch = async (runnerId: string) => {
-    setPendingRunnerId(runnerId);
+    setSending(runnerId);
     try {
       await onCatch(runnerId);
     } catch (error) {
       Alert.alert('Catch failed', errorMessage(error));
     } finally {
-      setPendingRunnerId(null);
+      setSending(null);
     }
   };
 
   const pingDetail = (runnerId: string) => {
+    if (waitingFor === runnerId) return 'Waiting for them to confirm…';
     const seen = lastPing?.runners.find((r) => r.userId === runnerId);
     if (!seen) return 'Not located yet';
     if (!myPosition) return 'Located (turn on GPS to see the distance)';
@@ -65,10 +70,8 @@ export function CatchPanel({
                 title="Catch"
                 variant="hunter"
                 compact
-                loading={pendingRunnerId === runner.userId}
-                disabled={
-                  pendingRunnerId !== null && pendingRunnerId !== runner.userId
-                }
+                loading={busyWith === runner.userId}
+                disabled={busyWith !== null && busyWith !== runner.userId}
                 onPress={() => tryCatch(runner.userId)}
                 accessibilityHint="Only works within a few meters"
               />

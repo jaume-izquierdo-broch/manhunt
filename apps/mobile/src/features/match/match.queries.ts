@@ -34,3 +34,8 @@ export function useStartMatch(matchId: string) {
     mutationFn: (host: StartMatchInput) => matchApi.start(matchId, host),
   });
 }
+
+/** The host ends a match in progress: nobody wins. Returns the finished match. */
+export function useEndMatch(matchId: string) {
+  return useMutation({ mutationFn: () => matchApi.end(matchId) });
+}

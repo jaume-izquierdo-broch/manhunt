@@ -16,7 +16,7 @@ import type { AuthUser } from '../auth/auth.types.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { MatchLifecycleService } from './match-lifecycle.service.js';
 
-/** The only REST action of a live match is starting it; the rest goes over WebSocket. */
+/** Starting and ending a match are REST; everything during it goes over WebSocket. */
 @Controller('matches')
 export class LiveMatchController {
   constructor(private readonly lifecycle: MatchLifecycleService) {}
@@ -30,5 +30,15 @@ export class LiveMatchController {
     @Body(new ZodValidationPipe(startMatchSchema)) body: StartMatchInput,
   ): Promise<MatchDto> {
     return this.lifecycle.start(id, user.userId, body);
+  }
+
+  /** HIDING/ACTIVE -> FINISHED with no winner. Host only. */
+  @Post(':id/end')
+  @HttpCode(200)
+  end(
+    @CurrentUser() user: AuthUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ): Promise<MatchDto> {
+    return this.lifecycle.end(id, user.userId);
   }
 }
